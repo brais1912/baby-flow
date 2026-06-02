@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, uuid, real, pgEnum } from "drizzle-orm/pg-core";
 
-export const eventTypeEnum = pgEnum("event_type", ["sleep", "feeding", "diaper"]);
-export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rocking", "self", "nursing", "other"]);
+export const eventTypeEnum = pgEnum("event_type", ["sleep", "wake_up", "feeding", "diaper"]);
+export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rocking", "self", "nursing", "bottle", "other"]);
 export const sleepConditionEnum = pgEnum("sleep_condition", ["sleep_sack", "pajamas", "swaddle", "other"]);
 export const diaperTypeEnum = pgEnum("diaper_type", ["pee", "poop", "both"]);
 export const feedingTypeEnum = pgEnum("feeding_type", ["breast_left", "breast_right", "bottle", "formula", "solid"]);
@@ -17,7 +17,6 @@ export const events = pgTable("events", {
   sleepMethod: sleepMethodEnum("sleep_method"),
   sleepCondition: sleepConditionEnum("sleep_condition"),
   sleepRoomTemperature: real("sleep_room_temperature"),
-  sleepWokeUpAt: timestamp("sleep_woke_up_at", { withTimezone: true }),
 
   // Feeding fields
   feedingType: feedingTypeEnum("feeding_type"),

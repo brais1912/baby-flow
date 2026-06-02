@@ -1,0 +1,1 @@
+ALTER TYPE "public"."sleep_method" ADD VALUE 'bottle' BEFORE 'other';

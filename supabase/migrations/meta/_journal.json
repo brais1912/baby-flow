@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780429915401,
+      "tag": "0000_lying_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780433355056,
+      "tag": "0001_fine_northstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780433564447,
+      "tag": "0002_careless_dark_beast",
+      "breakpoints": true
+    }
+  ]
+}

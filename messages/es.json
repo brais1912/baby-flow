@@ -1,0 +1,129 @@
+{
+  "nav": {
+    "dashboard": "Inicio",
+    "sleep": "Dormir",
+    "wakeUp": "Despertar",
+    "feeding": "Toma",
+    "diaper": "Pañal"
+  },
+  "dashboard": {
+    "title": "Inicio",
+    "subtitle": "Resumen de hoy · navega por días abajo",
+    "sleepingEvents": "Eventos de sueño",
+    "feedings": "Tomas",
+    "diapers": "Pañales"
+  },
+  "dayView": {
+    "today": "Hoy",
+    "noEvents": "Sin eventos este día",
+    "noEventsFilter": "No hay eventos con este filtro",
+    "timeline": "Línea de tiempo",
+    "time": "Hora",
+    "type": "Tipo",
+    "details": "Detalles"
+  },
+  "filters": {
+    "all": "Todo",
+    "sleeping": "Sueño",
+    "feeding": "Tomas",
+    "diaper": "Pañales"
+  },
+  "eventTypes": {
+    "sleep": "Dormir",
+    "wakeUp": "Despertar",
+    "feeding": "Toma",
+    "diaper": "Pañal"
+  },
+  "eventForm": {
+    "title": "Tipo de evento",
+    "time": "Hora",
+    "notes": "Notas (opcional)",
+    "notesPlaceholder": "Notas adicionales...",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "howFellAsleep": "Cómo se quedó dormido",
+    "selectOption": "Seleccionar...",
+    "sleepCondition": "Condición de sueño",
+    "roomTemp": "Temp. habitación (°C)",
+    "feedingType": "Tipo de toma",
+    "amount": "Cantidad (ml)",
+    "amountPlaceholder": "ej. 120",
+    "duration": "Duración (min)",
+    "durationPlaceholder": "ej. 15",
+    "diaperType": "Tipo"
+  },
+  "sleepMethods": {
+    "nursing": "Mientras mamaba",
+    "bottle": "Mientras tomaba biberón",
+    "pacifier": "Chupete",
+    "held": "En brazos",
+    "rocking": "Meciéndolo",
+    "self": "Solo",
+    "other": "Otro"
+  },
+  "sleepConditions": {
+    "sleepSack": "Saco de dormir",
+    "pajamas": "Solo pijama",
+    "swaddle": "Fajado",
+    "other": "Otro"
+  },
+  "feedingTypes": {
+    "breastLeft": "Pecho izquierdo",
+    "breastRight": "Pecho derecho",
+    "bothBreasts": "Ambos pechos",
+    "bottle": "Biberón (leche materna)",
+    "formula": "Leche de fórmula",
+    "solid": "Comida sólida"
+  },
+  "diaperTypes": {
+    "pee": "Pis",
+    "poop": "Caca",
+    "both": "Pis y caca"
+  },
+  "charts": {
+    "sleepDuration": "Duración del sueño",
+    "feedingAmounts": "Cantidad de tomas",
+    "diaperChanges": "Cambios de pañal",
+    "noSleepData": "Registra un dormir + despertar para ver la duración",
+    "noFeedingData": "Sin tomas registradas",
+    "noDiaperData": "Sin pañales registrados",
+    "byType": "Por tipo",
+    "perDay": "Por día",
+    "breastfeedingPerDay": "Tomas de pecho por día",
+    "bottlePerSession": "Biberón / fórmula (ml por toma)",
+    "left": "Izquierdo",
+    "right": "Derecho",
+    "amount": "Cantidad",
+    "duration": "Duración",
+    "changes": "Cambios"
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "subtitle": "Te enviaremos un enlace mágico",
+    "emailPlaceholder": "tu@email.com",
+    "send": "Enviar enlace mágico",
+    "sending": "Enviando...",
+    "checkEmail": "Revisa tu correo",
+    "magicLinkSent": "Enviamos un enlace mágico a",
+    "signingIn": "Iniciando sesión...",
+    "expiredLink": "El enlace ha expirado o ya fue usado. Solicita uno nuevo."
+  },
+  "home": {
+    "tagline": "Registra cada momento",
+    "description": "Apunta el sueño, las tomas y los pañales. Ve patrones, compara días y entiende mejor a tu bebé.",
+    "getStarted": "Empezar"
+  },
+  "newEvent": {
+    "sleep": "Registrar sueño",
+    "wakeUp": "Registrar despertar",
+    "feeding": "Registrar toma",
+    "diaper": "Registrar pañal",
+    "default": "Registrar evento",
+    "subtitle": "Anota lo que está pasando ahora"
+  },
+  "language": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "English"
+  }
+}

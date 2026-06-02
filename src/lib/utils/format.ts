@@ -21,6 +21,7 @@ export function formatSleepDuration(start: Date, end: Date): string {
 export function eventTypeLabel(type: EventType): string {
   const labels: Record<EventType, string> = {
     sleep: "Sleep",
+    wake_up: "Wake up",
     feeding: "Feeding",
     diaper: "Diaper",
   };
@@ -38,11 +39,12 @@ export function diaperTypeLabel(type: DiaperType): string {
 
 export function sleepMethodLabel(method: SleepMethod): string {
   const labels: Record<SleepMethod, string> = {
+    nursing: "While breastfeeding",
+    bottle: "While drinking bottle",
     pacifier: "Pacifier",
     held: "Being held",
     rocking: "Rocking",
     self: "Self-soothing",
-    nursing: "Nursing",
     other: "Other",
   };
   return labels[method];

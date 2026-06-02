@@ -1,0 +1,129 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "sleep": "Sleep",
+    "wakeUp": "Wake up",
+    "feeding": "Feeding",
+    "diaper": "Diaper"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Today's summary · browse by day below",
+    "sleepingEvents": "Sleeping events",
+    "feedings": "Feedings",
+    "diapers": "Diapers"
+  },
+  "dayView": {
+    "today": "Today",
+    "noEvents": "No events this day",
+    "noEventsFilter": "No events match this filter",
+    "timeline": "Day timeline",
+    "time": "Time",
+    "type": "Type",
+    "details": "Details"
+  },
+  "filters": {
+    "all": "All",
+    "sleeping": "Sleeping",
+    "feeding": "Feeding",
+    "diaper": "Diaper"
+  },
+  "eventTypes": {
+    "sleep": "Sleep",
+    "wakeUp": "Wake up",
+    "feeding": "Feeding",
+    "diaper": "Diaper"
+  },
+  "eventForm": {
+    "title": "Event Type",
+    "time": "Time",
+    "notes": "Notes (optional)",
+    "notesPlaceholder": "Any additional notes...",
+    "save": "Save Event",
+    "saving": "Saving...",
+    "howFellAsleep": "How they fell asleep",
+    "selectOption": "Select...",
+    "sleepCondition": "Sleep condition",
+    "roomTemp": "Room temp (°C)",
+    "feedingType": "Feeding type",
+    "amount": "Amount (ml)",
+    "amountPlaceholder": "e.g. 120",
+    "duration": "Duration (min)",
+    "durationPlaceholder": "e.g. 15",
+    "diaperType": "Type"
+  },
+  "sleepMethods": {
+    "nursing": "While breastfeeding",
+    "bottle": "While drinking bottle",
+    "pacifier": "Pacifier",
+    "held": "Being held",
+    "rocking": "Rocking",
+    "self": "Self-soothing",
+    "other": "Other"
+  },
+  "sleepConditions": {
+    "sleepSack": "Sleep sack",
+    "pajamas": "Just pajamas",
+    "swaddle": "Swaddle",
+    "other": "Other"
+  },
+  "feedingTypes": {
+    "breastLeft": "Breast (left)",
+    "breastRight": "Breast (right)",
+    "bothBreasts": "Both breasts",
+    "bottle": "Bottle (breast milk)",
+    "formula": "Formula",
+    "solid": "Solid food"
+  },
+  "diaperTypes": {
+    "pee": "Pee",
+    "poop": "Poop",
+    "both": "Both"
+  },
+  "charts": {
+    "sleepDuration": "Sleep duration",
+    "feedingAmounts": "Feeding amounts",
+    "diaperChanges": "Diaper changes",
+    "noSleepData": "Log a sleep + wake up event to see duration",
+    "noFeedingData": "No feedings recorded yet",
+    "noDiaperData": "No diaper changes recorded yet",
+    "byType": "By type",
+    "perDay": "Per day",
+    "breastfeedingPerDay": "Breastfeeding sessions per day",
+    "bottlePerSession": "Bottle / formula (ml per session)",
+    "left": "Left",
+    "right": "Right",
+    "amount": "Amount",
+    "duration": "Duration",
+    "changes": "Changes"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "We'll send you a magic link",
+    "emailPlaceholder": "your@email.com",
+    "send": "Send magic link",
+    "sending": "Sending...",
+    "checkEmail": "Check your email",
+    "magicLinkSent": "We sent a magic link to",
+    "signingIn": "Signing you in...",
+    "expiredLink": "Link expired or already used. Please request a new one."
+  },
+  "home": {
+    "tagline": "Track every moment",
+    "description": "Log sleep, feedings, and diaper changes. See patterns, compare days, and understand your baby better.",
+    "getStarted": "Get started"
+  },
+  "newEvent": {
+    "sleep": "Log sleep",
+    "wakeUp": "Log wake up",
+    "feeding": "Log feeding",
+    "diaper": "Log diaper change",
+    "default": "Log event",
+    "subtitle": "Record what's happening right now"
+  },
+  "language": {
+    "label": "Language",
+    "es": "Español",
+    "en": "English"
+  }
+}
