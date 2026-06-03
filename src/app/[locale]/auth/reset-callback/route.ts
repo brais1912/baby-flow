@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const locale = request.nextUrl.pathname.split("/")[1] ?? "es";
 
   if (code) {
     const cookieStore = await cookies();
@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
       }
     );
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) return NextResponse.redirect(`${origin}/${locale}/reset-password`);
   }
 
-  return NextResponse.redirect(`${origin}/es/login?error=auth`);
+  return NextResponse.redirect(`${origin}/${locale}/login?error=auth`);
 }

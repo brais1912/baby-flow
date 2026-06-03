@@ -1,106 +1,176 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/browser";
 import { LogoWithText } from "@/components/ui/Logo";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
-import { Suspense } from "react";
 
-function LoginForm() {
+const inputClass =
+  "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all";
+const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5";
+
+type Mode = "signin" | "signup" | "forgot";
+
+export default function LoginPage() {
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const t = useTranslations("login");
   const locale = useLocale();
 
-  useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) return;
-
-    const supabase = createClient();
-    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-      if (!error) {
-        router.replace(`/${locale}/dashboard`);
-      } else {
-        setError(t("expiredLink"));
-      }
-    });
-  }, [searchParams, router, locale, t]);
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setSuccess(null);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
+
     startTransition(async () => {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${window.location.origin}/${locale}/login` },
-      });
-      if (error) setError(error.message);
-      else setSent(true);
+
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/${locale}/auth/reset-callback`,
+        });
+        if (error) { setError(error.message); return; }
+        setSuccess(t("resetEmailSent"));
+        return;
+      }
+
+      if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) { setError(error.message); return; }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          router.replace(`/${locale}/dashboard`);
+        } else {
+          setSuccess(t("confirmEmail"));
+        }
+        return;
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) { setError(t("invalidCredentials")); return; }
+      router.replace(`/${locale}/dashboard`);
     });
   }
 
-  if (searchParams.get("code")) {
-    return (
-      <div className="text-center py-4">
-        <p className="text-sm text-gray-500">{t("signingIn")}</p>
-        {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
-      </div>
-    );
-  }
+  const titles: Record<Mode, string> = {
+    signin: t("title"),
+    signup: t("signUpTitle"),
+    forgot: t("forgotTitle"),
+  };
+  const subtitles: Record<Mode, string> = {
+    signin: t("subtitle"),
+    signup: t("signUpSubtitle"),
+    forgot: t("forgotSubtitle"),
+  };
+  const submitLabels: Record<Mode, string> = {
+    signin: t("signIn"),
+    signup: t("signUp"),
+    forgot: t("sendReset"),
+  };
 
-  return sent ? (
-    <div className="text-center">
-      <p className="text-2xl mb-2">📬</p>
-      <h2 className="font-semibold text-gray-900 mb-1">{t("checkEmail")}</h2>
-      <p className="text-sm text-gray-500">{t("magicLinkSent")} <strong>{email}</strong></p>
-    </div>
-  ) : (
-    <>
-      <h2 className="font-semibold text-gray-900 mb-1">{t("title")}</h2>
-      <p className="text-sm text-gray-500 mb-4">{t("subtitle")}</p>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t("emailPlaceholder")}
-          required
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-        />
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full bg-purple-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors"
-        >
-          {isPending ? t("sending") : t("send")}
-        </button>
-      </form>
-    </>
-  );
-}
-
-export default function LoginPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-fuchsia-50 px-4">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 via-white to-fuchsia-50 px-4">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
-      <div className="w-full max-w-sm">
+
+      <div className="absolute top-0 left-0 w-64 h-64 bg-purple-200 rounded-full opacity-20 blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-80 h-80 bg-fuchsia-200 rounded-full opacity-20 blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none" />
+
+      <div className="w-full max-w-sm relative">
         <div className="flex justify-center mb-8">
           <LogoWithText />
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <Suspense fallback={<p className="text-sm text-gray-500">...</p>}>
-            <LoginForm />
-          </Suspense>
+
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl shadow-purple-100 border border-white p-6">
+          <h2 className="font-bold text-gray-900 text-lg mb-1">{titles[mode]}</h2>
+          <p className="text-sm text-gray-400 mb-5">{subtitles[mode]}</p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className={labelClass}>{t("email")}</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("emailPlaceholder")}
+                required
+                autoComplete="email"
+                className={inputClass}
+              />
+            </div>
+
+            {mode !== "forgot" && (
+              <div>
+                <label className={labelClass}>{t("password")}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t("passwordPlaceholder")}
+                  required
+                  minLength={6}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  className={inputClass}
+                />
+              </div>
+            )}
+
+            {error && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                {error}
+              </p>
+            )}
+            {success && (
+              <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5">
+                {success}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3.5 rounded-xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-50 transition-all active:scale-[0.98] shadow-md shadow-purple-200"
+            >
+              {isPending ? "..." : submitLabels[mode]}
+            </button>
+          </form>
+
+          <div className="mt-4 flex flex-col items-center gap-2">
+            {mode === "signin" && (
+              <>
+                <button onClick={() => switchMode("forgot")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                  {t("forgotPassword")}
+                </button>
+                <button onClick={() => switchMode("signup")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                  {t("noAccount")}
+                </button>
+              </>
+            )}
+            {mode === "signup" && (
+              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                {t("hasAccount")}
+              </button>
+            )}
+            {mode === "forgot" && (
+              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                ← {t("backToSignIn")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </main>

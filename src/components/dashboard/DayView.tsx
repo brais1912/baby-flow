@@ -7,38 +7,38 @@ import { format, startOfDay, endOfDay, addDays, subDays, isToday } from "date-fn
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatTime, formatSleepDuration, diaperTypeLabel, sleepMethodLabel, eventTypeLabel } from "@/lib/utils/format";
+import { formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
 
 const TimelineChart = dynamic(
   () => import("./TimelineChart").then((m) => m.TimelineChart),
-  { ssr: false, loading: () => <div className="h-20 flex items-center justify-center text-sm text-gray-400">...</div> }
+  { ssr: false, loading: () => <div className="h-16 flex items-center justify-center text-sm text-gray-300">...</div> }
 );
 
 const EVENT_EMOJI: Record<string, string> = {
   sleep: "😴", wake_up: "🌅", feeding: "🍼", diaper: "👶",
 };
 
-const EVENT_COLOR_CLASS: Record<string, string> = {
-  sleep:   "bg-purple-100 text-purple-700",
-  wake_up: "bg-orange-100 text-orange-700",
-  feeding: "bg-blue-100 text-blue-700",
-  diaper:  "bg-amber-100 text-amber-700",
+const EVENT_STYLE: Record<string, { pill: string; dot: string; card: string }> = {
+  sleep:   { pill: "bg-purple-100 text-purple-700", dot: "bg-purple-400", card: "border-l-purple-400" },
+  wake_up: { pill: "bg-orange-100 text-orange-600", dot: "bg-orange-400", card: "border-l-orange-400" },
+  feeding: { pill: "bg-blue-100 text-blue-600",     dot: "bg-blue-400",   card: "border-l-blue-400" },
+  diaper:  { pill: "bg-amber-100 text-amber-700",   dot: "bg-amber-400",  card: "border-l-amber-400" },
 };
 
 type FilterValue = "all" | "sleeping" | "feeding" | "diaper";
 
-const FILTER_ACTIVE_CLASS: Record<FilterValue, string> = {
-  all:      "bg-gray-700 text-white",
-  sleeping: "bg-purple-500 text-white",
-  feeding:  "bg-blue-500 text-white",
-  diaper:   "bg-amber-500 text-white",
+const FILTER_ACTIVE: Record<FilterValue, string> = {
+  all:      "bg-gray-800 text-white shadow-sm",
+  sleeping: "bg-purple-500 text-white shadow-sm",
+  feeding:  "bg-blue-500 text-white shadow-sm",
+  diaper:   "bg-amber-500 text-white shadow-sm",
 };
 
-const FILTER_IDLE_CLASS: Record<FilterValue, string> = {
-  all:      "bg-gray-100 text-gray-500 hover:bg-gray-200",
-  sleeping: "bg-purple-100 text-purple-700 hover:bg-purple-200",
-  feeding:  "bg-blue-100 text-blue-700 hover:bg-blue-200",
-  diaper:   "bg-amber-100 text-amber-700 hover:bg-amber-200",
+const FILTER_IDLE: Record<FilterValue, string> = {
+  all:      "bg-gray-100 text-gray-500",
+  sleeping: "bg-purple-50 text-purple-600",
+  feeding:  "bg-blue-50 text-blue-600",
+  diaper:   "bg-amber-50 text-amber-600",
 };
 
 function matchesFilter(event: Event, filter: FilterValue): boolean {
@@ -52,6 +52,7 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
   if (event.type === "feeding" && event.feedingType) {
     const keyMap: Record<string, string> = {
       breast_left: "breastLeft", breast_right: "breastRight",
+      both_breasts: "both_breasts",
       bottle: "bottle", formula: "formula", solid: "solid",
     };
     const type = tFeeding(keyMap[event.feedingType] ?? event.feedingType);
@@ -68,17 +69,23 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
       .filter((e) => e.type === "sleep" && new Date(e.occurredAt) < wakeTime)
       .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0];
     if (prevSleep) {
-      return `😴 ${formatTime(new Date(prevSleep.occurredAt))} → 🌅 ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
+      return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
     }
   }
   return "";
 }
 
-export function DayView({ events }: { events: Event[] }) {
-  const [currentDay, setCurrentDay] = useState(() => startOfDay(new Date()));
+export function DayView({ events, currentDay: controlledDay, onDayChange }: {
+  events: Event[];
+  currentDay?: Date;
+  onDayChange?: (day: Date) => void;
+}) {
+  const [internalDay, setInternalDay] = useState(() => startOfDay(new Date()));
+  const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
   const t = useTranslations("dayView");
   const tFilters = useTranslations("filters");
+  const tEventTypes = useTranslations("eventTypes");
   const tMethods = useTranslations("sleepMethods");
   const tDiaper = useTranslations("diaperTypes");
   const tFeeding = useTranslations("feedingTypes");
@@ -87,24 +94,28 @@ export function DayView({ events }: { events: Event[] }) {
 
   const canGoForward = !isToday(currentDay);
 
-  const dayEvents = events
-    .filter((e) => {
-      const t = new Date(e.occurredAt);
-      return t >= startOfDay(currentDay) && t <= endOfDay(currentDay);
-    })
-    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+  const dayEvents = deduplicateBothBreasts(
+    events
+      .filter((e) => {
+        const d = new Date(e.occurredAt);
+        return d >= startOfDay(currentDay) && d <= endOfDay(currentDay);
+      })
+      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+  );
 
   const filteredEvents = dayEvents.filter((e) => matchesFilter(e, filter));
 
   const FILTERS: { value: FilterValue; label: string; emoji: string }[] = [
-    { value: "all",      label: tFilters("all"),      emoji: "📋" },
-    { value: "sleeping", label: tFilters("sleeping"),  emoji: "😴" },
-    { value: "feeding",  label: tFilters("feeding"),   emoji: "🍼" },
-    { value: "diaper",   label: tFilters("diaper"),    emoji: "👶" },
+    { value: "all",      label: tFilters("all"),     emoji: "📋" },
+    { value: "sleeping", label: tFilters("sleeping"), emoji: "😴" },
+    { value: "feeding",  label: tFilters("feeding"),  emoji: "🍼" },
+    { value: "diaper",   label: tFilters("diaper"),   emoji: "👶" },
   ];
 
   function navigate(dir: "prev" | "next") {
-    setCurrentDay((d) => dir === "prev" ? subDays(d, 1) : addDays(d, 1));
+    const next = dir === "prev" ? subDays(currentDay, 1) : addDays(currentDay, 1);
+    setInternalDay(next);
+    onDayChange?.(next);
     setFilter("all");
   }
 
@@ -113,71 +124,95 @@ export function DayView({ events }: { events: Event[] }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-4">
+    <div className="space-y-4">
       {/* Day navigation */}
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate("prev")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg leading-none transition-colors" aria-label="Previous day">‹</button>
-        <span className="text-sm font-semibold text-gray-800">
+        <button
+          onClick={() => navigate("prev")}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors"
+          aria-label="Previous day"
+        >
+          ‹
+        </button>
+        <span className="text-base font-bold text-gray-800">
           {isToday(currentDay) ? t("today") : format(currentDay, "EEEE, d MMM", { locale: dateFnsLocale })}
         </span>
-        <button onClick={() => navigate("next")} disabled={!canGoForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Next day">›</button>
+        <button
+          onClick={() => navigate("next")}
+          disabled={!canGoForward}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+          aria-label="Next day"
+        >
+          ›
+        </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
         {FILTERS.map(({ value, label, emoji }) => (
           <button
             key={value}
             onClick={() => setFilter(value)}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-medium transition-all ${filter === value ? FILTER_ACTIVE_CLASS[value] : FILTER_IDLE_CLASS[value]}`}
+            className={`flex-shrink-0 flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all active:scale-95 ${filter === value ? FILTER_ACTIVE[value] : FILTER_IDLE[value]}`}
           >
-            {emoji} {label}
-            {value !== "all" && <span className="ml-1 opacity-70">{filterCount(value)}</span>}
+            <span>{emoji}</span>
+            <span>{label}</span>
+            {value !== "all" && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === value ? "bg-white/20" : "bg-white/60"}`}>
+                {filterCount(value)}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Table */}
+      {/* Event cards */}
       {filteredEvents.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-2">
-          {dayEvents.length === 0 ? t("noEvents") : t("noEventsFilter")}
-        </p>
+        <div className="text-center py-8">
+          <p className="text-3xl mb-2">🌙</p>
+          <p className="text-sm text-gray-400">
+            {dayEvents.length === 0 ? t("noEvents") : t("noEventsFilter")}
+          </p>
+        </div>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-gray-400 border-b border-gray-100">
-              <th className="text-left pb-2 font-medium w-16">{t("time")}</th>
-              <th className="text-left pb-2 font-medium w-24">{t("type")}</th>
-              <th className="text-left pb-2 font-medium">{t("details")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEvents.map((event) => (
-              <tr key={event.id} className="border-b border-gray-50 last:border-0">
-                <td className="py-2 text-gray-500 tabular-nums">{formatTime(new Date(event.occurredAt))}</td>
-                <td className="py-2">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${EVENT_COLOR_CLASS[event.type]}`}>
-                    {EVENT_EMOJI[event.type]} {eventTypeLabel(event.type)}
-                  </span>
-                </td>
-                <td className="py-2 text-gray-500 capitalize text-xs">
-                  <span>{eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding)}</span>
-                  {event.notes && <span className="block italic text-gray-400 mt-0.5">{event.notes}</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-2">
+          {filteredEvents.map((event) => {
+            const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
+            const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
+            return (
+              <div
+                key={event.id}
+                className={`bg-white rounded-xl border border-gray-100 border-l-4 ${style.card} px-4 py-3 flex items-start gap-3 shadow-sm`}
+              >
+                <span className="text-xl mt-0.5 leading-none">{EVENT_EMOJI[event.type]}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
+                      {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
+                    </span>
+                    {detail && <span className="text-xs text-gray-500 truncate">{detail}</span>}
+                  </div>
+                  {event.notes && (
+                    <p className="text-xs text-gray-400 italic mt-1 truncate">{event.notes}</p>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400 tabular-nums font-medium flex-shrink-0 mt-0.5">
+                  {formatTime(new Date(event.occurredAt))}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Timeline */}
-      <div className="pt-2 border-t border-gray-50">
-        <p className="text-xs text-gray-400 mb-2">{t("timeline")}</p>
+      <div className="pt-3 border-t border-gray-100">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t("timeline")}</p>
         <TimelineChart events={events} visibleEvents={filteredEvents} currentDay={currentDay} />
         <div className="flex gap-4 mt-2 text-xs text-gray-400">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> {tFilters("sleeping")}</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {tFilters("feeding")}</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> {tFilters("diaper")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />{tFilters("sleeping")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />{tFilters("feeding")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />{tFilters("diaper")}</span>
         </div>
       </div>
     </div>

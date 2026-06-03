@@ -22,6 +22,20 @@
       "when": 1780433564447,
       "tag": "0002_careless_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780501630171,
+      "tag": "0003_pretty_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780504779601,
+      "tag": "0004_brown_mulholland_black",
+      "breakpoints": true
     }
   ]
 }

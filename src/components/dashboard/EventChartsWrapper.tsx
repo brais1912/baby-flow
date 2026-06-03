@@ -9,29 +9,18 @@ const loading = () => (
   </div>
 );
 
-const SleepChart = dynamic(
-  () => import("./EventCharts").then((m) => m.SleepChart),
-  { ssr: false, loading }
-);
-
-const FeedingChart = dynamic(
-  () => import("./EventCharts").then((m) => m.FeedingChart),
-  { ssr: false, loading }
-);
-
-const DiaperChart = dynamic(
-  () => import("./EventCharts").then((m) => m.DiaperChart),
-  { ssr: false, loading }
-);
+const SleepChart = dynamic(() => import("./EventCharts").then((m) => m.SleepChart), { ssr: false, loading });
+const FeedingChart = dynamic(() => import("./EventCharts").then((m) => m.FeedingChart), { ssr: false, loading });
+const DiaperChart = dynamic(() => import("./EventCharts").then((m) => m.DiaperChart), { ssr: false, loading });
 
 export function SleepChartWrapper({ events }: { events: Event[] }) {
-  return <SleepChart events={events} />;
+  return <div className="w-full min-w-0 overflow-hidden"><SleepChart events={events} /></div>;
 }
 
 export function FeedingChartWrapper({ events }: { events: Event[] }) {
-  return <FeedingChart events={events} />;
+  return <div className="w-full min-w-0 overflow-hidden"><FeedingChart events={events} /></div>;
 }
 
 export function DiaperChartWrapper({ events }: { events: Event[] }) {
-  return <DiaperChart events={events} />;
+  return <div className="w-full min-w-0 overflow-hidden"><DiaperChart events={events} /></div>;
 }

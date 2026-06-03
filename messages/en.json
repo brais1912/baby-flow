@@ -50,7 +50,11 @@
     "amountPlaceholder": "e.g. 120",
     "duration": "Duration (min)",
     "durationPlaceholder": "e.g. 15",
-    "diaperType": "Type"
+    "diaperType": "Type",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "hour": "Hour",
+    "minute": "Minute"
   },
   "sleepMethods": {
     "nursing": "While breastfeeding",
@@ -64,6 +68,8 @@
   "sleepConditions": {
     "sleepSack": "Sleep sack",
     "pajamas": "Just pajamas",
+    "bodysuit": "Just bodysuit",
+    "topAndBottoms": "Top and bottoms",
     "swaddle": "Swaddle",
     "other": "Other"
   },
@@ -71,6 +77,7 @@
     "breastLeft": "Breast (left)",
     "breastRight": "Breast (right)",
     "bothBreasts": "Both breasts",
+    "both_breasts": "Both breasts",
     "bottle": "Bottle (breast milk)",
     "formula": "Formula",
     "solid": "Solid food"
@@ -95,18 +102,38 @@
     "right": "Right",
     "amount": "Amount",
     "duration": "Duration",
-    "changes": "Changes"
+    "changes": "Changes",
+    "total": "total",
+    "sessions": "sessions"
   },
   "login": {
     "title": "Sign in",
-    "subtitle": "We'll send you a magic link",
+    "subtitle": "Enter your email and password",
+    "signUpTitle": "Create account",
+    "signUpSubtitle": "Pick an email and password to get started",
+    "forgotTitle": "Reset password",
+    "forgotSubtitle": "We'll send you a reset link",
+    "newPasswordTitle": "Set new password",
+    "newPasswordSubtitle": "Choose a new password for your account",
+    "email": "Email",
     "emailPlaceholder": "your@email.com",
-    "send": "Send magic link",
-    "sending": "Sending...",
-    "checkEmail": "Check your email",
-    "magicLinkSent": "We sent a magic link to",
-    "signingIn": "Signing you in...",
-    "expiredLink": "Link expired or already used. Please request a new one."
+    "password": "Password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "sendReset": "Send reset link",
+    "savePassword": "Save new password",
+    "noAccount": "No account yet? Sign up",
+    "hasAccount": "Already have an account? Sign in",
+    "forgotPassword": "Forgot password?",
+    "backToSignIn": "Back to sign in",
+    "invalidCredentials": "Invalid email or password.",
+    "confirmEmail": "Check your email to confirm your account before signing in.",
+    "resetEmailSent": "Check your email — we sent a password reset link.",
+    "passwordMismatch": "Passwords don't match.",
+    "verifyingLink": "Verifying link..."
   },
   "home": {
     "tagline": "Track every moment",

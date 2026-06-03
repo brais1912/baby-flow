@@ -2,9 +2,9 @@ import { pgTable, text, timestamp, uuid, real, pgEnum } from "drizzle-orm/pg-cor
 
 export const eventTypeEnum = pgEnum("event_type", ["sleep", "wake_up", "feeding", "diaper"]);
 export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rocking", "self", "nursing", "bottle", "other"]);
-export const sleepConditionEnum = pgEnum("sleep_condition", ["sleep_sack", "pajamas", "swaddle", "other"]);
+export const sleepConditionEnum = pgEnum("sleep_condition", ["sleep_sack", "pajamas", "bodysuit", "top_and_bottoms", "swaddle", "other"]);
 export const diaperTypeEnum = pgEnum("diaper_type", ["pee", "poop", "both"]);
-export const feedingTypeEnum = pgEnum("feeding_type", ["breast_left", "breast_right", "bottle", "formula", "solid"]);
+export const feedingTypeEnum = pgEnum("feeding_type", ["breast_left", "breast_right", "both_breasts", "bottle", "formula", "solid"]);
 
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),

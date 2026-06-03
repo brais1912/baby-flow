@@ -1,0 +1,180 @@
+{
+  "id": "a454f576-4f1f-42d4-bc6c-34dc31fc880a",
+  "prevId": "e3042391-2e0b-4890-add7-4bae80d58e70",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.events": {
+      "name": "events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sleep_method": {
+          "name": "sleep_method",
+          "type": "sleep_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sleep_condition": {
+          "name": "sleep_condition",
+          "type": "sleep_condition",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sleep_room_temperature": {
+          "name": "sleep_room_temperature",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feeding_type": {
+          "name": "feeding_type",
+          "type": "feeding_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feeding_amount_ml": {
+          "name": "feeding_amount_ml",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feeding_duration_minutes": {
+          "name": "feeding_duration_minutes",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "diaper_type": {
+          "name": "diaper_type",
+          "type": "diaper_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.diaper_type": {
+      "name": "diaper_type",
+      "schema": "public",
+      "values": [
+        "pee",
+        "poop",
+        "both"
+      ]
+    },
+    "public.event_type": {
+      "name": "event_type",
+      "schema": "public",
+      "values": [
+        "sleep",
+        "wake_up",
+        "feeding",
+        "diaper"
+      ]
+    },
+    "public.feeding_type": {
+      "name": "feeding_type",
+      "schema": "public",
+      "values": [
+        "breast_left",
+        "breast_right",
+        "bottle",
+        "formula",
+        "solid"
+      ]
+    },
+    "public.sleep_condition": {
+      "name": "sleep_condition",
+      "schema": "public",
+      "values": [
+        "sleep_sack",
+        "pajamas",
+        "bodysuit",
+        "top_and_bottoms",
+        "swaddle",
+        "other"
+      ]
+    },
+    "public.sleep_method": {
+      "name": "sleep_method",
+      "schema": "public",
+      "values": [
+        "pacifier",
+        "held",
+        "rocking",
+        "self",
+        "nursing",
+        "bottle",
+        "other"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

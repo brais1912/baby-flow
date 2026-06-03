@@ -1,0 +1,1 @@
+ALTER TYPE "public"."feeding_type" ADD VALUE 'both_breasts' BEFORE 'bottle';

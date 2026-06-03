@@ -1,9 +1,90 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useTransition } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { format, subDays, startOfDay, isToday, isYesterday } from "date-fns";
+import { es, enUS } from "date-fns/locale";
 import { createEvent } from "@/lib/actions/events";
 import type { EventType } from "@/types/events";
+
+const selectClass = "flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all text-center appearance-none";
+const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5";
+
+// ── Time picker ───────────────────────────────────────────────────────────────
+
+function buildDate(dayOffset: number, hour: number, minute: number): Date {
+  const d = subDays(startOfDay(new Date()), dayOffset);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
+function TimePicker({ value, onChange }: {
+  value: { dayOffset: number; hour: number; minute: number };
+  onChange: (v: { dayOffset: number; hour: number; minute: number }) => void;
+}) {
+  const t = useTranslations("eventForm");
+  const locale = useLocale();
+  const dateFnsLocale = locale === "es" ? es : enUS;
+
+  const dayOptions = [0, 1, 2].map((offset) => {
+    const d = subDays(new Date(), offset);
+    const label = isToday(d)
+      ? t("today")
+      : isYesterday(d)
+      ? t("yesterday")
+      : format(d, "EEE d MMM", { locale: dateFnsLocale });
+    return { offset, label };
+  });
+
+  return (
+    <div className="space-y-2">
+      {/* Day selector */}
+      <div className="flex gap-2">
+        {dayOptions.map(({ offset, label }) => (
+          <button
+            key={offset}
+            type="button"
+            onClick={() => onChange({ ...value, dayOffset: offset })}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all active:scale-95 ${
+              value.dayOffset === offset
+                ? "border-purple-500 bg-purple-50 text-purple-700"
+                : "border-gray-200 bg-white text-gray-500"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Hour + minute selects */}
+      <div className="flex gap-2 items-center">
+        <select
+          value={value.hour}
+          onChange={(e) => onChange({ ...value, hour: Number(e.target.value) })}
+          className={selectClass}
+          aria-label={t("hour")}
+        >
+          {Array.from({ length: 24 }, (_, i) => (
+            <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+          ))}
+        </select>
+        <span className="text-xl font-bold text-gray-400 flex-shrink-0">:</span>
+        <select
+          value={value.minute}
+          onChange={(e) => onChange({ ...value, minute: Number(e.target.value) })}
+          className={selectClass}
+          aria-label={t("minute")}
+        >
+          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+            <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// ── Feeding fields ────────────────────────────────────────────────────────────
 
 type FeedingFieldsProps = {
   t: ReturnType<typeof useTranslations>;
@@ -13,16 +94,17 @@ type FeedingFieldsProps = {
 function FeedingFields({ t, tFeeding }: FeedingFieldsProps) {
   const [feedingType, setFeedingType] = useState("");
   const isBreast = feedingType === "breast_left" || feedingType === "breast_right" || feedingType === "both_breasts";
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{t("feedingType")}</label>
+        <label className={labelClass}>{t("feedingType")}</label>
         <select
           name="feedingType"
           value={feedingType}
           onChange={(e) => setFeedingType(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className={inputClass}
         >
           <option value="">{t("selectOption")}</option>
           <option value="breast_left">{tFeeding("breastLeft")}</option>
@@ -36,24 +118,43 @@ function FeedingFields({ t, tFeeding }: FeedingFieldsProps) {
       <div className="flex gap-3">
         {!isBreast && (
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("amount")}</label>
-            <input type="number" name="amount" min="0" step="5" placeholder={t("amountPlaceholder")}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            <label className={labelClass}>{t("amount")}</label>
+            <input type="number" name="amount" min="0" step="5" placeholder={t("amountPlaceholder")} className={inputClass} />
           </div>
         )}
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t("duration")}</label>
-          <input type="number" name="duration" min="0" placeholder={t("durationPlaceholder")}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          <label className={labelClass}>{t("duration")}</label>
+          <input type="number" name="duration" min="0" placeholder={t("durationPlaceholder")} className={inputClass} />
         </div>
       </div>
     </div>
   );
 }
 
+// ── Main form ─────────────────────────────────────────────────────────────────
+
+const EVENT_TYPES_STYLE: Record<string, { selected: string; idle: string }> = {
+  sleep:   { selected: "border-purple-500 bg-purple-50 text-purple-700 shadow-sm", idle: "border-gray-200 bg-white text-gray-500 hover:border-purple-200" },
+  wake_up: { selected: "border-orange-400 bg-orange-50 text-orange-600 shadow-sm", idle: "border-gray-200 bg-white text-gray-500 hover:border-orange-200" },
+  feeding: { selected: "border-blue-500 bg-blue-50 text-blue-600 shadow-sm",       idle: "border-gray-200 bg-white text-gray-500 hover:border-blue-200" },
+  diaper:  { selected: "border-amber-400 bg-amber-50 text-amber-600 shadow-sm",    idle: "border-gray-200 bg-white text-gray-500 hover:border-amber-200" },
+};
+
+const EVENT_EMOJIS: Record<string, string> = {
+  sleep: "😴", wake_up: "🌅", feeding: "🍼", diaper: "👶",
+};
+
+function nowPicker() {
+  const now = new Date();
+  const minute = Math.floor(now.getMinutes() / 5) * 5;
+  return { dayOffset: 0, hour: now.getHours(), minute };
+}
+
 export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; initialType?: EventType }) {
   const [selectedType, setSelectedType] = useState<EventType | null>(initialType ?? null);
+  const [timeValue, setTimeValue] = useState(nowPicker);
   const [isPending, startTransition] = useTransition();
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all";
   const t = useTranslations("eventForm");
   const tTypes = useTranslations("eventTypes");
   const tMethods = useTranslations("sleepMethods");
@@ -61,16 +162,12 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
   const tFeeding = useTranslations("feedingTypes");
   const tDiaper = useTranslations("diaperTypes");
 
-  const EVENT_TYPES: { value: EventType; label: string; emoji: string }[] = [
-    { value: "sleep",   label: tTypes("sleep"),   emoji: "😴" },
-    { value: "wake_up", label: tTypes("wakeUp"),  emoji: "🌅" },
-    { value: "feeding", label: tTypes("feeding"), emoji: "🍼" },
-    { value: "diaper",  label: tTypes("diaper"),  emoji: "👶" },
+  const EVENT_TYPES: { value: EventType; label: string }[] = [
+    { value: "sleep",   label: tTypes("sleep") },
+    { value: "wake_up", label: tTypes("wakeUp") },
+    { value: "feeding", label: tTypes("feeding") },
+    { value: "diaper",  label: tTypes("diaper") },
   ];
-
-  useEffect(() => {
-    setSelectedType(initialType ?? null);
-  }, [initialType]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,7 +175,7 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const occurredAt = new Date(formData.get("occurredAt") as string);
+    const occurredAt = buildDate(timeValue.dayOffset, timeValue.hour, timeValue.minute);
     const notes = (formData.get("notes") as string) || undefined;
 
     startTransition(async () => {
@@ -95,12 +192,7 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
         const feedingType = formData.get("feedingType") as string;
         const amountMl = formData.get("amount") ? Number(formData.get("amount")) : undefined;
         const durationMinutes = formData.get("duration") ? Number(formData.get("duration")) : undefined;
-        if (feedingType === "both_breasts") {
-          await createEvent({ type: "feeding", occurredAt, notes, feedingType: "breast_left" as never, feedingDurationMinutes: durationMinutes });
-          await createEvent({ type: "feeding", occurredAt, notes, feedingType: "breast_right" as never, feedingDurationMinutes: durationMinutes });
-        } else {
-          await createEvent({ type: "feeding", occurredAt, notes, feedingType: feedingType as never || undefined, feedingAmountMl: amountMl, feedingDurationMinutes: durationMinutes });
-        }
+        await createEvent({ type: "feeding", occurredAt, notes, feedingType: feedingType as never || undefined, feedingAmountMl: amountMl, feedingDurationMinutes: durationMinutes });
       } else if (selectedType === "diaper") {
         await createEvent({
           type: "diaper", occurredAt, notes,
@@ -110,45 +202,48 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
 
       form.reset();
       setSelectedType(null);
+      setTimeValue(nowPicker());
       onSuccess?.();
     });
   }
 
-  const nowLocalISO = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString().slice(0, 16);
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Type selector */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{t("title")}</label>
+        <label className={labelClass}>{t("title")}</label>
         <div className="grid grid-cols-4 gap-2">
-          {EVENT_TYPES.map(({ value, label, emoji }) => (
-            <button key={value} type="button" onClick={() => setSelectedType(value)}
-              className={`py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                selectedType === value
-                  ? "border-purple-500 bg-purple-50 text-purple-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-purple-200"
-              }`}>
-              <span className="text-lg block">{emoji}</span>
-              {label}
-            </button>
-          ))}
+          {EVENT_TYPES.map(({ value, label }) => {
+            const s = EVENT_TYPES_STYLE[value];
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSelectedType(value)}
+                className={`py-4 rounded-2xl border-2 text-xs font-semibold transition-all active:scale-95 ${selectedType === value ? s.selected : s.idle}`}
+              >
+                <span className="text-2xl block mb-1">{EVENT_EMOJIS[value]}</span>
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {selectedType && (
         <>
+          {/* Time picker */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("time")}</label>
-            <input type="datetime-local" name="occurredAt" defaultValue={nowLocalISO} required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            <label className={labelClass}>{t("time")}</label>
+            <TimePicker value={timeValue} onChange={setTimeValue} />
           </div>
 
+          {/* Sleep fields */}
           {selectedType === "sleep" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("howFellAsleep")}</label>
-                <select name="sleepMethod" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                <label className={labelClass}>{t("howFellAsleep")}</label>
+                <select name="sleepMethod" className={inputClass}>
                   <option value="">{t("selectOption")}</option>
                   <option value="nursing">{tMethods("nursing")}</option>
                   <option value="bottle">{tMethods("bottle")}</option>
@@ -160,18 +255,19 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("sleepCondition")}</label>
-                <select name="sleepCondition" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                <label className={labelClass}>{t("sleepCondition")}</label>
+                <select name="sleepCondition" className={inputClass}>
                   <option value="">{t("selectOption")}</option>
                   <option value="sleep_sack">{tConditions("sleepSack")}</option>
                   <option value="pajamas">{tConditions("pajamas")}</option>
-                  <option value="swaddle">{tConditions("swaddle")}</option>
+                  <option value="bodysuit">{tConditions("bodysuit")}</option>
+                  <option value="top_and_bottoms">{tConditions("topAndBottoms")}</option>
                   <option value="other">{tConditions("other")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("roomTemp")}</label>
-                <select name="roomTemp" defaultValue="25" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                <label className={labelClass}>{t("roomTemp")}</label>
+                <select name="roomTemp" defaultValue="25" className={inputClass}>
                   {Array.from({ length: 16 }, (_, i) => 15 + i).map((temp) => (
                     <option key={temp} value={temp}>{temp}°C</option>
                   ))}
@@ -182,18 +278,20 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
 
           {selectedType === "feeding" && <FeedingFields t={t} tFeeding={tFeeding} />}
 
+          {/* Diaper type */}
           {selectedType === "diaper" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("diaperType")}</label>
+              <label className={labelClass}>{t("diaperType")}</label>
               <div className="flex gap-2">
                 {[
-                  { value: "pee",  label: `💧 ${tDiaper("pee")}` },
-                  { value: "poop", label: `💩 ${tDiaper("poop")}` },
-                  { value: "both", label: tDiaper("both") },
-                ].map(({ value, label }) => (
+                  { value: "pee",  emoji: "💧", label: tDiaper("pee") },
+                  { value: "poop", emoji: "💩", label: tDiaper("poop") },
+                  { value: "both", emoji: "💧💩", label: tDiaper("both") },
+                ].map(({ value, emoji, label }) => (
                   <label key={value} className="flex-1">
                     <input type="radio" name="diaperType" value={value} className="sr-only peer" required />
-                    <span className="block text-center py-2 rounded-lg border-2 border-gray-200 text-sm cursor-pointer peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 hover:border-purple-200 transition-all">
+                    <span className="flex flex-col items-center gap-1 py-3 rounded-2xl border-2 border-gray-200 text-xs font-semibold text-gray-500 cursor-pointer peer-checked:border-amber-400 peer-checked:bg-amber-50 peer-checked:text-amber-700 hover:border-amber-200 transition-all active:scale-95">
+                      <span className="text-xl">{emoji}</span>
                       {label}
                     </span>
                   </label>
@@ -202,14 +300,22 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
             </div>
           )}
 
+          {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("notes")}</label>
-            <textarea name="notes" rows={2} placeholder={t("notesPlaceholder")}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            <label className={labelClass}>{t("notes")}</label>
+            <textarea
+              name="notes"
+              rows={2}
+              placeholder={t("notesPlaceholder")}
+              className={`${inputClass} resize-none`}
+            />
           </div>
 
-          <button type="submit" disabled={isPending}
-            className="w-full bg-purple-600 text-white py-3 rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-4 rounded-2xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-50 transition-all active:scale-[0.98] shadow-md shadow-purple-200"
+          >
             {isPending ? t("saving") : t("save")}
           </button>
         </>

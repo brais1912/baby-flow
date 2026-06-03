@@ -39,10 +39,11 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.includes("/login");
+  const isResetPassword = path.includes("/reset-password");
   const isPublicRoute = path === `/${locale}` || path === "/";
-  const isCallbackRoute = path.includes("/auth/callback");
+  const isCallbackRoute = path.includes("/auth/callback") || path.includes("/auth/reset-callback");
 
-  if (!user && !isAuthRoute && !isPublicRoute && !isCallbackRoute) {
+  if (!user && !isAuthRoute && !isPublicRoute && !isCallbackRoute && !isResetPassword) {
     const url = request.nextUrl.clone();
     url.pathname = `/${locale}/login`;
     return NextResponse.redirect(url);

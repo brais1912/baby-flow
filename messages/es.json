@@ -50,7 +50,11 @@
     "amountPlaceholder": "ej. 120",
     "duration": "Duración (min)",
     "durationPlaceholder": "ej. 15",
-    "diaperType": "Tipo"
+    "diaperType": "Tipo",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "hour": "Hora",
+    "minute": "Minuto"
   },
   "sleepMethods": {
     "nursing": "Mientras mamaba",
@@ -64,6 +68,8 @@
   "sleepConditions": {
     "sleepSack": "Saco de dormir",
     "pajamas": "Solo pijama",
+    "bodysuit": "Solo body",
+    "topAndBottoms": "Pantalón y camiseta",
     "swaddle": "Fajado",
     "other": "Otro"
   },
@@ -71,6 +77,7 @@
     "breastLeft": "Pecho izquierdo",
     "breastRight": "Pecho derecho",
     "bothBreasts": "Ambos pechos",
+    "both_breasts": "Ambos pechos",
     "bottle": "Biberón (leche materna)",
     "formula": "Leche de fórmula",
     "solid": "Comida sólida"
@@ -95,18 +102,38 @@
     "right": "Derecho",
     "amount": "Cantidad",
     "duration": "Duración",
-    "changes": "Cambios"
+    "changes": "Cambios",
+    "total": "total",
+    "sessions": "tomas"
   },
   "login": {
     "title": "Iniciar sesión",
-    "subtitle": "Te enviaremos un enlace mágico",
+    "subtitle": "Introduce tu email y contraseña",
+    "signUpTitle": "Crear cuenta",
+    "signUpSubtitle": "Elige un email y contraseña para empezar",
+    "forgotTitle": "Recuperar contraseña",
+    "forgotSubtitle": "Te enviaremos un enlace para restablecer la contraseña",
+    "newPasswordTitle": "Nueva contraseña",
+    "newPasswordSubtitle": "Elige una nueva contraseña para tu cuenta",
+    "email": "Email",
     "emailPlaceholder": "tu@email.com",
-    "send": "Enviar enlace mágico",
-    "sending": "Enviando...",
-    "checkEmail": "Revisa tu correo",
-    "magicLinkSent": "Enviamos un enlace mágico a",
-    "signingIn": "Iniciando sesión...",
-    "expiredLink": "El enlace ha expirado o ya fue usado. Solicita uno nuevo."
+    "password": "Contraseña",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Entrar",
+    "signUp": "Crear cuenta",
+    "sendReset": "Enviar enlace",
+    "savePassword": "Guardar contraseña",
+    "noAccount": "¿Sin cuenta? Regístrate",
+    "hasAccount": "¿Ya tienes cuenta? Inicia sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "backToSignIn": "Volver al inicio de sesión",
+    "invalidCredentials": "Email o contraseña incorrectos.",
+    "confirmEmail": "Revisa tu correo para confirmar tu cuenta antes de iniciar sesión.",
+    "resetEmailSent": "Revisa tu correo — te hemos enviado un enlace para restablecer la contraseña.",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "verifyingLink": "Verificando enlace..."
   },
   "home": {
     "tagline": "Registra cada momento",
