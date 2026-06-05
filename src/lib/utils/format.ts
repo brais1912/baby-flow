@@ -78,6 +78,99 @@ export function sleepMethodLabel(method: SleepMethod): string {
   return labels[method];
 }
 
+// ── Week helpers ──────────────────────────────────────────────────────────────
+
+export function startOfWeekMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function endOfWeekSunday(weekStart: Date): Date {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + 6);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+// ── Weekly insights aggregation ───────────────────────────────────────────────
+
+export type SleepSession = { start: Date; end: Date; durationMs: number; isQuicklog: boolean };
+export type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6; // Mon=0 … Sun=6
+
+export function dayIndex(date: Date): DayIndex {
+  const d = date.getDay(); // 0=Sun
+  return (d === 0 ? 6 : d - 1) as DayIndex;
+}
+
+export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Record<DayIndex, SleepSession[]> {
+  const weekEnd = endOfWeekSunday(weekStart);
+  const sorted = [...events]
+    .filter((e) => (e.type === "sleep" || e.type === "wake_up"))
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+
+  const usedWakeIds = new Set<string>();
+  const byDay: Record<DayIndex, SleepSession[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+
+  sorted.filter((e) => e.type === "sleep").forEach((sleepEvent) => {
+    const start = new Date(sleepEvent.occurredAt);
+    if (start < weekStart || start > weekEnd) return;
+    const wakeUp = sorted.find(
+      (e) => e.type === "wake_up" && !usedWakeIds.has(e.id) && new Date(e.occurredAt) > start
+    );
+    const end = wakeUp ? new Date(wakeUp.occurredAt) : new Date(Math.min(start.getTime() + 60 * 60 * 1000, weekEnd.getTime()));
+    if (wakeUp) usedWakeIds.add(wakeUp.id);
+    const idx = dayIndex(start);
+    byDay[idx].push({ start, end, durationMs: end.getTime() - start.getTime(), isQuicklog: sleepEvent.notes === "QuickLog" });
+  });
+
+  return byDay;
+}
+
+export type WeekDayTotals = { sleepMs: number; feedings: number; diapers: number };
+
+export function buildWeekDayTotals(events: Event[], weekStart: Date): Record<DayIndex, WeekDayTotals> {
+  const weekEnd = endOfWeekSunday(weekStart);
+  const byDay: Record<DayIndex, WeekDayTotals> = { 0: { sleepMs: 0, feedings: 0, diapers: 0 }, 1: { sleepMs: 0, feedings: 0, diapers: 0 }, 2: { sleepMs: 0, feedings: 0, diapers: 0 }, 3: { sleepMs: 0, feedings: 0, diapers: 0 }, 4: { sleepMs: 0, feedings: 0, diapers: 0 }, 5: { sleepMs: 0, feedings: 0, diapers: 0 }, 6: { sleepMs: 0, feedings: 0, diapers: 0 } };
+
+  const sleepSessions = buildWeeklySleepSessions(events, weekStart);
+  (Object.entries(sleepSessions) as [string, SleepSession[]][]).forEach(([idx, sessions]) => {
+    byDay[Number(idx) as DayIndex].sleepMs = sessions.reduce((s, r) => s + r.durationMs, 0);
+  });
+
+  const inWeek = events.filter((e) => {
+    const d = new Date(e.occurredAt);
+    return d >= weekStart && d <= weekEnd;
+  });
+  const feedingEvents = deduplicateBothBreasts(inWeek.filter((e) => e.type === "feeding"));
+  feedingEvents.forEach((e) => { byDay[dayIndex(new Date(e.occurredAt))].feedings += 1; });
+  inWeek.filter((e) => e.type === "diaper").forEach((e) => { byDay[dayIndex(new Date(e.occurredAt))].diapers += 1; });
+
+  return byDay;
+}
+
+export type FeedingHeatmapCell = { dayIdx: DayIndex; hourBucket: number; count: number };
+
+export function buildFeedingHeatmap(events: Event[], weekStart: Date): FeedingHeatmapCell[] {
+  const weekEnd = endOfWeekSunday(weekStart);
+  const counts: Record<string, number> = {};
+  const feedingEvents = deduplicateBothBreasts(
+    events.filter((e) => e.type === "feeding" && new Date(e.occurredAt) >= weekStart && new Date(e.occurredAt) <= weekEnd)
+  );
+  feedingEvents.forEach((e) => {
+    const d = new Date(e.occurredAt);
+    const key = `${dayIndex(d)}-${Math.floor(d.getHours() / 2)}`;
+    counts[key] = (counts[key] ?? 0) + 1;
+  });
+  return Object.entries(counts).map(([key, count]) => {
+    const [dayIdx, hourBucket] = key.split("-").map(Number);
+    return { dayIdx: dayIdx as DayIndex, hourBucket, count };
+  });
+}
+
 // ── Chart aggregation ─────────────────────────────────────────────────────────
 
 export type DiaperDayData = { label: string; date: Date; pee: number; poop: number; both: number };

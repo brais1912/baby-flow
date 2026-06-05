@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Dashboard",
+    "insights": "Insights",
     "sleep": "Sleep",
     "wakeUp": "Wake up",
     "feeding": "Feeding",
@@ -153,6 +154,32 @@
     "label": "Language",
     "es": "Español",
     "en": "English"
+  },
+  "insights": {
+    "title": "Weekly Insights",
+    "subtitle": "Compare your baby's week at a glance",
+    "week": "Week",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "tabSleep": "Sleep",
+    "tabTotals": "Totals",
+    "tabHeatmap": "Feedings",
+    "sleepTitle": "Sleep timeline",
+    "totalsTitle": "Daily totals",
+    "heatmapTitle": "Feeding heatmap",
+    "sleepHint": "Tap a bar to see details",
+    "totalsHint": "Tap a day to see the breakdown",
+    "heatmapHint": "Each cell = 2-hour window · tap for detail",
+    "noSleepData": "No sleep events this week",
+    "noFeedingData": "No feedings this week",
+    "sleep": "sleep",
+    "wakeUp": "wake up",
+    "feedings": "feedings",
+    "diapers": "diapers",
+    "feedingSessions": "feeding sessions",
+    "fewer": "Fewer",
+    "more": "More",
+    "tapToClose": "Tap outside to close"
   },
   "quicklog": {
     "modeName": "QuickLog",
