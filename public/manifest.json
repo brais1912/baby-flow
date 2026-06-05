@@ -1,0 +1,41 @@
+{
+  "name": "BabyFlow",
+  "short_name": "BabyFlow",
+  "description": "Track sleep, feedings and diaper changes for your baby",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9ff",
+  "theme_color": "#9333ea",
+  "orientation": "portrait",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-72.png",   "sizes": "72x72",   "type": "image/png" },
+    { "src": "/icons/icon-96.png",   "sizes": "96x96",   "type": "image/png" },
+    { "src": "/icons/icon-128.png",  "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/icon-144.png",  "sizes": "144x144", "type": "image/png" },
+    { "src": "/icons/icon-152.png",  "sizes": "152x152", "type": "image/png" },
+    { "src": "/icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-384.png",  "sizes": "384x384", "type": "image/png" },
+    { "src": "/icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log sleep",
+      "short_name": "Sleep",
+      "url": "/es/events/new?type=sleep",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Log feeding",
+      "short_name": "Feeding",
+      "url": "/es/events/new?type=feeding",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Log diaper",
+      "short_name": "Diaper",
+      "url": "/es/events/new?type=diaper",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ]
+}
