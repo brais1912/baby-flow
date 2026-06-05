@@ -171,6 +171,24 @@ export function buildFeedingHeatmap(events: Event[], weekStart: Date): FeedingHe
   });
 }
 
+export type DiaperHeatmapCell = { dayIdx: DayIndex; hourBucket: number; count: number };
+
+export function buildDiaperHeatmap(events: Event[], weekStart: Date): DiaperHeatmapCell[] {
+  const weekEnd = endOfWeekSunday(weekStart);
+  const counts: Record<string, number> = {};
+  events
+    .filter((e) => e.type === "diaper" && new Date(e.occurredAt) >= weekStart && new Date(e.occurredAt) <= weekEnd)
+    .forEach((e) => {
+      const d = new Date(e.occurredAt);
+      const key = `${dayIndex(d)}-${Math.floor(d.getHours() / 2)}`;
+      counts[key] = (counts[key] ?? 0) + 1;
+    });
+  return Object.entries(counts).map(([key, count]) => {
+    const [dayIdx, hourBucket] = key.split("-").map(Number);
+    return { dayIdx: dayIdx as DayIndex, hourBucket, count };
+  });
+}
+
 // ── Chart aggregation ─────────────────────────────────────────────────────────
 
 export type DiaperDayData = { label: string; date: Date; pee: number; poop: number; both: number };

@@ -12,6 +12,7 @@ import type { Event } from "@/lib/db/schema";
 const SleepSwimLane   = dynamic(() => import("./SleepSwimLane").then((m) => m.SleepSwimLane),   { ssr: false, loading: () => <ChartSkeleton /> });
 const WeekTotalsChart = dynamic(() => import("./WeekTotalsChart").then((m) => m.WeekTotalsChart), { ssr: false, loading: () => <ChartSkeleton /> });
 const FeedingHeatmap  = dynamic(() => import("./FeedingHeatmap").then((m) => m.FeedingHeatmap),  { ssr: false, loading: () => <ChartSkeleton /> });
+const DiaperHeatmap   = dynamic(() => import("./DiaperHeatmap").then((m) => m.DiaperHeatmap),    { ssr: false, loading: () => <ChartSkeleton /> });
 
 function ChartSkeleton() {
   return <div className="h-48 flex items-center justify-center text-sm text-gray-300 animate-pulse">Loading…</div>;
@@ -39,7 +40,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
   const weekStart = new Date(weekStartISO);
   const weekEnd   = endOfWeekSunday(weekStart);
 
-  const [activeTab, setActiveTab] = useState<"sleep" | "totals" | "heatmap">("sleep");
+  const [activeTab, setActiveTab] = useState<"sleep" | "totals" | "heatmap" | "diaper">("sleep");
 
   function navigate(dir: "prev" | "next") {
     const next = startOfWeekMonday(addDays(weekStart, dir === "prev" ? -1 : 7));
@@ -55,6 +56,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
     { key: "sleep",   label: t("tabSleep"),   emoji: "😴" },
     { key: "totals",  label: t("tabTotals"),  emoji: "📊" },
     { key: "heatmap", label: t("tabHeatmap"), emoji: "🍼" },
+    { key: "diaper",  label: t("tabDiaper"),  emoji: "👶" },
   ];
 
   return (
@@ -113,6 +115,12 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
       {activeTab === "heatmap" && (
         <SectionCard title={t("heatmapTitle")} emoji="🍼">
           <FeedingHeatmap events={events} weekStart={weekStart} />
+        </SectionCard>
+      )}
+
+      {activeTab === "diaper" && (
+        <SectionCard title={t("diaperTitle")} emoji="👶">
+          <DiaperHeatmap events={events} weekStart={weekStart} />
         </SectionCard>
       )}
     </div>
