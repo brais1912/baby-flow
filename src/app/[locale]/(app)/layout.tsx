@@ -16,16 +16,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex flex-col bg-[#faf9ff]">
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100/80 sticky top-0 z-10 safe-area-pt">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href={`/${locale}/dashboard`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href={`/${locale}/dashboard`} className="flex-shrink-0">
               <LogoWithText />
             </Link>
             <Link
               href={`/${locale}/insights`}
-              className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-purple-600 bg-gray-100 hover:bg-purple-50 px-3 py-1.5 rounded-full transition-colors"
+              aria-label={t("insights")}
+              className="flex items-center justify-center w-8 h-8 text-base text-gray-500 hover:text-purple-600 bg-gray-100 hover:bg-purple-50 rounded-full transition-colors flex-shrink-0"
             >
-              <span>📊</span>
-              {t("insights")}
+              📊
             </Link>
           </div>
           <div className="flex items-center gap-1">
