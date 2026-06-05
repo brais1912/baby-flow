@@ -98,6 +98,7 @@
     "perDay": "Per day",
     "breastfeedingPerDay": "Breastfeeding sessions per day",
     "bottlePerSession": "Bottle / formula (ml per session)",
+    "both": "Both",
     "left": "Left",
     "right": "Right",
     "amount": "Amount",
@@ -152,5 +153,14 @@
     "label": "Language",
     "es": "Español",
     "en": "English"
+  },
+  "quicklog": {
+    "modeName": "QuickLog",
+    "detailedName": "Detailed",
+    "modeToggleLabel": "Mode",
+    "savedFeedback": "Saved!",
+    "savingFeedback": "...",
+    "quicklogNote": "quicklog",
+    "tapToLog": "Tap to log instantly"
   }
 }

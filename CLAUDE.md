@@ -56,13 +56,17 @@ npm run db:studio    # Open Drizzle Studio
 
 - **Framework**: Vitest + React Testing Library
 - **Location**: co-located alongside source files as `*.test.ts` / `*.test.tsx`
+- **Rule**: every non-trivial piece of logic gets a test at the time it is written — not later. If you add a bug fix, add a regression test that would have caught it.
 - **What to test**:
-  - All utility functions in `src/lib/utils/` — unit tests
-  - Server Actions — integration tests with a test DB or mocked Drizzle client
-  - UI components that contain logic (form validation, conditional rendering)
-- **What NOT to test**: pure presentational components, Next.js routing
+  - All utility functions in `src/lib/utils/` — unit tests, full branch coverage
+  - Data transformation logic inside chart components (aggregation, grouping, null handling) — extract to a pure function and test it
+  - Server Actions — mock the Drizzle client and Supabase auth; assert correct DB calls and revalidation
+  - UI components with conditional rendering or user interactions (form validation, mode toggles, QuickLog flow)
+- **What NOT to test**: pure presentational components with no logic, Next.js routing
 - Use `@testing-library/user-event` for user interactions, not `fireEvent`
 - No snapshot tests — they are brittle and provide low signal
+- **Null/undefined inputs**: always test the boundary — if a field can be null (e.g. QuickLog events with no diaperType), test that the code handles it correctly
+- Run `npm run test -- --run` (single pass, no watch) before every commit to confirm nothing is broken
 
 ## Environment Variables
 

@@ -98,6 +98,7 @@
     "perDay": "Por día",
     "breastfeedingPerDay": "Tomas de pecho por día",
     "bottlePerSession": "Biberón / fórmula (ml por toma)",
+    "both": "Ambos",
     "left": "Izquierdo",
     "right": "Derecho",
     "amount": "Cantidad",
@@ -152,5 +153,14 @@
     "label": "Idioma",
     "es": "Español",
     "en": "English"
+  },
+  "quicklog": {
+    "modeName": "QuickLog",
+    "detailedName": "Detallado",
+    "modeToggleLabel": "Modo",
+    "savedFeedback": "¡Guardado!",
+    "savingFeedback": "...",
+    "quicklogNote": "quicklog",
+    "tapToLog": "Toca para registrar al instante"
   }
 }

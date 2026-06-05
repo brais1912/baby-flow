@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { useTranslations, useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
+import { formatSleepDuration, aggregateDiaperByDay, aggregateBreastFeedingByDay } from "@/lib/utils/format";
 
 const NoTooltip = () => null;
 
@@ -19,17 +19,11 @@ function localeDateKey(date: Date, locale: string) {
   return date.toLocaleDateString(locale === "es" ? "es-ES" : "en-US", { weekday: "short", day: "numeric" });
 }
 
-// Small popover that appears near the tap point
-function Popover({ tapY, onClose, children }: { tapY: number; onClose: () => void; children: React.ReactNode }) {
-  // Position above the tap if near the bottom of the screen, below if near the top
-  const nearBottom = tapY > window.innerHeight * 0.6;
-  const top = nearBottom ? tapY - 20 : tapY + 20;
-
+function Popover({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30" onClick={onClose}>
       <div
-        className="absolute left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72"
-        style={{ top, transform: nearBottom ? "translate(-50%, -100%)" : "translate(-50%, 0)" }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -54,7 +48,7 @@ export function SleepChart({ events }: { events: Event[] }) {
   const t = useTranslations("charts");
   const locale = useLocale();
   const now = new Date();
-  const [selected, setSelected] = useState<{ label: string; hours: number; duration: string; tapY: number } | null>(null);
+  const [selected, setSelected] = useState<{ label: string; hours: number; duration: string } | null>(null);
   const sorted = [...events].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
 
   const usedWakeUpIds = new Set<string>();
@@ -93,7 +87,7 @@ export function SleepChart({ events }: { events: Event[] }) {
         className="w-full h-56"
         onPointerUp={(e) => {
           const idx = tapBarIndex(e, sleepBars.length, 30, 10);
-          if (idx >= 0 && sleepBars[idx]) setSelected({ ...sleepBars[idx], tapY: e.clientY });
+          if (idx >= 0 && sleepBars[idx]) setSelected(sleepBars[idx]);
         }}
       >
         <ResponsiveContainer width="100%" height="100%" style={{ pointerEvents: "none" }}>
@@ -108,7 +102,7 @@ export function SleepChart({ events }: { events: Event[] }) {
         </ResponsiveContainer>
       </div>
       {selected && (
-        <Popover tapY={selected.tapY} onClose={() => setSelected(null)}>
+        <Popover onClose={() => setSelected(null)}>
           <p className="font-bold text-gray-900 mb-2">😴 {selected.label}</p>
           <div className="flex gap-2 flex-wrap">
             <span className="bg-purple-100 text-purple-700 text-sm px-3 py-1.5 rounded-full font-medium">{selected.hours}h {t("total")}</span>
@@ -122,30 +116,20 @@ export function SleepChart({ events }: { events: Event[] }) {
 
 // ── Feeding chart ─────────────────────────────────────────────────────────────
 
-const BREAST_TYPES = new Set(["breast_left", "breast_right", "both_breasts"]);
 const BOTTLE_TYPES = new Set(["bottle", "formula", "solid"]);
 
 export function FeedingChart({ events }: { events: Event[] }) {
   const t = useTranslations("charts");
   const locale = useLocale();
-  const [selected, setSelected] = useState<{ label: string; tomas?: number; ml?: number; tapY: number } | null>(null);
-  const feedingEvents = deduplicateBothBreasts(events.filter((e) => e.type === "feeding"));
+  const [selected, setSelected] = useState<{ label: string; tomas?: number; left?: number; right?: number; both?: number; quicklog?: number; ml?: number } | null>(null);
+  const feedingEvents = events.filter((e) => e.type === "feeding");
 
   if (feedingEvents.length === 0) return <EmptyChart message={t("noFeedingData")} />;
 
-  const breastEvents = feedingEvents.filter((e) => e.feedingType && BREAST_TYPES.has(e.feedingType));
-  const bottleEvents = feedingEvents.filter((e) => e.feedingType && BOTTLE_TYPES.has(e.feedingType));
+  const breastData = aggregateBreastFeedingByDay(events, (d) => localeDateKey(d, locale));
 
-  const breastByDay: Record<string, { label: string; date: Date; tomas: number }> = {};
-  breastEvents.forEach((e) => {
-    const d = new Date(e.occurredAt);
-    const day = localeDateKey(d, locale);
-    if (!breastByDay[day]) breastByDay[day] = { label: day, date: d, tomas: 0 };
-    breastByDay[day].tomas += 1;
-  });
-  const breastData = Object.values(breastByDay).sort((a, b) => a.date.getTime() - b.date.getTime());
-
-  const bottleData = [...bottleEvents]
+  const bottleData = events
+    .filter((e) => e.type === "feeding" && e.feedingType && BOTTLE_TYPES.has(e.feedingType))
     .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime())
     .map((e) => ({ label: localeDateKey(new Date(e.occurredAt), locale), ml: e.feedingAmountMl ?? 0 }));
 
@@ -159,7 +143,10 @@ export function FeedingChart({ events }: { events: Event[] }) {
               className="w-full h-44"
               onPointerUp={(e) => {
                 const idx = tapBarIndex(e, breastData.length, 20, 10);
-                if (idx >= 0 && breastData[idx]) setSelected({ label: breastData[idx].label, tomas: breastData[idx].tomas, tapY: e.clientY });
+                if (idx >= 0 && breastData[idx]) {
+                  const d = breastData[idx];
+                  setSelected({ label: d.label, tomas: d.tomas, left: d.left, right: d.right, both: d.both, quicklog: d.quicklog });
+                }
               }}
             >
               <ResponsiveContainer width="100%" height="100%" style={{ pointerEvents: "none" }}>
@@ -181,7 +168,7 @@ export function FeedingChart({ events }: { events: Event[] }) {
               className="w-full h-44"
               onPointerUp={(e) => {
                 const idx = tapBarIndex(e, bottleData.length, 36, 10);
-                if (idx >= 0 && bottleData[idx]) setSelected({ label: bottleData[idx].label, ml: bottleData[idx].ml, tapY: e.clientY });
+                if (idx >= 0 && bottleData[idx]) setSelected({ label: bottleData[idx].label, ml: bottleData[idx].ml });
               }}
             >
               <ResponsiveContainer width="100%" height="100%" style={{ pointerEvents: "none" }}>
@@ -198,12 +185,16 @@ export function FeedingChart({ events }: { events: Event[] }) {
         )}
       </div>
       {selected && (
-        <Popover tapY={selected.tapY} onClose={() => setSelected(null)}>
+        <Popover onClose={() => setSelected(null)}>
           <p className="font-bold text-gray-900 mb-2">🍼 {selected.label}</p>
           <div className="flex gap-2 flex-wrap">
             {selected.tomas !== undefined && (
               <span className="bg-indigo-100 text-indigo-700 text-sm px-3 py-1.5 rounded-full font-medium">{selected.tomas} {t("sessions")}</span>
             )}
+            {!!selected.both && <span className="bg-purple-100 text-purple-700 text-xs px-2.5 py-1.5 rounded-full">↔ {t("both")} × {selected.both}</span>}
+            {!!selected.left && <span className="bg-indigo-50 text-indigo-600 text-xs px-2.5 py-1.5 rounded-full">← {t("left")} × {selected.left}</span>}
+            {!!selected.right && <span className="bg-indigo-50 text-indigo-600 text-xs px-2.5 py-1.5 rounded-full">→ {t("right")} × {selected.right}</span>}
+            {!!selected.quicklog && <span className="bg-fuchsia-50 text-fuchsia-600 text-xs px-2.5 py-1.5 rounded-full">⚡ QuickLog × {selected.quicklog}</span>}
             {selected.ml !== undefined && selected.ml > 0 && (
               <span className="bg-blue-100 text-blue-700 text-sm px-3 py-1.5 rounded-full font-medium">{selected.ml} ml</span>
             )}
@@ -220,20 +211,10 @@ export function DiaperChart({ events }: { events: Event[] }) {
   const t = useTranslations("charts");
   const tDiaper = useTranslations("diaperTypes");
   const locale = useLocale();
-  const [selected, setSelected] = useState<{ label: string; pee: number; poop: number; both: number; tapY: number } | null>(null);
-  const diaperEvents = events.filter((e) => e.type === "diaper");
+  const [selected, setSelected] = useState<{ label: string; pee: number; poop: number; both: number } | null>(null);
+  const barData = aggregateDiaperByDay(events, (d) => localeDateKey(d, locale));
 
-  if (diaperEvents.length === 0) return <EmptyChart message={t("noDiaperData")} />;
-
-  const byDay: Record<string, { label: string; date: Date; pee: number; poop: number; both: number }> = {};
-  diaperEvents.forEach((e) => {
-    const d = new Date(e.occurredAt);
-    const day = localeDateKey(d, locale);
-    if (!byDay[day]) byDay[day] = { label: day, date: d, pee: 0, poop: 0, both: 0 };
-    const key = e.diaperType as "pee" | "poop" | "both" | null;
-    if (key && key in byDay[day]) byDay[day][key] += 1;
-  });
-  const barData = Object.values(byDay).sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (barData.length === 0) return <EmptyChart message={t("noDiaperData")} />;
 
   return (
     <>
@@ -241,7 +222,7 @@ export function DiaperChart({ events }: { events: Event[] }) {
         className="w-full h-52"
         onPointerUp={(e) => {
           const idx = tapBarIndex(e, barData.length);
-          if (idx >= 0 && barData[idx]) setSelected({ ...barData[idx], tapY: e.clientY });
+          if (idx >= 0 && barData[idx]) setSelected(barData[idx]);
         }}
       >
         <ResponsiveContainer width="100%" height="100%" style={{ pointerEvents: "none" }}>
@@ -257,7 +238,7 @@ export function DiaperChart({ events }: { events: Event[] }) {
         </ResponsiveContainer>
       </div>
       {selected && (
-        <Popover tapY={selected.tapY} onClose={() => setSelected(null)}>
+        <Popover onClose={() => setSelected(null)}>
           <p className="font-bold text-gray-900 mb-2">👶 {selected.label}</p>
           <div className="flex gap-2 flex-wrap">
             {selected.pee > 0  && <span className="bg-yellow-100 text-yellow-700 text-sm px-3 py-1.5 rounded-full font-medium">💧 {tDiaper("pee")} × {selected.pee}</span>}

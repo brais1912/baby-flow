@@ -17,7 +17,7 @@ export async function createEvent(data: Omit<NewEvent, "id" | "userId" | "create
   const userId = await getAuthenticatedUserId();
 
   await db.insert(events).values({ ...data, userId });
-  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteEvent(eventId: string) {
@@ -26,7 +26,7 @@ export async function deleteEvent(eventId: string) {
   await db.delete(events).where(
     and(eq(events.id, eventId), eq(events.userId, userId))
   );
-  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
 }
 
 export async function getEventsForDateRange(startDate: Date, endDate: Date) {

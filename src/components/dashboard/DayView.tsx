@@ -186,13 +186,19 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
               >
                 <span className="text-xl mt-0.5 leading-none">{EVENT_EMOJI[event.type]}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
                       {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
                     </span>
-                    {detail && <span className="text-xs text-gray-500 truncate">{detail}</span>}
+                    {event.notes === "QuickLog" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-100 flex items-center gap-1">
+                        ⚡ QuickLog
+                      </span>
+                    ) : (
+                      detail && <span className="text-xs text-gray-500 truncate">{detail}</span>
+                    )}
                   </div>
-                  {event.notes && (
+                  {event.notes && event.notes !== "QuickLog" && (
                     <p className="text-xs text-gray-400 italic mt-1 truncate">{event.notes}</p>
                   )}
                 </div>
