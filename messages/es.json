@@ -55,7 +55,10 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "hour": "Hora",
-    "minute": "Minuto"
+    "minute": "Minuto",
+    "alreadyAsleep": "El bebé ya está dormido — registra un despertar primero.",
+    "alreadyAwake": "El bebé ya está despierto — registra un sueño primero.",
+    "genericError": "Algo salió mal. Inténtalo de nuevo."
   },
   "sleepMethods": {
     "nursing": "Mientras mamaba",
@@ -192,6 +195,9 @@
     "savedFeedback": "¡Guardado!",
     "savingFeedback": "...",
     "quicklogNote": "quicklog",
-    "tapToLog": "Toca para registrar al instante"
+    "tapToLog": "Toca para registrar al instante",
+    "alreadyAsleep": "Ya está dormido",
+    "alreadyAwake": "Ya está despierto",
+    "genericError": "No se pudo guardar"
   }
 }

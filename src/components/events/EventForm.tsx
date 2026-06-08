@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { format, subDays, startOfDay, isToday, isYesterday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { createEvent } from "@/lib/actions/events";
-import type { EventType } from "@/types/events";
+import { parseInvalidSleepSequenceError, type EventType } from "@/types/events";
 
 const selectClass = "flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all text-center appearance-none";
 const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5";
@@ -154,6 +154,7 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
   const [selectedType, setSelectedType] = useState<EventType | null>(initialType ?? null);
   const [timeValue, setTimeValue] = useState(nowPicker);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all";
   const t = useTranslations("eventForm");
   const tTypes = useTranslations("eventTypes");
@@ -178,26 +179,37 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
     const occurredAt = buildDate(timeValue.dayOffset, timeValue.hour, timeValue.minute);
     const notes = (formData.get("notes") as string) || undefined;
 
+    setError(null);
     startTransition(async () => {
-      if (selectedType === "sleep") {
-        await createEvent({
-          type: "sleep", occurredAt, notes,
-          sleepMethod: (formData.get("sleepMethod") as string as never) || undefined,
-          sleepCondition: (formData.get("sleepCondition") as string as never) || undefined,
-          sleepRoomTemperature: formData.get("roomTemp") ? Number(formData.get("roomTemp")) : undefined,
-        });
-      } else if (selectedType === "wake_up") {
-        await createEvent({ type: "wake_up", occurredAt, notes });
-      } else if (selectedType === "feeding") {
-        const feedingType = formData.get("feedingType") as string;
-        const amountMl = formData.get("amount") ? Number(formData.get("amount")) : undefined;
-        const durationMinutes = formData.get("duration") ? Number(formData.get("duration")) : undefined;
-        await createEvent({ type: "feeding", occurredAt, notes, feedingType: feedingType as never || undefined, feedingAmountMl: amountMl, feedingDurationMinutes: durationMinutes });
-      } else if (selectedType === "diaper") {
-        await createEvent({
-          type: "diaper", occurredAt, notes,
-          diaperType: (formData.get("diaperType") as string as never) || undefined,
-        });
+      try {
+        if (selectedType === "sleep") {
+          await createEvent({
+            type: "sleep", occurredAt, notes,
+            sleepMethod: (formData.get("sleepMethod") as string as never) || undefined,
+            sleepCondition: (formData.get("sleepCondition") as string as never) || undefined,
+            sleepRoomTemperature: formData.get("roomTemp") ? Number(formData.get("roomTemp")) : undefined,
+          });
+        } else if (selectedType === "wake_up") {
+          await createEvent({ type: "wake_up", occurredAt, notes });
+        } else if (selectedType === "feeding") {
+          const feedingType = formData.get("feedingType") as string;
+          const amountMl = formData.get("amount") ? Number(formData.get("amount")) : undefined;
+          const durationMinutes = formData.get("duration") ? Number(formData.get("duration")) : undefined;
+          await createEvent({ type: "feeding", occurredAt, notes, feedingType: feedingType as never || undefined, feedingAmountMl: amountMl, feedingDurationMinutes: durationMinutes });
+        } else if (selectedType === "diaper") {
+          await createEvent({
+            type: "diaper", occurredAt, notes,
+            diaperType: (formData.get("diaperType") as string as never) || undefined,
+          });
+        }
+      } catch (err) {
+        const sequenceErrorType = err instanceof Error ? parseInvalidSleepSequenceError(err.message) : null;
+        if (sequenceErrorType) {
+          setError(t(sequenceErrorType === "sleep" ? "alreadyAsleep" : "alreadyAwake"));
+        } else {
+          setError(t("genericError"));
+        }
+        return;
       }
 
       form.reset();
@@ -219,7 +231,7 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
               <button
                 key={value}
                 type="button"
-                onClick={() => setSelectedType(value)}
+                onClick={() => { setSelectedType(value); setError(null); }}
                 className={`py-4 rounded-2xl border-2 text-xs font-semibold transition-all active:scale-95 ${selectedType === value ? s.selected : s.idle}`}
               >
                 <span className="text-2xl block mb-1">{EVENT_EMOJIS[value]}</span>
@@ -310,6 +322,12 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
               className={`${inputClass} resize-none`}
             />
           </div>
+
+          {error && (
+            <p className="text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-2xl px-4 py-3" role="alert">
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"

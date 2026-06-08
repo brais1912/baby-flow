@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, useTransition, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { createEvent } from "@/lib/actions/events";
+import { parseInvalidSleepSequenceError } from "@/types/events";
 
 const ACTIONS = [
   { type: "sleep",   emoji: "😴", color: "text-purple-600", bg: "bg-purple-50", activeBg: "bg-purple-100 ring-2 ring-purple-300", flash: "bg-purple-500" },
@@ -95,14 +96,26 @@ function QuickLogButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+  const [errorLabel, setErrorLabel] = useState<string | null>(null);
   const tQ = useTranslations("quicklog");
   const router = useRouter();
 
   function handleTap() {
-    if (isPending || justSaved) return;
+    if (isPending || justSaved || errorLabel) return;
     const defaults = { ...QUICKLOG_DEFAULTS[type], occurredAt: new Date() };
     startTransition(async () => {
-      await createEvent(defaults);
+      try {
+        await createEvent(defaults);
+      } catch (err) {
+        const sequenceErrorType = err instanceof Error ? parseInvalidSleepSequenceError(err.message) : null;
+        setErrorLabel(
+          sequenceErrorType
+            ? tQ(sequenceErrorType === "sleep" ? "alreadyAsleep" : "alreadyAwake")
+            : tQ("genericError")
+        );
+        setTimeout(() => setErrorLabel(null), 1800);
+        return;
+      }
       router.refresh();
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 1200);
@@ -126,11 +139,16 @@ function QuickLogButton({
         <span className={`absolute inset-0 rounded-2xl ${flash} opacity-20 animate-pulse`} />
       )}
 
+      {/* blocked flash overlay */}
+      {errorLabel && (
+        <span className="absolute inset-0 rounded-2xl bg-red-500 opacity-20" />
+      )}
+
       <span className={`text-2xl leading-none transition-transform ${isPending ? "scale-75 opacity-60" : ""}`}>
-        {justSaved ? "✓" : emoji}
+        {errorLabel ? "🚫" : justSaved ? "✓" : emoji}
       </span>
-      <span className="text-[10px] font-semibold tracking-wide uppercase opacity-80">
-        {justSaved ? tQ("savedFeedback") : label}
+      <span className="text-[10px] font-semibold tracking-wide uppercase opacity-80 text-center leading-tight">
+        {errorLabel ?? (justSaved ? tQ("savedFeedback") : label)}
       </span>
     </button>
   );

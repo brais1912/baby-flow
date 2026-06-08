@@ -55,7 +55,10 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "hour": "Hour",
-    "minute": "Minute"
+    "minute": "Minute",
+    "alreadyAsleep": "Baby is already asleep — log a wake up first.",
+    "alreadyAwake": "Baby is already awake — log a sleep first.",
+    "genericError": "Something went wrong. Please try again."
   },
   "sleepMethods": {
     "nursing": "While breastfeeding",
@@ -192,6 +195,9 @@
     "savedFeedback": "Saved!",
     "savingFeedback": "...",
     "quicklogNote": "quicklog",
-    "tapToLog": "Tap to log instantly"
+    "tapToLog": "Tap to log instantly",
+    "alreadyAsleep": "Already asleep",
+    "alreadyAwake": "Already awake",
+    "genericError": "Couldn't save"
   }
 }
