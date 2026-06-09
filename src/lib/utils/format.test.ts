@@ -10,6 +10,7 @@ import {
   aggregateDiaperByDay,
   aggregateBreastFeedingByDay,
   buildWeeklySleepSessions,
+  noonWindowDate,
 } from "./format";
 import type { Event } from "@/lib/db/schema";
 
@@ -175,6 +176,25 @@ describe("aggregateDiaperByDay", () => {
 
   it("returns empty array when there are no diaper events", () => {
     expect(aggregateDiaperByDay([], dayKey)).toHaveLength(0);
+  });
+});
+
+// ── noonWindowDate ────────────────────────────────────────────────────────────
+
+describe("noonWindowDate", () => {
+  it("returns the same day for times at or after noon", () => {
+    const result = noonWindowDate(new Date("2024-01-15T22:00:00"));
+    expect(result).toEqual(new Date("2024-01-15T00:00:00"));
+  });
+
+  it("returns the previous day for times before noon", () => {
+    const result = noonWindowDate(new Date("2024-01-16T04:00:00"));
+    expect(result).toEqual(new Date("2024-01-15T00:00:00"));
+  });
+
+  it("returns the same day exactly at noon", () => {
+    const result = noonWindowDate(new Date("2024-01-15T12:00:00"));
+    expect(result).toEqual(new Date("2024-01-15T00:00:00"));
   });
 });
 

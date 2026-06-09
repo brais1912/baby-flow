@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { useTranslations, useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatSleepDuration, aggregateDiaperByDay, aggregateBreastFeedingByDay } from "@/lib/utils/format";
+import { formatSleepDuration, aggregateDiaperByDay, aggregateBreastFeedingByDay, noonWindowDate } from "@/lib/utils/format";
 
 const NoTooltip = () => null;
 
@@ -66,8 +66,9 @@ export function SleepChart({ events }: { events: Event[] }) {
 
   const byDay: Record<string, { label: string; date: Date; ms: number }> = {};
   pairs.forEach(({ date, ms }) => {
-    const key = localeDateKey(date, locale);
-    if (!byDay[key]) byDay[key] = { label: key, date, ms: 0 };
+    const ownerDate = noonWindowDate(date);
+    const key = localeDateKey(ownerDate, locale);
+    if (!byDay[key]) byDay[key] = { label: key, date: ownerDate, ms: 0 };
     byDay[key].ms += ms;
   });
 

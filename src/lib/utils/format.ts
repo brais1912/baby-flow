@@ -124,6 +124,15 @@ function dayRowIndex(date: Date): DayIndex {
   return dayIndex(date);
 }
 
+// Returns the calendar date (at midnight) of the noon-window that owns this datetime.
+// Times before noon belong to the previous day's window.
+export function noonWindowDate(date: Date): Date {
+  const d = new Date(date);
+  if (d.getHours() < 12) d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Record<DayIndex, SleepSession[]> {
   const weekEnd = endOfWeekSunday(weekStart);
   // Look back up to 24h before the week to catch overnight sleeps that cross noon into Monday
