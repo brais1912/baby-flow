@@ -44,10 +44,14 @@ interface Props {
 function buildSleepSessions(events: Event[]): Array<{ sleep: Event; wakeUp: Event }> {
   const sorted = [...events].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
   const sessions: Array<{ sleep: Event; wakeUp: Event }> = [];
+  const usedWakeIds = new Set<string>();
   for (let i = 0; i < sorted.length; i++) {
     if (sorted[i].type === "sleep") {
-      const wakeUp = sorted.slice(i + 1).find((e) => e.type === "wake_up");
-      if (wakeUp) sessions.push({ sleep: sorted[i], wakeUp });
+      const wakeUp = sorted.slice(i + 1).find((e) => e.type === "wake_up" && !usedWakeIds.has(e.id));
+      if (wakeUp) {
+        usedWakeIds.add(wakeUp.id);
+        sessions.push({ sleep: sorted[i], wakeUp });
+      }
     }
   }
   return sessions;
@@ -152,23 +156,68 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
     (s) => visibleIds.has(s.sleep.id) || visibleIds.has(s.wakeUp.id)
   );
 
+  // Second pass: find sleeps that started between midnight and noon of currentDay
+  // whose next wake-up falls inside this window (cross-noon sessions).
+  const midnight = new Date(currentDay); midnight.setHours(0, 0, 0, 0);
+  const allSorted = [...events].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+  const crossNoonSessions: Array<{ sleep: Event; wakeUp: Event }> = [];
+  allSorted
+    .filter((e) => {
+      const t = new Date(e.occurredAt);
+      return e.type === "sleep" && t >= midnight && t < windowStart;
+    })
+    .forEach((sleepEvent) => {
+      const nextWake = allSorted.find(
+        (e) => e.type === "wake_up" && new Date(e.occurredAt) > new Date(sleepEvent.occurredAt)
+      );
+      if (nextWake && !sessionWakeUpIds.has(nextWake.id)) {
+        const wakeTime = new Date(nextWake.occurredAt);
+        if (wakeTime >= windowStart && wakeTime < windowEnd) {
+          crossNoonSessions.push({ sleep: sleepEvent, wakeUp: nextWake });
+        }
+      }
+    });
+
+  // Sleeps inside the window with no paired wake-up in this window.
+  // Two sub-cases tracked separately:
+  //   - crossedNoon: wake-up exists but is after windowEnd → bar from sleep to right edge (noon)
+  //   - stillSleeping: no wake-up event exists at all → bar from sleep to now
+  const orphanSleeps = visible
+    .filter((e) => {
+      if (e.type !== "sleep") return false;
+      if (sessionSleepIds.has(e.id)) return false;
+      const t = new Date(e.occurredAt);
+      return t >= windowStart && t < windowEnd;
+    })
+    .map((e) => {
+      const t = new Date(e.occurredAt);
+      const nextWake = allSorted.find(
+        (w) => w.type === "wake_up" && new Date(w.occurredAt) > t
+      );
+      const crossedNoon = nextWake !== undefined && new Date(nextWake.occurredAt) >= windowEnd;
+      const stillSleeping = nextWake === undefined;
+      return { event: e, crossedNoon, stillSleeping };
+    })
+    .filter(({ crossedNoon, stillSleeping }) => crossedNoon || stillSleeping);
+  const orphanSleepIds = new Set(orphanSleeps.map(({ event }) => event.id));
+
   const standaloneEvents = visible.filter(
-    (e) => !sessionSleepIds.has(e.id) && !sessionWakeUpIds.has(e.id)
+    (e) => !sessionSleepIds.has(e.id) && !sessionWakeUpIds.has(e.id) && !orphanSleepIds.has(e.id)
       && new Date(e.occurredAt) >= windowStart && new Date(e.occurredAt) < windowEnd
   );
 
   const selectedWakeUp = selected?.type === "sleep"
-    ? sleepSessions.find((s) => s.sleep.id === selected.id)?.wakeUp
+    ? (sleepSessions.find((s) => s.sleep.id === selected.id) ?? crossNoonSessions.find((s) => s.sleep.id === selected.id))?.wakeUp
     : undefined;
 
   // Which lanes are actually visible
   const activeLanes = LANES.filter((lane) => {
-    if (lane === "sleeping") return sleepSessions.length > 0 || standaloneEvents.some((e) => e.type === "sleep" || e.type === "wake_up");
+    if (lane === "sleeping") return sleepSessions.length > 0 || crossNoonSessions.length > 0 || orphanSleeps.length > 0 || standaloneEvents.some((e) => e.type === "sleep" || e.type === "wake_up");
     if (lane === "feeding") return standaloneEvents.some((e) => e.type === "feeding");
     return standaloneEvents.some((e) => e.type === "diaper");
   });
 
-  const isEmpty = sleepSessions.length === 0 && standaloneEvents.length === 0;
+  const isEmpty = sleepSessions.length === 0 && crossNoonSessions.length === 0 && orphanSleeps.length === 0 && standaloneEvents.length === 0;
 
   // Layout
   const marginLeft = 28;
@@ -274,6 +323,32 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
                   rx={barH / 2} fill={color} opacity={opacity} />
                 <circle cx={x1} cy={y} r={5} fill={color} stroke="white" strokeWidth={1.5} />
                 <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
+              </g>
+            );
+          })}
+
+          {/* Cross-noon sessions: sleep started before noon, wake-up in this window */}
+          {crossNoonSessions.map(({ sleep, wakeUp }, i) => {
+            const y = laneY("sleeping");
+            const x2 = toX(new Date(wakeUp.occurredAt));
+            const xNoonLeft = tickX(0);
+            return (
+              <g key={`cn-${i}`} style={{ cursor: "pointer" }} onClick={() => setSelected(selected?.id === sleep.id ? null : sleep)}>
+                <rect x={xNoonLeft} y={y - barH / 2} width={Math.max(4, x2 - xNoonLeft)} height={barH} rx={barH / 2} fill="#a855f7" opacity={0.75} />
+                <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
+              </g>
+            );
+          })}
+
+          {/* Orphan sleeps: crossed noon (→ right edge) or still sleeping (→ now) */}
+          {orphanSleeps.map(({ event: sleep, crossedNoon }, i) => {
+            const y = laneY("sleeping");
+            const x1 = toX(new Date(sleep.occurredAt));
+            const xEnd = crossedNoon ? tickX(24) : Math.min(toX(new Date()), tickX(24));
+            return (
+              <g key={`os-${i}`} style={{ cursor: "pointer" }} onClick={() => setSelected(selected?.id === sleep.id ? null : sleep)}>
+                <rect x={x1} y={y - barH / 2} width={Math.max(4, xEnd - x1)} height={barH} rx={barH / 2} fill="#a855f7" opacity={0.75} />
+                <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />
               </g>
             );
           })}
