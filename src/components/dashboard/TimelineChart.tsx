@@ -120,18 +120,24 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
 
   const dayStart = new Date(currentDay); dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(currentDay); dayEnd.setHours(23, 59, 59, 999);
+  // Look back 24h to pair overnight sleeps that started yesterday but wake up today
+  const prevDayStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
   const nextDayEnd = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
 
   const sessionEvents = events.filter((e) => {
     const t = new Date(e.occurredAt);
     if (e.type === "wake_up") return t >= dayStart && t <= nextDayEnd;
+    if (e.type === "sleep") return t >= prevDayStart && t <= dayEnd;
     return t >= dayStart && t <= dayEnd;
   });
 
   const allSessions = buildSleepSessions(sessionEvents);
   const sessionSleepIds = new Set(allSessions.map((s) => s.sleep.id));
   const sessionWakeUpIds = new Set(allSessions.map((s) => s.wakeUp.id));
-  const sleepSessions = allSessions.filter((s) => visibleIds.has(s.sleep.id));
+  // Include overnight sessions whose wake-up is today, even if the sleep started yesterday
+  const sleepSessions = allSessions.filter(
+    (s) => visibleIds.has(s.sleep.id) || visibleIds.has(s.wakeUp.id)
+  );
 
   const standaloneEvents = visible.filter(
     (e) => !sessionSleepIds.has(e.id) && !sessionWakeUpIds.has(e.id)
@@ -218,7 +224,11 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
           {/* Sleep session bars */}
           {sleepSessions.map(({ sleep, wakeUp }, i) => {
             const y = laneY("sleeping");
-            const x1 = toX(new Date(sleep.occurredAt));
+            const sleepDate = new Date(sleep.occurredAt);
+            // Clamp to 00:00 if sleep started yesterday (overnight carryover)
+            const displayStart = sleepDate < dayStart ? dayStart : sleepDate;
+            const isOvernight = sleepDate < dayStart;
+            const x1 = toX(displayStart);
             const x2 = toX(new Date(wakeUp.occurredAt));
             const barW = Math.max(6, x2 - x1);
             const isSelected = selected?.id === sleep.id;
@@ -230,7 +240,8 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
                 )}
                 <rect x={x1} y={y - barH / 2} width={barW} height={barH}
                   rx={barH / 2} fill="#a855f7" opacity={isSelected ? 1 : 0.75} />
-                <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />
+                {/* No start dot for overnight carryover — sleep started off-screen */}
+                {!isOvernight && <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />}
                 <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
               </g>
             );

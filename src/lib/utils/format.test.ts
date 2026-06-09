@@ -9,6 +9,7 @@ import {
   deduplicateBothBreasts,
   aggregateDiaperByDay,
   aggregateBreastFeedingByDay,
+  buildWeeklySleepSessions,
 } from "./format";
 import type { Event } from "@/lib/db/schema";
 
@@ -174,6 +175,73 @@ describe("aggregateDiaperByDay", () => {
 
   it("returns empty array when there are no diaper events", () => {
     expect(aggregateDiaperByDay([], dayKey)).toHaveLength(0);
+  });
+});
+
+// ── buildWeeklySleepSessions ──────────────────────────────────────────────────
+
+describe("buildWeeklySleepSessions", () => {
+  // Week: Mon 2024-01-15 … Sun 2024-01-21
+  const weekStart = new Date("2024-01-15T00:00:00");
+
+  it("assigns a normal same-day sleep to the correct day row", () => {
+    const events = [
+      makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-15T20:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-15T22:00:00") }),
+    ];
+    const sessions = buildWeeklySleepSessions(events, weekStart);
+    expect(sessions[0]).toHaveLength(1); // Monday
+    expect(sessions[0][0].start).toEqual(new Date("2024-01-15T20:00:00"));
+    expect(sessions[0][0].end).toEqual(new Date("2024-01-15T22:00:00"));
+  });
+
+  it("splits an overnight sleep into two segments at noon boundary", () => {
+    // Sleep Mon 22:00 → Tue 04:00 — should produce segment on Mon row AND Tue row
+    const events = [
+      makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-15T22:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-16T04:00:00") }),
+    ];
+    const sessions = buildWeeklySleepSessions(events, weekStart);
+    // Mon row (idx 0): 22:00 → midnight(noon next day doesn't apply — actually splits at noon)
+    // The split point is noon of 2024-01-16. Both 22:00 Mon and 04:00 Tue are before next noon (Jan 16 noon).
+    // So there is NO noon crossing — both times are in the Mon noon-window (Mon 12:00 → Tue 12:00).
+    expect(sessions[0]).toHaveLength(1);
+    expect(sessions[0][0].start).toEqual(new Date("2024-01-15T22:00:00"));
+    expect(sessions[0][0].end).toEqual(new Date("2024-01-16T04:00:00"));
+    // Tue row should be empty
+    expect(sessions[1]).toHaveLength(0);
+  });
+
+  it("shows an overnight sleep that starts the day before the week on the correct Sunday row", () => {
+    // Sleep Sun 22:00 → Mon 04:00. With noon→noon windows, the Sunday row covers Sun 12:00→Mon 12:00,
+    // so 04:00 Mon is still within Sunday's row (idx 6).
+    const events = [
+      makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-14T22:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-15T04:00:00") }),
+    ];
+    const sessions = buildWeeklySleepSessions(events, weekStart);
+    // Sun row (idx 6) should contain the carryover segment
+    expect(sessions[6]).toHaveLength(1);
+    expect(sessions[6][0].end).toEqual(new Date("2024-01-15T04:00:00"));
+  });
+
+  it("splits a session that crosses noon into two rows", () => {
+    // Sleep Mon 11:00 → Mon 13:00 — crosses noon, so Mon row gets 11:00→12:00 and Mon+1 row? No:
+    // Mon row window is Mon 12:00→Tue 12:00. 11:00 Mon is BEFORE noon, so it belongs to Sun row (idx 6).
+    // Segment 1: Sun row, 11:00→12:00. Segment 2: Mon row, 12:00→13:00.
+    const events = [
+      makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-15T11:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-15T13:00:00") }),
+    ];
+    const sessions = buildWeeklySleepSessions(events, weekStart);
+    // Sun row (idx 6): 11:00 → 12:00
+    expect(sessions[6]).toHaveLength(1);
+    expect(sessions[6][0].start).toEqual(new Date("2024-01-15T11:00:00"));
+    expect(sessions[6][0].end).toEqual(new Date("2024-01-15T12:00:00"));
+    // Mon row (idx 0): 12:00 → 13:00
+    expect(sessions[0]).toHaveLength(1);
+    expect(sessions[0][0].start).toEqual(new Date("2024-01-15T12:00:00"));
+    expect(sessions[0][0].end).toEqual(new Date("2024-01-15T13:00:00"));
   });
 });
 

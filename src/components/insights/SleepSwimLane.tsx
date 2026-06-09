@@ -66,12 +66,20 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
   const plotW    = width - MARGIN_LEFT;
   const svgH     = 7 * DAY_HEIGHT + MARGIN_TOP + MARGIN_BOT;
 
-  const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24];
-  const toX = (date: Date) => {
-    const mins = date.getHours() * 60 + date.getMinutes();
-    return MARGIN_LEFT + (mins / (24 * 60)) * plotW;
+  // X axis represents a 24-hour window starting at 12:00 (noon) of each row's day.
+  // Clock hours 12–23 → offsets 0–11; clock hours 0–11 → offsets 12–23.
+  const toOffsetHours = (date: Date) => {
+    const h = date.getHours() + date.getMinutes() / 60;
+    return h >= 12 ? h - 12 : h + 12;
   };
-  const tickX = (h: number) => MARGIN_LEFT + (h / 24) * plotW;
+  const toX = (date: Date) => MARGIN_LEFT + (toOffsetHours(date) / 24) * plotW;
+  const tickX = (offsetH: number) => MARGIN_LEFT + (offsetH / 24) * plotW;
+  // { offset: position on axis, label: clock hour to display }
+  const hourTicks = [
+    { offset: 0, label: 12 }, { offset: 3, label: 15 }, { offset: 6, label: 18 },
+    { offset: 9, label: 21 }, { offset: 12, label: 0 }, { offset: 15, label: 3 },
+    { offset: 18, label: 6 }, { offset: 21, label: 9 }, { offset: 24, label: 12 },
+  ];
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);
@@ -98,19 +106,19 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
           ))}
 
           {/* Vertical hour grid */}
-          {hourTicks.map((h) => (
+          {hourTicks.map(({ offset, label }) => (
             <line
-              key={h}
-              x1={tickX(h)} y1={MARGIN_TOP}
-              x2={tickX(h)} y2={svgH - MARGIN_BOT}
-              stroke={h % 6 === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1}
+              key={offset}
+              x1={tickX(offset)} y1={MARGIN_TOP}
+              x2={tickX(offset)} y2={svgH - MARGIN_BOT}
+              stroke={offset % 12 === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1}
             />
           ))}
 
           {/* Hour labels */}
-          {hourTicks.filter((h) => h < 24).map((h) => (
-            <text key={h} x={tickX(h)} y={svgH - 6} textAnchor="middle" fontSize={8} fill="#9ca3af">
-              {`${String(h).padStart(2, "0")}h`}
+          {hourTicks.filter(({ offset }) => offset < 24).map(({ offset, label }) => (
+            <text key={offset} x={tickX(offset)} y={svgH - 6} textAnchor="middle" fontSize={8} fill="#9ca3af">
+              {`${String(label).padStart(2, "0")}h`}
             </text>
           ))}
 

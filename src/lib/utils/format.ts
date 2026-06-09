@@ -106,8 +106,28 @@ export function dayIndex(date: Date): DayIndex {
   return (d === 0 ? 6 : d - 1) as DayIndex;
 }
 
+// Returns noon (12:00:00) of the given date
+function noonOf(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
+// Returns which day row (Mon=0…Sun=6) owns the noon-to-noon window containing this date.
+// The window for day D runs from noon(D) to noon(D+1), so times before noon belong to the previous day's row.
+function dayRowIndex(date: Date): DayIndex {
+  if (date.getHours() < 12) {
+    const prev = new Date(date);
+    prev.setDate(prev.getDate() - 1);
+    return dayIndex(prev);
+  }
+  return dayIndex(date);
+}
+
 export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Record<DayIndex, SleepSession[]> {
   const weekEnd = endOfWeekSunday(weekStart);
+  // Look back up to 24h before the week to catch overnight sleeps that cross noon into Monday
+  const lookbackStart = new Date(weekStart.getTime() - 24 * 60 * 60 * 1000);
   const sorted = [...events]
     .filter((e) => (e.type === "sleep" || e.type === "wake_up"))
     .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
@@ -117,14 +137,31 @@ export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Reco
 
   sorted.filter((e) => e.type === "sleep").forEach((sleepEvent) => {
     const start = new Date(sleepEvent.occurredAt);
-    if (start < weekStart || start > weekEnd) return;
+    if (start < lookbackStart || start > weekEnd) return;
     const wakeUp = sorted.find(
       (e) => e.type === "wake_up" && !usedWakeIds.has(e.id) && new Date(e.occurredAt) > start
     );
     const end = wakeUp ? new Date(wakeUp.occurredAt) : new Date(Math.min(start.getTime() + 60 * 60 * 1000, weekEnd.getTime()));
     if (wakeUp) usedWakeIds.add(wakeUp.id);
-    const idx = dayIndex(start);
-    byDay[idx].push({ start, end, durationMs: end.getTime() - start.getTime(), isQuicklog: sleepEvent.notes === "QuickLog" });
+    const isQuicklog = sleepEvent.notes === "QuickLog";
+
+    // Split at every noon boundary the session crosses
+    let segStart = start;
+    while (segStart < end) {
+      const segNoon = noonOf(segStart);
+      // Next noon: if segStart is before noon today use today's noon, otherwise tomorrow's noon
+      const nextNoon = segStart < segNoon ? segNoon : new Date(segNoon.getTime() + 24 * 60 * 60 * 1000);
+      const segEnd = end < nextNoon ? end : nextNoon;
+
+      const row = dayRowIndex(segStart);
+      // Only include segments that fall within the week
+      if (segStart >= weekStart || segEnd > weekStart) {
+        if (row >= 0 && row <= 6) {
+          byDay[row].push({ start: segStart, end: segEnd, durationMs: segEnd.getTime() - segStart.getTime(), isQuicklog });
+        }
+      }
+      segStart = nextNoon;
+    }
   });
 
   return byDay;
