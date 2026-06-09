@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatTime, formatSleepDuration, diaperTypeLabel, sleepMethodLabel } from "@/lib/utils/format";
+import { formatTime, formatSleepDuration } from "@/lib/utils/format";
 
 const EVENT_COLORS: Record<string, string> = {
   sleep: "#a855f7",
@@ -64,16 +64,20 @@ const SLEEP_CONDITION_KEY: Record<string, string> = {
 };
 
 function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event; onClose: () => void }) {
+  const tEventTypes = useTranslations("eventTypes");
   const tFeeding = useTranslations("feedingTypes");
   const tConditions = useTranslations("sleepConditions");
+  const tMethods = useTranslations("sleepMethods");
+  const tDiaper = useTranslations("diaperTypes");
+  const tDayView = useTranslations("dayView");
 
   const detail =
     event.type === "diaper" && event.diaperType
-      ? diaperTypeLabel(event.diaperType)
+      ? tDiaper(event.diaperType)
       : event.type === "feeding" && event.feedingType
       ? tFeeding(FEEDING_TYPE_KEY[event.feedingType] ?? event.feedingType)
       : event.sleepMethod
-      ? sleepMethodLabel(event.sleepMethod)
+      ? tMethods(event.sleepMethod)
       : null;
 
   const meta: string[] = [];
@@ -90,7 +94,7 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
           <div className="flex items-center gap-2">
             <span className="text-2xl">{EVENT_EMOJI[event.type]}</span>
             <div>
-              <p className="font-semibold text-gray-900 capitalize">{event.type.replace("_", " ")}</p>
+              <p className="font-semibold text-gray-900">{tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}</p>
               <p className="text-xs text-gray-400">
                 {formatTime(new Date(event.occurredAt))}
                 {event.type === "sleep" && wakeUp && ` → ${formatTime(new Date(wakeUp.occurredAt))}`}
@@ -107,7 +111,7 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
         )}
         {event.notes && (
           <div className="bg-gray-50 rounded-lg px-3 py-2">
-            <p className="text-xs text-gray-400 mb-0.5">Nota</p>
+            <p className="text-xs text-gray-400 mb-0.5">{tDayView("details")}</p>
             <p className="text-sm text-gray-700">{event.notes}</p>
           </div>
         )}
