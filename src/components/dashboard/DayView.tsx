@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { format, startOfDay, endOfDay, addDays, subDays, isToday } from "date-fns";
+import { format, startOfDay, addDays, subDays, isToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
@@ -94,11 +94,14 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
 
   const canGoForward = !isToday(currentDay);
 
+  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
+  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
+
   const dayEvents = deduplicateBothBreasts(
     events
       .filter((e) => {
         const d = new Date(e.occurredAt);
-        return d >= startOfDay(currentDay) && d <= endOfDay(currentDay);
+        return d >= windowStart && d < windowEnd;
       })
       .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
   );

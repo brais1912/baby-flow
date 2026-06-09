@@ -136,30 +136,25 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
   const visible = visibleEvents ?? events;
   const visibleIds = new Set(visible.map((e) => e.id));
 
-  const dayStart = new Date(currentDay); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(currentDay); dayEnd.setHours(23, 59, 59, 999);
-  // Look back 24h to pair overnight sleeps that started yesterday but wake up today
-  const prevDayStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
-  const nextDayEnd = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
+  // Window: noon(currentDay) → noon(currentDay+1), matching the noon-to-noon convention
+  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
+  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
 
   const sessionEvents = events.filter((e) => {
     const t = new Date(e.occurredAt);
-    if (e.type === "wake_up") return t >= dayStart && t <= nextDayEnd;
-    if (e.type === "sleep") return t >= prevDayStart && t <= dayEnd;
-    return t >= dayStart && t <= dayEnd;
+    return t >= windowStart && t < windowEnd;
   });
 
   const allSessions = buildSleepSessions(sessionEvents);
   const sessionSleepIds = new Set(allSessions.map((s) => s.sleep.id));
   const sessionWakeUpIds = new Set(allSessions.map((s) => s.wakeUp.id));
-  // Include overnight sessions whose wake-up is today, even if the sleep started yesterday
   const sleepSessions = allSessions.filter(
     (s) => visibleIds.has(s.sleep.id) || visibleIds.has(s.wakeUp.id)
   );
 
   const standaloneEvents = visible.filter(
     (e) => !sessionSleepIds.has(e.id) && !sessionWakeUpIds.has(e.id)
-      && new Date(e.occurredAt) >= dayStart && new Date(e.occurredAt) <= dayEnd
+      && new Date(e.occurredAt) >= windowStart && new Date(e.occurredAt) < windowEnd
   );
 
   const selectedWakeUp = selected?.type === "sleep"
@@ -191,12 +186,18 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
     return lanePad + idx * laneHeight + laneHeight / 2;
   };
 
-  const hourTicks = Array.from({ length: 25 }, (_, i) => i);
-  const tickX = (hour: number) => marginLeft + (hour / 24) * plotW;
-  const toX = (date: Date) => {
-    const minutes = date.getHours() * 60 + date.getMinutes();
-    return marginLeft + (minutes / (24 * 60)) * plotW;
+  // X axis: noon → noon. Clock hours 12–23 → offsets 0–11; 0–11 → offsets 12–23.
+  const toOffsetMins = (date: Date) => {
+    const mins = date.getHours() * 60 + date.getMinutes();
+    return mins >= 12 * 60 ? mins - 12 * 60 : mins + 12 * 60;
   };
+  const toX = (date: Date) => marginLeft + (toOffsetMins(date) / (24 * 60)) * plotW;
+  const tickX = (offsetH: number) => marginLeft + (offsetH / 24) * plotW;
+  const hourTicks = [
+    { offset: 0, label: 12 }, { offset: 3, label: 15 }, { offset: 6, label: 18 },
+    { offset: 9, label: 21 }, { offset: 12, label: 0 }, { offset: 15, label: 3 },
+    { offset: 18, label: 6 }, { offset: 21, label: 9 }, { offset: 24, label: 12 },
+  ];
 
   return (
     <>
@@ -218,17 +219,17 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
           })}
 
           {/* Vertical hour grid lines */}
-          {hourTicks.map((h) => (
-            <line key={h}
-              x1={tickX(h)} y1={lanePad}
-              x2={tickX(h)} y2={svgHeight - marginBottom}
-              stroke={h % 6 === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1} />
+          {hourTicks.map(({ offset, label }) => (
+            <line key={offset}
+              x1={tickX(offset)} y1={lanePad}
+              x2={tickX(offset)} y2={svgHeight - marginBottom}
+              stroke={label % 12 === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1} />
           ))}
 
           {/* Hour labels */}
-          {hourTicks.filter((h) => h % 3 === 0).map((h) => (
-            <text key={h} x={tickX(h)} y={svgHeight - 4} textAnchor="middle" fontSize={9} fill="#9ca3af">
-              {`${String(h).padStart(2, "0")}:00`}
+          {hourTicks.filter(({ offset }) => offset < 24).map(({ offset, label }) => (
+            <text key={offset} x={tickX(offset)} y={svgHeight - 4} textAnchor="middle" fontSize={9} fill="#9ca3af">
+              {`${String(label).padStart(2, "0")}:00`}
             </text>
           ))}
 
@@ -242,11 +243,7 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
           {/* Sleep session bars */}
           {sleepSessions.map(({ sleep, wakeUp }, i) => {
             const y = laneY("sleeping");
-            const sleepDate = new Date(sleep.occurredAt);
-            // Clamp to 00:00 if sleep started yesterday (overnight carryover)
-            const displayStart = sleepDate < dayStart ? dayStart : sleepDate;
-            const isOvernight = sleepDate < dayStart;
-            const x1 = toX(displayStart);
+            const x1 = toX(new Date(sleep.occurredAt));
             const x2 = toX(new Date(wakeUp.occurredAt));
             const barW = Math.max(6, x2 - x1);
             const isSelected = selected?.id === sleep.id;
@@ -258,8 +255,7 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
                 )}
                 <rect x={x1} y={y - barH / 2} width={barW} height={barH}
                   rx={barH / 2} fill="#a855f7" opacity={isSelected ? 1 : 0.75} />
-                {/* No start dot for overnight carryover — sleep started off-screen */}
-                {!isOvernight && <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />}
+                <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />
                 <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
               </g>
             );
