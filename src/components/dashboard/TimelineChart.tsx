@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { formatTime, formatSleepDuration, diaperTypeLabel, sleepMethodLabel } from "@/lib/utils/format";
 
@@ -52,12 +53,25 @@ function buildSleepSessions(events: Event[]): Array<{ sleep: Event; wakeUp: Even
   return sessions;
 }
 
+const FEEDING_TYPE_KEY: Record<string, string> = {
+  breast_left: "breastLeft", breast_right: "breastRight", both_breasts: "bothBreasts",
+  bottle: "bottle", formula: "formula", solid: "solid",
+};
+
+const SLEEP_CONDITION_KEY: Record<string, string> = {
+  sleep_sack: "sleepSack", pajamas: "pajamas", bodysuit: "bodysuit",
+  top_and_bottoms: "topAndBottoms", swaddle: "swaddle", other: "other",
+};
+
 function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event; onClose: () => void }) {
+  const tFeeding = useTranslations("feedingTypes");
+  const tConditions = useTranslations("sleepConditions");
+
   const detail =
     event.type === "diaper" && event.diaperType
       ? diaperTypeLabel(event.diaperType)
       : event.type === "feeding" && event.feedingType
-      ? event.feedingType.replace("_", " ")
+      ? tFeeding(FEEDING_TYPE_KEY[event.feedingType] ?? event.feedingType)
       : event.sleepMethod
       ? sleepMethodLabel(event.sleepMethod)
       : null;
@@ -65,7 +79,7 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
   const meta: string[] = [];
   if (event.type === "feeding" && event.feedingAmountMl) meta.push(`${event.feedingAmountMl} ml`);
   if (event.type === "feeding" && event.feedingDurationMinutes) meta.push(`${event.feedingDurationMinutes} min`);
-  if (event.type === "sleep" && event.sleepCondition) meta.push(event.sleepCondition.replace("_", " "));
+  if (event.type === "sleep" && event.sleepCondition) meta.push(tConditions(SLEEP_CONDITION_KEY[event.sleepCondition] ?? event.sleepCondition));
   if (event.type === "sleep" && event.sleepRoomTemperature) meta.push(`${event.sleepRoomTemperature}°C`);
   if (event.type === "sleep" && wakeUp) meta.push(formatSleepDuration(new Date(event.occurredAt), new Date(wakeUp.occurredAt)));
 
