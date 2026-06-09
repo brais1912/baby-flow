@@ -227,7 +227,7 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
           ))}
 
           {/* Hour labels */}
-          {hourTicks.filter(({ offset }) => offset < 24).map(({ offset, label }) => (
+          {hourTicks.map(({ offset, label }) => (
             <text key={offset} x={tickX(offset)} y={svgHeight - 4} textAnchor="middle" fontSize={9} fill="#9ca3af">
               {`${String(label).padStart(2, "0")}:00`}
             </text>
@@ -245,17 +245,34 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
             const y = laneY("sleeping");
             const x1 = toX(new Date(sleep.occurredAt));
             const x2 = toX(new Date(wakeUp.occurredAt));
-            const barW = Math.max(6, x2 - x1);
             const isSelected = selected?.id === sleep.id;
+            const color = "#a855f7";
+            const opacity = isSelected ? 1 : 0.75;
+            // Wake-up crosses noon into the next day's window — split into two segments
+            const crossesNoon = x2 < x1;
+            const xNoon = tickX(24); // right edge = noon
+            const xNoonLeft = tickX(0); // left edge = noon
+            if (crossesNoon) {
+              return (
+                <g key={i} style={{ cursor: "pointer" }} onClick={() => setSelected(isSelected ? null : sleep)}>
+                  {/* First segment: sleep start → noon (right edge) */}
+                  <rect x={x1} y={y - barH / 2} width={Math.max(4, xNoon - x1)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
+                  <circle cx={x1} cy={y} r={5} fill={color} stroke="white" strokeWidth={1.5} />
+                  {/* Second segment: noon (left edge) → wake-up */}
+                  <rect x={xNoonLeft} y={y - barH / 2} width={Math.max(4, x2 - xNoonLeft)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
+                  <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
+                </g>
+              );
+            }
             return (
               <g key={i} style={{ cursor: "pointer" }} onClick={() => setSelected(isSelected ? null : sleep)}>
                 {isSelected && (
-                  <rect x={x1 - 2} y={y - barH / 2 - 2} width={barW + 4} height={barH + 4}
-                    rx={barH / 2 + 2} fill="#a855f7" opacity={0.2} />
+                  <rect x={x1 - 2} y={y - barH / 2 - 2} width={Math.max(6, x2 - x1) + 4} height={barH + 4}
+                    rx={barH / 2 + 2} fill={color} opacity={0.2} />
                 )}
-                <rect x={x1} y={y - barH / 2} width={barW} height={barH}
-                  rx={barH / 2} fill="#a855f7" opacity={isSelected ? 1 : 0.75} />
-                <circle cx={x1} cy={y} r={5} fill="#a855f7" stroke="white" strokeWidth={1.5} />
+                <rect x={x1} y={y - barH / 2} width={Math.max(6, x2 - x1)} height={barH}
+                  rx={barH / 2} fill={color} opacity={opacity} />
+                <circle cx={x1} cy={y} r={5} fill={color} stroke="white" strokeWidth={1.5} />
                 <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
               </g>
             );
