@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { format, startOfDay, addDays, subDays, isToday } from "date-fns";
+import { format, startOfDay, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
@@ -80,7 +80,11 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
   currentDay?: Date;
   onDayChange?: (day: Date) => void;
 }) {
-  const [internalDay, setInternalDay] = useState(() => startOfDay(new Date()));
+  const [internalDay, setInternalDay] = useState(() => {
+    const now = new Date();
+    // If before noon, the active window started yesterday at 12:00
+    return now.getHours() < 12 ? startOfDay(subDays(now, 1)) : startOfDay(now);
+  });
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
   const t = useTranslations("dayView");
@@ -92,10 +96,9 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
   const locale = useLocale();
   const dateFnsLocale = locale === "es" ? es : enUS;
 
-  const canGoForward = !isToday(currentDay);
-
   const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
   const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
+  const canGoForward = windowEnd <= new Date();
 
   const dayEvents = deduplicateBothBreasts(
     events
@@ -137,8 +140,13 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
         >
           ‹
         </button>
-        <span className="text-base font-bold text-gray-800">
-          {isToday(currentDay) ? t("today") : format(currentDay, "EEEE, d MMM", { locale: dateFnsLocale })}
+        <span className="text-center leading-tight">
+          <span className="text-sm font-bold text-gray-800 block">
+            {format(windowStart, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
+          </span>
+          <span className="text-xs text-gray-400 block">
+            {format(windowEnd, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
+          </span>
         </span>
         <button
           onClick={() => navigate("next")}
