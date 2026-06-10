@@ -21,7 +21,10 @@
     "timeline": "Línea de tiempo",
     "time": "Hora",
     "type": "Tipo",
-    "details": "Detalles"
+    "details": "Detalles",
+    "deleteConfirm": "¿Eliminar este evento?",
+    "deleteConfirmButton": "Eliminar",
+    "deleteCancelButton": "Cancelar"
   },
   "filters": {
     "all": "Todo",

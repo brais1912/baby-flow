@@ -21,7 +21,10 @@
     "timeline": "Day timeline",
     "time": "Time",
     "type": "Type",
-    "details": "Details"
+    "details": "Details",
+    "deleteConfirm": "Delete this event?",
+    "deleteConfirmButton": "Delete",
+    "deleteCancelButton": "Cancel"
   },
   "filters": {
     "all": "All",

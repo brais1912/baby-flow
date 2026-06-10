@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { format, startOfDay, addDays, subDays } from "date-fns";
@@ -8,6 +8,7 @@ import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
+import { deleteEvent } from "@/lib/actions/events";
 
 const TimelineChart = dynamic(
   () => import("./TimelineChart").then((m) => m.TimelineChart),
@@ -87,6 +88,8 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
   });
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const t = useTranslations("dayView");
   const tFilters = useTranslations("filters");
   const tEventTypes = useTranslations("eventTypes");
@@ -190,32 +193,74 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
           {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
             const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
+            const isConfirming = confirmDeleteId === event.id;
+            const isDeleting = isPending && isConfirming;
+
             return (
               <div
                 key={event.id}
-                className={`bg-white rounded-xl border border-gray-100 border-l-4 ${style.card} px-4 py-3 flex items-start gap-3 shadow-sm`}
+                className={`bg-white rounded-xl border border-gray-100 border-l-4 ${style.card} px-4 py-3 shadow-sm transition-opacity ${isDeleting ? "opacity-40" : ""}`}
               >
-                <span className="text-xl mt-0.5 leading-none">{EVENT_EMOJI[event.type]}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
-                      {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
-                    </span>
-                    {event.notes === "QuickLog" ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-100 flex items-center gap-1">
-                        ⚡ QuickLog
-                      </span>
-                    ) : (
-                      detail && <span className="text-xs text-gray-500 truncate">{detail}</span>
-                    )}
+                {isConfirming ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-600">{t("deleteConfirm")}</span>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-medium active:bg-gray-200 transition-colors"
+                      >
+                        {t("deleteCancelButton")}
+                      </button>
+                      <button
+                        disabled={isDeleting}
+                        onClick={() => {
+                          startTransition(async () => {
+                            await deleteEvent(event.id);
+                            setConfirmDeleteId(null);
+                          });
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white font-medium active:bg-red-600 transition-colors disabled:opacity-50"
+                      >
+                        {t("deleteConfirmButton")}
+                      </button>
+                    </div>
                   </div>
-                  {event.notes && event.notes !== "QuickLog" && (
-                    <p className="text-xs text-gray-400 italic mt-1 truncate">{event.notes}</p>
-                  )}
-                </div>
-                <span className="text-xs text-gray-400 tabular-nums font-medium flex-shrink-0 mt-0.5">
-                  {formatTime(new Date(event.occurredAt))}
-                </span>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl mt-0.5 leading-none">{EVENT_EMOJI[event.type]}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
+                          {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
+                        </span>
+                        {event.notes === "QuickLog" ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-100 flex items-center gap-1">
+                            ⚡ QuickLog
+                          </span>
+                        ) : (
+                          detail && <span className="text-xs text-gray-500 truncate">{detail}</span>
+                        )}
+                      </div>
+                      {event.notes && event.notes !== "QuickLog" && (
+                        <p className="text-xs text-gray-400 italic mt-1 truncate">{event.notes}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                      <span className="text-xs text-gray-400 tabular-nums font-medium">
+                        {formatTime(new Date(event.occurredAt))}
+                      </span>
+                      <button
+                        onClick={() => setConfirmDeleteId(event.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 active:bg-red-100 transition-colors"
+                        aria-label="Delete event"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

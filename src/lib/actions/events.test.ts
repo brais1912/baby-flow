@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Event } from "@/lib/db/schema";
 
-const { findFirstMock, insertValuesMock, insertMock, getUserMock } = vi.hoisted(() => ({
+const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock, getUserMock } = vi.hoisted(() => ({
   findFirstMock: vi.fn(),
   insertValuesMock: vi.fn().mockResolvedValue(undefined),
   insertMock: vi.fn(),
+  deleteWhereMock: vi.fn().mockResolvedValue(undefined),
+  deleteMock: vi.fn(),
   getUserMock: vi.fn(),
 }));
 
@@ -16,6 +18,7 @@ vi.mock("@/lib/db/client", () => ({
   db: {
     query: { events: { findFirst: findFirstMock } },
     insert: insertMock.mockImplementation(() => ({ values: insertValuesMock })),
+    delete: deleteMock.mockImplementation(() => ({ where: deleteWhereMock })),
   },
 }));
 
@@ -25,7 +28,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createEvent } from "./events";
+import { createEvent, deleteEvent } from "./events";
 import { INVALID_SLEEP_SEQUENCE_PREFIX } from "@/types/events";
 
 function makeEvent(overrides: Partial<Event>): Event {
@@ -52,6 +55,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   insertMock.mockImplementation(() => ({ values: insertValuesMock }));
   insertValuesMock.mockResolvedValue(undefined);
+  deleteMock.mockImplementation(() => ({ where: deleteWhereMock }));
+  deleteWhereMock.mockResolvedValue(undefined);
   getUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 });
 
@@ -105,5 +110,21 @@ describe("createEvent — sleep sequence validation", () => {
 
     expect(findFirstMock).not.toHaveBeenCalled();
     expect(insertValuesMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("deleteEvent", () => {
+  it("calls db.delete with the event id scoped to the authenticated user", async () => {
+    await deleteEvent("event-123");
+
+    expect(deleteMock).toHaveBeenCalledTimes(1);
+    expect(deleteWhereMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws Unauthorized when there is no authenticated user", async () => {
+    getUserMock.mockResolvedValueOnce({ data: { user: null }, error: new Error("no user") });
+
+    await expect(deleteEvent("event-123")).rejects.toThrow("Unauthorized");
+    expect(deleteWhereMock).not.toHaveBeenCalled();
   });
 });
