@@ -36,7 +36,7 @@ function makeEvent(overrides: Partial<Event>): Event {
   };
 }
 
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 // ── formatTime ────────────────────────────────────────────────────────────────
 
@@ -133,10 +133,11 @@ describe("deduplicateBothBreasts", () => {
 
 describe("aggregateDiaperByDay", () => {
   it("counts pee, poop, both separately per day", () => {
+    // All three events fall within the same noon-to-noon window (Jan 15 noon → Jan 16 noon)
     const events = [
-      makeEvent({ type: "diaper", diaperType: "pee",  occurredAt: new Date("2024-01-15T08:00:00") }),
-      makeEvent({ type: "diaper", diaperType: "poop", occurredAt: new Date("2024-01-15T12:00:00") }),
-      makeEvent({ type: "diaper", diaperType: "both", occurredAt: new Date("2024-01-15T18:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee",  occurredAt: new Date("2024-01-15T14:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "poop", occurredAt: new Date("2024-01-15T20:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "both", occurredAt: new Date("2024-01-16T08:00:00") }),
     ];
     const result = aggregateDiaperByDay(events, dayKey);
     expect(result).toHaveLength(1);
@@ -162,6 +163,18 @@ describe("aggregateDiaperByDay", () => {
     expect(result).toHaveLength(2);
     expect(result[0].pee).toBe(1);
     expect(result[1].pee).toBe(1);
+  });
+
+  it("buckets events before noon into the previous day's noon window", () => {
+    // 08:00 on Jan 16 belongs to the Jan 15 noon-window; 14:00 on Jan 16 belongs to Jan 16's window
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T08:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T14:00:00") }),
+    ];
+    const result = aggregateDiaperByDay(events, dayKey);
+    expect(result).toHaveLength(2);
+    expect(result[0].label).toBe("2024-01-15");
+    expect(result[1].label).toBe("2024-01-16");
   });
 
   it("ignores non-diaper events", () => {
@@ -269,13 +282,26 @@ describe("buildWeeklySleepSessions", () => {
 
 describe("aggregateBreastFeedingByDay", () => {
   it("counts breast feeding sessions per day", () => {
+    // Both events fall in the same noon-to-noon window (Jan 15 noon → Jan 16 noon)
     const events = [
-      makeEvent({ type: "feeding", feedingType: "breast_left",  occurredAt: new Date("2024-01-15T08:00:00") }),
-      makeEvent({ type: "feeding", feedingType: "breast_right", occurredAt: new Date("2024-01-15T12:00:00") }),
+      makeEvent({ type: "feeding", feedingType: "breast_left",  occurredAt: new Date("2024-01-15T14:00:00") }),
+      makeEvent({ type: "feeding", feedingType: "breast_right", occurredAt: new Date("2024-01-16T08:00:00") }),
     ];
     const result = aggregateBreastFeedingByDay(events, dayKey);
     expect(result).toHaveLength(1);
     expect(result[0].tomas).toBe(2);
+  });
+
+  it("buckets events before noon into the previous day's noon window", () => {
+    // 08:00 on Jan 16 belongs to the Jan 15 noon-window; 14:00 on Jan 16 belongs to Jan 16's window
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T08:00:00") }),
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T14:00:00") }),
+    ];
+    const result = aggregateBreastFeedingByDay(events, dayKey);
+    expect(result).toHaveLength(2);
+    expect(result[0].label).toBe("2024-01-15");
+    expect(result[1].label).toBe("2024-01-16");
   });
 
   it("counts QuickLog feeding events (null feedingType) as breast sessions", () => {

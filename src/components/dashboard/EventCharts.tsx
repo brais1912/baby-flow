@@ -132,7 +132,7 @@ export function FeedingChart({ events }: { events: Event[] }) {
   const bottleData = events
     .filter((e) => e.type === "feeding" && e.feedingType && BOTTLE_TYPES.has(e.feedingType))
     .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime())
-    .map((e) => ({ label: localeDateKey(new Date(e.occurredAt), locale), ml: e.feedingAmountMl ?? 0 }));
+    .map((e) => ({ label: localeDateKey(noonWindowDate(new Date(e.occurredAt)), locale), ml: e.feedingAmountMl ?? 0 }));
 
   return (
     <>

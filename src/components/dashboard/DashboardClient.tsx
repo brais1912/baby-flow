@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { startOfDay } from "date-fns";
+import { startOfDay, subDays } from "date-fns";
 import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { deduplicateBothBreasts } from "@/lib/utils/format";
@@ -30,14 +30,17 @@ function StatCard({ label, value, emoji, styleIdx }: { label: string; value: num
 }
 
 export function DashboardClient({ events }: { events: Event[] }) {
-  const [currentDay, setCurrentDay] = useState(() => startOfDay(new Date()));
+  const [currentDay, setCurrentDay] = useState(() => {
+    const now = new Date();
+    return now.getHours() < 12 ? startOfDay(subDays(now, 1)) : startOfDay(now);
+  });
   const t = useTranslations("dashboard");
 
-  const dayStart = currentDay;
-  const dayEnd = new Date(currentDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
+  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
   const dayEvents = deduplicateBothBreasts(events.filter((e) => {
     const d = new Date(e.occurredAt);
-    return d >= dayStart && d <= dayEnd;
+    return d >= windowStart && d < windowEnd;
   }));
 
   const sleepingCount = dayEvents.filter((e) => e.type === "sleep" || e.type === "wake_up").length;

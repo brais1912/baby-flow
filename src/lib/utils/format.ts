@@ -242,9 +242,9 @@ export type DiaperDayData = { label: string; date: Date; pee: number; poop: numb
 export function aggregateDiaperByDay(events: Event[], localeDateKeyFn: (d: Date) => string): DiaperDayData[] {
   const byDay: Record<string, DiaperDayData> = {};
   events.filter((e) => e.type === "diaper").forEach((e) => {
-    const d = new Date(e.occurredAt);
-    const day = localeDateKeyFn(d);
-    if (!byDay[day]) byDay[day] = { label: day, date: d, pee: 0, poop: 0, both: 0 };
+    const ownerDate = noonWindowDate(new Date(e.occurredAt));
+    const day = localeDateKeyFn(ownerDate);
+    if (!byDay[day]) byDay[day] = { label: day, date: ownerDate, pee: 0, poop: 0, both: 0 };
     const key = (e.diaperType ?? "pee") as "pee" | "poop" | "both";
     byDay[day][key] += 1;
   });
@@ -269,9 +269,9 @@ export function aggregateBreastFeedingByDay(events: Event[], localeDateKeyFn: (d
   );
   const byDay: Record<string, FeedingDayData> = {};
   breastEvents.forEach((e) => {
-    const d = new Date(e.occurredAt);
-    const day = localeDateKeyFn(d);
-    if (!byDay[day]) byDay[day] = { label: day, date: d, tomas: 0, left: 0, right: 0, both: 0, quicklog: 0 };
+    const ownerDate = noonWindowDate(new Date(e.occurredAt));
+    const day = localeDateKeyFn(ownerDate);
+    if (!byDay[day]) byDay[day] = { label: day, date: ownerDate, tomas: 0, left: 0, right: 0, both: 0, quicklog: 0 };
     byDay[day].tomas += 1;
     if (e.feedingType === "breast_left") byDay[day].left += 1;
     else if (e.feedingType === "breast_right") byDay[day].right += 1;
