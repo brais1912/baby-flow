@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -8,6 +8,7 @@ import { format, addDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { startOfWeekMonday, endOfWeekSunday } from "@/lib/utils/format";
 import type { Event } from "@/lib/db/schema";
+import { Spinner } from "@/components/ui/Spinner";
 
 const SleepSwimLane   = dynamic(() => import("./SleepSwimLane").then((m) => m.SleepSwimLane),   { ssr: false, loading: () => <ChartSkeleton /> });
 const WeekTotalsChart = dynamic(() => import("./WeekTotalsChart").then((m) => m.WeekTotalsChart), { ssr: false, loading: () => <ChartSkeleton /> });
@@ -41,11 +42,14 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
   const weekEnd   = endOfWeekSunday(weekStart);
 
   const [activeTab, setActiveTab] = useState<"sleep" | "totals" | "heatmap" | "diaper">("sleep");
+  const [isPending, startTransition] = useTransition();
 
   function navigate(dir: "prev" | "next") {
     const next = startOfWeekMonday(addDays(weekStart, dir === "prev" ? -1 : 7));
     const params = new URLSearchParams({ week: next.toISOString() });
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   }
 
   const isoWeek = format(weekStart, "w");
@@ -65,15 +69,19 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
         <button
           onClick={() => navigate("prev")}
-          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150"
+          disabled={isPending}
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-50"
           aria-label={t("prevWeek")}
         >
           ‹
         </button>
-        <span className="text-sm font-bold text-gray-800 text-center">{weekLabel}</span>
+        <span className="text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2">
+          {isPending && <Spinner className="w-3.5 h-3.5 text-purple-500" />}
+          {weekLabel}
+        </span>
         <button
           onClick={() => navigate("next")}
-          disabled={isCurrentWeek}
+          disabled={isCurrentWeek || isPending}
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-25"
           aria-label={t("nextWeek")}
         >
@@ -100,6 +108,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
       </div>
 
       {/* Charts */}
+      <div className={`space-y-4 transition-opacity duration-200 ${isPending ? "opacity-50" : ""}`}>
       {activeTab === "sleep" && (
         <SectionCard title={t("sleepTitle")} emoji="😴">
           <SleepSwimLane events={events} weekStart={weekStart} />
@@ -123,6 +132,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
           <DiaperHeatmap events={events} weekStart={weekStart} />
         </SectionCard>
       )}
+      </div>
     </div>
   );
 }

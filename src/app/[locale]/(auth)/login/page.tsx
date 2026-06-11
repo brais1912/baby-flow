@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/browser";
 import { LogoWithText } from "@/components/ui/Logo";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { Spinner } from "@/components/ui/Spinner";
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all";
@@ -143,30 +144,31 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3.5 rounded-xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-50 transition-all active:scale-[0.98] shadow-md shadow-purple-200"
+              className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3.5 rounded-xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-70 transition-all duration-150 active:scale-[0.98] shadow-md shadow-purple-200 flex items-center justify-center gap-2"
             >
-              {isPending ? "..." : submitLabels[mode]}
+              {isPending && <Spinner className="w-4 h-4" />}
+              {submitLabels[mode]}
             </button>
           </form>
 
           <div className="mt-4 flex flex-col items-center gap-2">
             {mode === "signin" && (
               <>
-                <button onClick={() => switchMode("forgot")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                <button onClick={() => switchMode("forgot")} className="text-xs text-gray-400 hover:text-purple-600 active:text-purple-600 active:scale-95 transition-all duration-150 px-2 py-1">
                   {t("forgotPassword")}
                 </button>
-                <button onClick={() => switchMode("signup")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+                <button onClick={() => switchMode("signup")} className="text-xs text-gray-400 hover:text-purple-600 active:text-purple-600 active:scale-95 transition-all duration-150 px-2 py-1">
                   {t("noAccount")}
                 </button>
               </>
             )}
             {mode === "signup" && (
-              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 active:text-purple-600 active:scale-95 transition-all duration-150 px-2 py-1">
                 {t("hasAccount")}
               </button>
             )}
             {mode === "forgot" && (
-              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 transition-colors">
+              <button onClick={() => switchMode("signin")} className="text-xs text-gray-400 hover:text-purple-600 active:text-purple-600 active:scale-95 transition-all duration-150 px-2 py-1">
                 ← {t("backToSignIn")}
               </button>
             )}
