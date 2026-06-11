@@ -192,8 +192,8 @@ export function buildWeekDayTotals(events: Event[], weekStart: Date): Record<Day
     return d >= weekStart && d <= weekEnd;
   });
   const feedingEvents = deduplicateBothBreasts(inWeek.filter((e) => e.type === "feeding"));
-  feedingEvents.forEach((e) => { byDay[dayIndex(new Date(e.occurredAt))].feedings += 1; });
-  inWeek.filter((e) => e.type === "diaper").forEach((e) => { byDay[dayIndex(new Date(e.occurredAt))].diapers += 1; });
+  feedingEvents.forEach((e) => { byDay[dayRowIndex(new Date(e.occurredAt))].feedings += 1; });
+  inWeek.filter((e) => e.type === "diaper").forEach((e) => { byDay[dayRowIndex(new Date(e.occurredAt))].diapers += 1; });
 
   return byDay;
 }
@@ -208,7 +208,7 @@ export function buildFeedingHeatmap(events: Event[], weekStart: Date): FeedingHe
   );
   feedingEvents.forEach((e) => {
     const d = new Date(e.occurredAt);
-    const key = `${dayIndex(d)}-${Math.floor(d.getHours() / 2)}`;
+    const key = `${dayRowIndex(d)}-${Math.floor(d.getHours() / 2)}`;
     counts[key] = (counts[key] ?? 0) + 1;
   });
   return Object.entries(counts).map(([key, count]) => {
@@ -226,7 +226,7 @@ export function buildDiaperHeatmap(events: Event[], weekStart: Date): DiaperHeat
     .filter((e) => e.type === "diaper" && new Date(e.occurredAt) >= weekStart && new Date(e.occurredAt) <= weekEnd)
     .forEach((e) => {
       const d = new Date(e.occurredAt);
-      const key = `${dayIndex(d)}-${Math.floor(d.getHours() / 2)}`;
+      const key = `${dayRowIndex(d)}-${Math.floor(d.getHours() / 2)}`;
       counts[key] = (counts[key] ?? 0) + 1;
     });
   return Object.entries(counts).map(([key, count]) => {
