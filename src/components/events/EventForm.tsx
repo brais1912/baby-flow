@@ -6,6 +6,7 @@ import { format, subDays, startOfDay, isToday, isYesterday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { createEvent } from "@/lib/actions/events";
 import { parseInvalidSleepSequenceError, type EventType } from "@/types/events";
+import { Spinner } from "@/components/ui/Spinner";
 
 const selectClass = "flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white focus:border-transparent transition-all text-center appearance-none";
 const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5";
@@ -332,8 +333,9 @@ export function EventForm({ onSuccess, initialType }: { onSuccess?: () => void; 
           <button
             type="submit"
             disabled={isPending}
-            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-4 rounded-2xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-50 transition-all active:scale-[0.98] shadow-md shadow-purple-200"
+            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-4 rounded-2xl font-bold text-sm hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-70 transition-all duration-150 active:scale-[0.98] shadow-md shadow-purple-200 flex items-center justify-center gap-2"
           >
+            {isPending && <Spinner className="w-4 h-4" />}
             {isPending ? t("saving") : t("save")}
           </button>
         </>

@@ -20,7 +20,7 @@ export default async function Home() {
         <p className="text-lg text-gray-500 mb-8">{t("description")}</p>
         <Link
           href={`/${locale}/login`}
-          className="bg-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-purple-700 transition-colors"
+          className="bg-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-purple-700 active:bg-purple-800 active:scale-95 transition-all duration-150 inline-block"
         >
           {t("getStarted")}
         </Link>

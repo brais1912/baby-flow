@@ -23,10 +23,10 @@ export function LanguageSwitcher() {
         <button
           key={l}
           onClick={() => switchLocale(l)}
-          className={`text-xs px-2 py-1 rounded-md font-medium transition-colors ${
+          className={`text-xs px-2 py-1 rounded-md font-medium transition-all duration-150 active:scale-90 ${
             l === locale
               ? "bg-purple-100 text-purple-700"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-gray-400 hover:text-gray-600 active:bg-gray-100 active:text-gray-600"
           }`}
         >
           {t(l)}

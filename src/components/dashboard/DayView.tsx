@@ -9,6 +9,7 @@ import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
+import { Spinner } from "@/components/ui/Spinner";
 
 const TimelineChart = dynamic(
   () => import("./TimelineChart").then((m) => m.TimelineChart),
@@ -138,7 +139,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate("prev")}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150"
           aria-label="Previous day"
         >
           ‹
@@ -154,7 +155,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
         <button
           onClick={() => navigate("next")}
           disabled={!canGoForward}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
           aria-label="Next day"
         >
           ›
@@ -207,7 +208,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
                     <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-medium active:bg-gray-200 transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-medium active:bg-gray-200 active:scale-95 transition-all duration-150"
                       >
                         {t("deleteCancelButton")}
                       </button>
@@ -219,8 +220,9 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
                             setConfirmDeleteId(null);
                           });
                         }}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white font-medium active:bg-red-600 transition-colors disabled:opacity-50"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white font-medium active:bg-red-600 active:scale-95 transition-all duration-150 disabled:opacity-50 flex items-center gap-1.5"
                       >
+                        {isDeleting && <Spinner className="w-3 h-3" />}
                         {t("deleteConfirmButton")}
                       </button>
                     </div>
@@ -251,7 +253,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
                       </span>
                       <button
                         onClick={() => setConfirmDeleteId(event.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 active:bg-red-100 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 active:bg-red-100 active:scale-90 transition-all duration-150"
                         aria-label="Delete event"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
