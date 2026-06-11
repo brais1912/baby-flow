@@ -30,6 +30,46 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
   -webkit-font-smoothing: antialiased;
+  /* Stop the app shell rubber-banding like a web page in the installed PWA */
+  overscroll-behavior-y: none;
+}
+
+/* Native-feel touch behavior: we draw our own pressed states, so kill the
+   default gray tap flash, the 350ms double-tap-zoom delay, and the long-press
+   text-selection callout on controls (form fields keep normal selection). */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button,
+label,
+summary {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Kill Recharts cursor/selection rectangle — we show our own tap modal */

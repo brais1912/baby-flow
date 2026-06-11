@@ -34,7 +34,7 @@ function NewEventContent() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}
-          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors flex-shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 flex-shrink-0"
           aria-label="Go back"
         >
           ‹

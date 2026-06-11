@@ -65,7 +65,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
         <button
           onClick={() => navigate("prev")}
-          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150"
           aria-label={t("prevWeek")}
         >
           ‹
@@ -74,7 +74,7 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
         <button
           onClick={() => navigate("next")}
           disabled={isCurrentWeek}
-          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 transition-colors disabled:opacity-25"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-25"
           aria-label={t("nextWeek")}
         >
           ›

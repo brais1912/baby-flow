@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function SignOutButton() {
   const [isPending, startTransition] = useTransition();
@@ -22,10 +23,10 @@ export function SignOutButton() {
     <button
       onClick={handleSignOut}
       disabled={isPending}
-      className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-50"
+      className="text-xs text-gray-400 hover:text-red-500 transition-all duration-150 px-2 py-1 rounded-lg hover:bg-red-50 active:scale-90 active:bg-red-50 active:text-red-500 disabled:opacity-50"
       aria-label="Sign out"
     >
-      {isPending ? "..." : "↩"}
+      {isPending ? <Spinner className="w-3 h-3" /> : "↩"}
     </button>
   );
 }
