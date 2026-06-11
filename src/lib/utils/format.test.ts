@@ -10,6 +10,9 @@ import {
   aggregateDiaperByDay,
   aggregateBreastFeedingByDay,
   buildWeeklySleepSessions,
+  buildWeekDayTotals,
+  buildFeedingHeatmap,
+  buildDiaperHeatmap,
   noonWindowDate,
 } from "./format";
 import type { Event } from "@/lib/db/schema";
@@ -275,6 +278,80 @@ describe("buildWeeklySleepSessions", () => {
     expect(sessions[0]).toHaveLength(1);
     expect(sessions[0][0].start).toEqual(new Date("2024-01-15T12:00:00"));
     expect(sessions[0][0].end).toEqual(new Date("2024-01-15T13:00:00"));
+  });
+});
+
+// ── buildWeekDayTotals ────────────────────────────────────────────────────────
+
+describe("buildWeekDayTotals", () => {
+  // Week: Mon 2024-01-15 … Sun 2024-01-21
+  const weekStart = new Date("2024-01-15T00:00:00");
+
+  it("buckets pre-noon feedings and diapers into the previous day's row", () => {
+    // Tue 08:00 belongs to Monday's noon-window (Mon 12:00 → Tue 12:00)
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T08:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+    const totals = buildWeekDayTotals(events, weekStart);
+    expect(totals[0].feedings).toBe(1); // Monday
+    expect(totals[0].diapers).toBe(1);
+    expect(totals[1].feedings).toBe(0); // Tuesday
+    expect(totals[1].diapers).toBe(0);
+  });
+
+  it("buckets post-noon feedings and diapers into their own day's row", () => {
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T14:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T14:00:00") }),
+    ];
+    const totals = buildWeekDayTotals(events, weekStart);
+    expect(totals[1].feedings).toBe(1); // Tuesday
+    expect(totals[1].diapers).toBe(1);
+    expect(totals[0].feedings).toBe(0);
+    expect(totals[0].diapers).toBe(0);
+  });
+});
+
+// ── buildFeedingHeatmap ───────────────────────────────────────────────────────
+
+describe("buildFeedingHeatmap", () => {
+  const weekStart = new Date("2024-01-15T00:00:00");
+
+  it("assigns pre-noon feedings to the previous day's row", () => {
+    // Tue 08:00 → Monday row (idx 0), hour bucket 4 (08:00–10:00)
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+    expect(buildFeedingHeatmap(events, weekStart)).toEqual([{ dayIdx: 0, hourBucket: 4, count: 1 }]);
+  });
+
+  it("assigns post-noon feedings to their own day's row", () => {
+    // Tue 14:00 → Tuesday row (idx 1), hour bucket 7 (14:00–16:00)
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T14:00:00") }),
+    ];
+    expect(buildFeedingHeatmap(events, weekStart)).toEqual([{ dayIdx: 1, hourBucket: 7, count: 1 }]);
+  });
+});
+
+// ── buildDiaperHeatmap ────────────────────────────────────────────────────────
+
+describe("buildDiaperHeatmap", () => {
+  const weekStart = new Date("2024-01-15T00:00:00");
+
+  it("assigns pre-noon diapers to the previous day's row", () => {
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+    expect(buildDiaperHeatmap(events, weekStart)).toEqual([{ dayIdx: 0, hourBucket: 4, count: 1 }]);
+  });
+
+  it("assigns post-noon diapers to their own day's row", () => {
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T14:00:00") }),
+    ];
+    expect(buildDiaperHeatmap(events, weekStart)).toEqual([{ dayIdx: 1, hourBucket: 7, count: 1 }]);
   });
 });
 
