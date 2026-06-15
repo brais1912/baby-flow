@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { format, addDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { buildDiaperHeatmap, type DayIndex } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, buildDiaperHeatmap, dayWindowHourTicks, formatHourLabel, type DayIndex } from "@/lib/utils/format";
 import type { Event } from "@/lib/db/schema";
 
 const HOUR_BUCKETS = 12;
@@ -38,7 +38,7 @@ function DetailSheet({ label, count, onClose }: { label: string; count: number; 
   );
 }
 
-export function DiaperHeatmap({ events, weekStart }: { events: Event[]; weekStart: Date }) {
+export function DiaperHeatmap({ events, weekStart, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; weekStart: Date; dayWindowStartMinutes?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth]       = useState(340);
   const [selected, setSelected] = useState<{ label: string; count: number } | null>(null);
@@ -54,7 +54,7 @@ export function DiaperHeatmap({ events, weekStart }: { events: Event[]; weekStar
     return () => ro.disconnect();
   }, []);
 
-  const heatmap  = buildDiaperHeatmap(events, weekStart);
+  const heatmap  = buildDiaperHeatmap(events, weekStart, dayWindowStartMinutes, true);
   const countMap = new Map(heatmap.map((c) => [`${c.dayIdx}-${c.hourBucket}`, c.count]));
   const maxCount = Math.max(1, ...heatmap.map((c) => c.count));
 
@@ -70,6 +70,7 @@ export function DiaperHeatmap({ events, weekStart }: { events: Event[]; weekStar
   }));
 
   const hasData = heatmap.length > 0;
+  const hourTicks = dayWindowHourTicks(dayWindowStartMinutes, 2).filter(({ offset }) => offset < 24);
 
   return (
     <>
@@ -77,10 +78,10 @@ export function DiaperHeatmap({ events, weekStart }: { events: Event[]; weekStar
       <div ref={containerRef} className="w-full overflow-hidden">
         <svg width={width} height={svgH}>
           {/* Hour labels */}
-          {Array.from({ length: HOUR_BUCKETS }, (_, b) => (
-            <text key={b} x={MARGIN_LEFT + b * cellW + cellW / 2} y={MARGIN_TOP - 4}
+          {hourTicks.map(({ offset, labelMinutes }) => (
+            <text key={offset} x={MARGIN_LEFT + offset / 2 * cellW + cellW / 2} y={MARGIN_TOP - 4}
               textAnchor="middle" fontSize={7} fill="#9ca3af">
-              {`${String(b * 2).padStart(2, "0")}h`}
+              {formatHourLabel(labelMinutes, "")}
             </text>
           ))}
 
@@ -104,7 +105,9 @@ export function DiaperHeatmap({ events, weekStart }: { events: Event[]; weekStar
                 <g key={b} style={{ cursor: count > 0 ? "pointer" : "default" }}
                   onClick={() => {
                     if (count === 0) return;
-                    const hourLabel = `${String(b * 2).padStart(2, "0")}:00–${String(b * 2 + 2).padStart(2, "0")}:00`;
+                    const startMinutes = (dayWindowStartMinutes + b * 120) % (24 * 60);
+                    const endMinutes = (startMinutes + 120) % (24 * 60);
+                    const hourLabel = `${formatHourLabel(startMinutes, "")}–${formatHourLabel(endMinutes, "")}`;
                     setSelected({ label: `${fullLabel} · ${hourLabel}`, count });
                   }}
                 >

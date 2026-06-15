@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, real, pgEnum } from "drizzle-orm/pg-core";
+import { integer, pgEnum, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const eventTypeEnum = pgEnum("event_type", ["sleep", "wake_up", "feeding", "diaper"]);
 export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rocking", "self", "nursing", "bottle", "other"]);
@@ -30,5 +30,14 @@ export const events = pgTable("events", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const userSettings = pgTable("user_settings", {
+  userId: uuid("user_id").primaryKey(),
+  dayWindowStartMinutes: integer("day_window_start_minutes").notNull().default(720),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;

@@ -12,7 +12,11 @@
     "subtitle": "Resumen de hoy · navega por días abajo",
     "sleepingEvents": "Eventos de sueño",
     "feedings": "Tomas",
-    "diapers": "Pañales"
+    "diapers": "Pañales",
+    "dayStart": "El día empieza",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "saveError": "No se pudo guardar"
   },
   "dayView": {
     "today": "Hoy",

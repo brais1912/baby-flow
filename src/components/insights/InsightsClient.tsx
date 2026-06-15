@@ -31,7 +31,7 @@ function SectionCard({ title, emoji, children }: { title: string; emoji: string;
   );
 }
 
-export function InsightsClient({ events, weekStart: weekStartISO }: { events: Event[]; weekStart: string }) {
+export function InsightsClient({ events, weekStart: weekStartISO, dayWindowStartMinutes }: { events: Event[]; weekStart: string; dayWindowStartMinutes: number }) {
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
@@ -111,25 +111,25 @@ export function InsightsClient({ events, weekStart: weekStartISO }: { events: Ev
       <div className={`space-y-4 transition-opacity duration-200 ${isPending ? "opacity-50" : ""}`}>
       {activeTab === "sleep" && (
         <SectionCard title={t("sleepTitle")} emoji="😴">
-          <SleepSwimLane events={events} weekStart={weekStart} />
+          <SleepSwimLane events={events} weekStart={weekStart} dayWindowStartMinutes={dayWindowStartMinutes} />
         </SectionCard>
       )}
 
       {activeTab === "totals" && (
         <SectionCard title={t("totalsTitle")} emoji="📊">
-          <WeekTotalsChart events={events} weekStart={weekStart} />
+          <WeekTotalsChart events={events} weekStart={weekStart} dayWindowStartMinutes={dayWindowStartMinutes} />
         </SectionCard>
       )}
 
       {activeTab === "heatmap" && (
         <SectionCard title={t("heatmapTitle")} emoji="🍼">
-          <FeedingHeatmap events={events} weekStart={weekStart} />
+          <FeedingHeatmap events={events} weekStart={weekStart} dayWindowStartMinutes={dayWindowStartMinutes} />
         </SectionCard>
       )}
 
       {activeTab === "diaper" && (
         <SectionCard title={t("diaperTitle")} emoji="👶">
-          <DiaperHeatmap events={events} weekStart={weekStart} />
+          <DiaperHeatmap events={events} weekStart={weekStart} dayWindowStartMinutes={dayWindowStartMinutes} />
         </SectionCard>
       )}
       </div>

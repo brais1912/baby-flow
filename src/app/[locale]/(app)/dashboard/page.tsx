@@ -1,8 +1,10 @@
-import { subDays, startOfDay, addDays } from "date-fns";
+import { subDays, addDays } from "date-fns";
 import { getTranslations } from "next-intl/server";
 import { getEventsForDateRange } from "@/lib/actions/events";
+import { getDayWindowStartMinutes } from "@/lib/actions/settings";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { SleepChartWrapper, FeedingChartWrapper, DiaperChartWrapper } from "@/components/dashboard/EventChartsWrapper";
+import { dayWindowBounds, dayWindowDate } from "@/lib/utils/format";
 
 function SectionHeader({ title, emoji }: { title: string; emoji: string }) {
   return (
@@ -25,12 +27,13 @@ function ChartCard({ title, emoji, children }: { title: string; emoji: string; c
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
   const tCharts = await getTranslations("charts");
+  const dayWindowStartMinutes = await getDayWindowStartMinutes();
 
   const now = new Date();
-  // start: 8 days ago at UTC midnight (covers UTC-12 worst case)
-  // end: tomorrow at UTC midnight (covers UTC+14 worst case)
-  const start = startOfDay(subDays(now, 8));
-  const end = startOfDay(addDays(now, 1));
+  const currentOwnerDate = dayWindowDate(now, dayWindowStartMinutes);
+  const firstOwnerDate = subDays(currentOwnerDate, 8);
+  const start = new Date(dayWindowBounds(firstOwnerDate, dayWindowStartMinutes).start.getTime() - 24 * 60 * 60 * 1000);
+  const end = dayWindowBounds(addDays(currentOwnerDate, 1), dayWindowStartMinutes).end;
   const events = await getEventsForDateRange(start, end);
 
   return (
@@ -40,18 +43,18 @@ export default async function DashboardPage() {
         <p className="text-sm text-gray-400 mt-0.5">{t("subtitle")}</p>
       </div>
 
-      <DashboardClient events={events} />
+      <DashboardClient key={dayWindowStartMinutes} events={events} dayWindowStartMinutes={dayWindowStartMinutes} />
 
       <ChartCard title={tCharts("sleepDuration")} emoji="😴">
-        <SleepChartWrapper events={events} />
+        <SleepChartWrapper events={events} dayWindowStartMinutes={dayWindowStartMinutes} />
       </ChartCard>
 
       <ChartCard title={tCharts("feedingAmounts")} emoji="🍼">
-        <FeedingChartWrapper events={events} />
+        <FeedingChartWrapper events={events} dayWindowStartMinutes={dayWindowStartMinutes} />
       </ChartCard>
 
       <ChartCard title={tCharts("diaperChanges")} emoji="👶">
-        <DiaperChartWrapper events={events} />
+        <DiaperChartWrapper events={events} dayWindowStartMinutes={dayWindowStartMinutes} />
       </ChartCard>
     </div>
   );

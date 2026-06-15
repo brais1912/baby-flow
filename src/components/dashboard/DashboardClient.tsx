@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { startOfDay, subDays } from "date-fns";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { deduplicateBothBreasts } from "@/lib/utils/format";
+import { updateDayWindowStartMinutes } from "@/lib/actions/settings";
+import { ALLOWED_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, deduplicateBothBreasts, formatHourLabel } from "@/lib/utils/format";
 
 const DayView = dynamic(
   () => import("./DayView").then((m) => m.DayView),
@@ -29,15 +30,70 @@ function StatCard({ label, value, emoji, styleIdx }: { label: string; value: num
   );
 }
 
-export function DashboardClient({ events }: { events: Event[] }) {
-  const [currentDay, setCurrentDay] = useState(() => {
-    const now = new Date();
-    return now.getHours() < 12 ? startOfDay(subDays(now, 1)) : startOfDay(now);
-  });
+function DayWindowStartSetting({ value }: { value: number }) {
+  const router = useRouter();
+  const t = useTranslations("dashboard");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+          {t("dayStart")}
+        </p>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {ALLOWED_DAY_WINDOW_START_MINUTES.map((preset) => {
+            const isActive = preset === value;
+            return (
+              <button
+                key={preset}
+                type="button"
+                disabled={isActive || isPending}
+                onClick={() => {
+                  setError(null);
+                  startTransition(async () => {
+                    try {
+                      const result = await updateDayWindowStartMinutes(preset);
+                      if (result.persisted) {
+                        router.refresh();
+                      } else {
+                        setError(t("saveError"));
+                      }
+                    } catch {
+                      setError(t("saveError"));
+                    }
+                  });
+                }}
+                className={`h-9 px-3 rounded-xl text-xs font-bold tabular-nums transition-all active:scale-95 disabled:cursor-default ${
+                  isActive
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 text-gray-600 disabled:opacity-40"
+                }`}
+                aria-pressed={isActive}
+              >
+                {formatHourLabel(preset, "")}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {error && <p className="text-[10px] font-semibold text-red-500 text-right" aria-live="polite">{error}</p>}
+    </div>
+  );
+}
+
+export function DashboardClient({
+  events,
+  dayWindowStartMinutes,
+}: {
+  events: Event[];
+  dayWindowStartMinutes: number;
+}) {
+  const [currentDay, setCurrentDay] = useState(() => dayWindowDate(new Date(), dayWindowStartMinutes));
   const t = useTranslations("dashboard");
 
-  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
-  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const dayEvents = deduplicateBothBreasts(events.filter((e) => {
     const d = new Date(e.occurredAt);
     return d >= windowStart && d < windowEnd;
@@ -49,6 +105,8 @@ export function DashboardClient({ events }: { events: Event[] }) {
 
   return (
     <>
+      <DayWindowStartSetting value={dayWindowStartMinutes} />
+
       <div className="grid grid-cols-3 gap-3">
         <StatCard label={t("sleepingEvents")} value={sleepingCount} emoji="😴" styleIdx={0} />
         <StatCard label={t("feedings")}       value={feedingCount}  emoji="🍼" styleIdx={1} />
@@ -56,7 +114,7 @@ export function DashboardClient({ events }: { events: Event[] }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <DayView events={events} currentDay={currentDay} onDayChange={setCurrentDay} />
+        <DayView events={events} currentDay={currentDay} onDayChange={setCurrentDay} dayWindowStartMinutes={dayWindowStartMinutes} />
       </div>
     </>
   );

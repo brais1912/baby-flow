@@ -13,14 +13,16 @@ const SleepChart = dynamic(() => import("./EventCharts").then((m) => m.SleepChar
 const FeedingChart = dynamic(() => import("./EventCharts").then((m) => m.FeedingChart), { ssr: false, loading });
 const DiaperChart = dynamic(() => import("./EventCharts").then((m) => m.DiaperChart), { ssr: false, loading });
 
-export function SleepChartWrapper({ events }: { events: Event[] }) {
-  return <div className="w-full min-w-0 overflow-hidden"><SleepChart events={events} /></div>;
+type ChartWrapperProps = { events: Event[]; dayWindowStartMinutes: number };
+
+export function SleepChartWrapper({ events, dayWindowStartMinutes }: ChartWrapperProps) {
+  return <div className="w-full min-w-0 overflow-hidden"><SleepChart events={events} dayWindowStartMinutes={dayWindowStartMinutes} /></div>;
 }
 
-export function FeedingChartWrapper({ events }: { events: Event[] }) {
-  return <div className="w-full min-w-0 overflow-hidden"><FeedingChart events={events} /></div>;
+export function FeedingChartWrapper({ events, dayWindowStartMinutes }: ChartWrapperProps) {
+  return <div className="w-full min-w-0 overflow-hidden"><FeedingChart events={events} dayWindowStartMinutes={dayWindowStartMinutes} /></div>;
 }
 
-export function DiaperChartWrapper({ events }: { events: Event[] }) {
-  return <div className="w-full min-w-0 overflow-hidden"><DiaperChart events={events} /></div>;
+export function DiaperChartWrapper({ events, dayWindowStartMinutes }: ChartWrapperProps) {
+  return <div className="w-full min-w-0 overflow-hidden"><DiaperChart events={events} dayWindowStartMinutes={dayWindowStartMinutes} /></div>;
 }

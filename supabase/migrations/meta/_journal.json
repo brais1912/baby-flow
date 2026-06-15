@@ -36,6 +36,13 @@
       "when": 1780504779601,
       "tag": "0004_brown_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781557933825,
+      "tag": "0005_add_user_settings",
+      "breakpoints": true
     }
   ]
 }

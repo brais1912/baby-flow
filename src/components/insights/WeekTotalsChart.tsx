@@ -5,7 +5,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } fro
 import { useTranslations, useLocale } from "next-intl";
 import { format, addDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { buildWeekDayTotals, type DayIndex } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, buildWeekDayTotals, type DayIndex } from "@/lib/utils/format";
 import type { Event } from "@/lib/db/schema";
 
 function DetailSheet({ day, sleepH, feedings, diapers, onClose }: {
@@ -40,13 +40,13 @@ function tapBarIndex(e: React.PointerEvent<HTMLDivElement>, barCount: number, ma
   return Math.floor((rel / plotW) * barCount);
 }
 
-export function WeekTotalsChart({ events, weekStart }: { events: Event[]; weekStart: Date }) {
+export function WeekTotalsChart({ events, weekStart, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; weekStart: Date; dayWindowStartMinutes?: number }) {
   const t = useTranslations("insights");
   const locale = useLocale();
   const dateFnsLocale = locale === "es" ? es : enUS;
   const [selected, setSelected] = useState<{ day: string; sleepH: number; feedings: number; diapers: number } | null>(null);
 
-  const totals = buildWeekDayTotals(events, weekStart);
+  const totals = buildWeekDayTotals(events, weekStart, dayWindowStartMinutes);
 
   const data = Array.from({ length: 7 }, (_, i) => {
     const idx  = i as DayIndex;

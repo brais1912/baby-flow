@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatTime, formatSleepDuration } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowHourTicks, dayWindowOffsetMinutes, formatHourLabel, formatTime, formatSleepDuration } from "@/lib/utils/format";
 
 const EVENT_COLORS: Record<string, string> = {
   sleep: "#a855f7",
@@ -39,6 +39,7 @@ interface Props {
   events: Event[];
   visibleEvents?: Event[];
   currentDay: Date;
+  dayWindowStartMinutes?: number;
 }
 
 function buildSleepSessions(events: Event[]): Array<{ sleep: Event; wakeUp: Event }> {
@@ -124,7 +125,7 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
   );
 }
 
-export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
+export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: Props) {
   const [selected, setSelected] = useState<Event | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -140,9 +141,7 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
   const visible = visibleEvents ?? events;
   const visibleIds = new Set(visible.map((e) => e.id));
 
-  // Window: noon(currentDay) → noon(currentDay+1), matching the noon-to-noon convention
-  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
-  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
 
   const sessionEvents = events.filter((e) => {
     const t = new Date(e.occurredAt);
@@ -156,15 +155,13 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
     (s) => visibleIds.has(s.sleep.id) || visibleIds.has(s.wakeUp.id)
   );
 
-  // Second pass: find sleeps that started between midnight and noon of currentDay
-  // whose next wake-up falls inside this window (cross-noon sessions).
-  const midnight = new Date(currentDay); midnight.setHours(0, 0, 0, 0);
+  const previousWindowStart = new Date(windowStart.getTime() - 24 * 60 * 60 * 1000);
   const allSorted = [...events].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
-  const crossNoonSessions: Array<{ sleep: Event; wakeUp: Event }> = [];
+  const crossBoundarySessions: Array<{ sleep: Event; wakeUp: Event }> = [];
   allSorted
     .filter((e) => {
       const t = new Date(e.occurredAt);
-      return e.type === "sleep" && t >= midnight && t < windowStart;
+      return e.type === "sleep" && t >= previousWindowStart && t < windowStart;
     })
     .forEach((sleepEvent) => {
       const nextWake = allSorted.find(
@@ -173,14 +170,14 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
       if (nextWake && !sessionWakeUpIds.has(nextWake.id)) {
         const wakeTime = new Date(nextWake.occurredAt);
         if (wakeTime >= windowStart && wakeTime < windowEnd) {
-          crossNoonSessions.push({ sleep: sleepEvent, wakeUp: nextWake });
+          crossBoundarySessions.push({ sleep: sleepEvent, wakeUp: nextWake });
         }
       }
     });
 
   // Sleeps inside the window with no paired wake-up in this window.
   // Two sub-cases tracked separately:
-  //   - crossedNoon: wake-up exists but is after windowEnd → bar from sleep to right edge (noon)
+  //   - crossedBoundary: wake-up exists but is after windowEnd → bar from sleep to right edge
   //   - stillSleeping: no wake-up event exists at all → bar from sleep to now
   const orphanSleeps = visible
     .filter((e) => {
@@ -194,11 +191,11 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
       const nextWake = allSorted.find(
         (w) => w.type === "wake_up" && new Date(w.occurredAt) > t
       );
-      const crossedNoon = nextWake !== undefined && new Date(nextWake.occurredAt) >= windowEnd;
+      const crossedBoundary = nextWake !== undefined && new Date(nextWake.occurredAt) >= windowEnd;
       const stillSleeping = nextWake === undefined;
-      return { event: e, crossedNoon, stillSleeping };
+      return { event: e, crossedBoundary, stillSleeping };
     })
-    .filter(({ crossedNoon, stillSleeping }) => crossedNoon || stillSleeping);
+    .filter(({ crossedBoundary, stillSleeping }) => crossedBoundary || stillSleeping);
   const orphanSleepIds = new Set(orphanSleeps.map(({ event }) => event.id));
 
   const standaloneEvents = visible.filter(
@@ -207,17 +204,17 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
   );
 
   const selectedWakeUp = selected?.type === "sleep"
-    ? (sleepSessions.find((s) => s.sleep.id === selected.id) ?? crossNoonSessions.find((s) => s.sleep.id === selected.id))?.wakeUp
+    ? (sleepSessions.find((s) => s.sleep.id === selected.id) ?? crossBoundarySessions.find((s) => s.sleep.id === selected.id))?.wakeUp
     : undefined;
 
   // Which lanes are actually visible
   const activeLanes = LANES.filter((lane) => {
-    if (lane === "sleeping") return sleepSessions.length > 0 || crossNoonSessions.length > 0 || orphanSleeps.length > 0 || standaloneEvents.some((e) => e.type === "sleep" || e.type === "wake_up");
+    if (lane === "sleeping") return sleepSessions.length > 0 || crossBoundarySessions.length > 0 || orphanSleeps.length > 0 || standaloneEvents.some((e) => e.type === "sleep" || e.type === "wake_up");
     if (lane === "feeding") return standaloneEvents.some((e) => e.type === "feeding");
     return standaloneEvents.some((e) => e.type === "diaper");
   });
 
-  const isEmpty = sleepSessions.length === 0 && crossNoonSessions.length === 0 && orphanSleeps.length === 0 && standaloneEvents.length === 0;
+  const isEmpty = sleepSessions.length === 0 && crossBoundarySessions.length === 0 && orphanSleeps.length === 0 && standaloneEvents.length === 0;
 
   // Layout
   const marginLeft = 28;
@@ -235,18 +232,12 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
     return lanePad + idx * laneHeight + laneHeight / 2;
   };
 
-  // X axis: noon → noon. Clock hours 12–23 → offsets 0–11; 0–11 → offsets 12–23.
   const toOffsetMins = (date: Date) => {
-    const mins = date.getHours() * 60 + date.getMinutes();
-    return mins >= 12 * 60 ? mins - 12 * 60 : mins + 12 * 60;
+    return dayWindowOffsetMinutes(date, dayWindowStartMinutes);
   };
   const toX = (date: Date) => marginLeft + (toOffsetMins(date) / (24 * 60)) * plotW;
   const tickX = (offsetH: number) => marginLeft + (offsetH / 24) * plotW;
-  const hourTicks = [
-    { offset: 0, label: 12 }, { offset: 3, label: 15 }, { offset: 6, label: 18 },
-    { offset: 9, label: 21 }, { offset: 12, label: 0 }, { offset: 15, label: 3 },
-    { offset: 18, label: 6 }, { offset: 21, label: 9 }, { offset: 24, label: 12 },
-  ];
+  const hourTicks = dayWindowHourTicks(dayWindowStartMinutes);
 
   return (
     <>
@@ -268,17 +259,17 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
           })}
 
           {/* Vertical hour grid lines */}
-          {hourTicks.map(({ offset, label }) => (
+          {hourTicks.map(({ offset, labelMinutes }) => (
             <line key={offset}
               x1={tickX(offset)} y1={lanePad}
               x2={tickX(offset)} y2={svgHeight - marginBottom}
-              stroke={label % 12 === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1} />
+              stroke={labelMinutes % (12 * 60) === 0 ? "#e5e7eb" : "#f3f4f6"} strokeWidth={1} />
           ))}
 
           {/* Hour labels */}
-          {hourTicks.map(({ offset, label }) => (
+          {hourTicks.map(({ offset, labelMinutes }) => (
             <text key={offset} x={tickX(offset)} y={svgHeight - 4} textAnchor="middle" fontSize={9} fill="#9ca3af">
-              {`${String(label).padStart(2, "0")}:00`}
+              {formatHourLabel(labelMinutes, "")}
             </text>
           ))}
 
@@ -297,18 +288,15 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
             const isSelected = selected?.id === sleep.id;
             const color = "#a855f7";
             const opacity = isSelected ? 1 : 0.75;
-            // Wake-up crosses noon into the next day's window — split into two segments
-            const crossesNoon = x2 < x1;
-            const xNoon = tickX(24); // right edge = noon
-            const xNoonLeft = tickX(0); // left edge = noon
-            if (crossesNoon) {
+            const crossesBoundary = x2 < x1;
+            const xBoundaryRight = tickX(24);
+            const xBoundaryLeft = tickX(0);
+            if (crossesBoundary) {
               return (
                 <g key={i} style={{ cursor: "pointer" }} onClick={() => setSelected(isSelected ? null : sleep)}>
-                  {/* First segment: sleep start → noon (right edge) */}
-                  <rect x={x1} y={y - barH / 2} width={Math.max(4, xNoon - x1)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
+                  <rect x={x1} y={y - barH / 2} width={Math.max(4, xBoundaryRight - x1)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
                   <circle cx={x1} cy={y} r={5} fill={color} stroke="white" strokeWidth={1.5} />
-                  {/* Second segment: noon (left edge) → wake-up */}
-                  <rect x={xNoonLeft} y={y - barH / 2} width={Math.max(4, x2 - xNoonLeft)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
+                  <rect x={xBoundaryLeft} y={y - barH / 2} width={Math.max(4, x2 - xBoundaryLeft)} height={barH} rx={barH / 2} fill={color} opacity={opacity} />
                   <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
                 </g>
               );
@@ -327,24 +315,24 @@ export function TimelineChart({ events, visibleEvents, currentDay }: Props) {
             );
           })}
 
-          {/* Cross-noon sessions: sleep started before noon, wake-up in this window */}
-          {crossNoonSessions.map(({ sleep, wakeUp }, i) => {
+          {/* Cross-boundary sessions: sleep started before this window, wake-up in this window */}
+          {crossBoundarySessions.map(({ sleep, wakeUp }, i) => {
             const y = laneY("sleeping");
             const x2 = toX(new Date(wakeUp.occurredAt));
-            const xNoonLeft = tickX(0);
+            const xBoundaryLeft = tickX(0);
             return (
               <g key={`cn-${i}`} style={{ cursor: "pointer" }} onClick={() => setSelected(selected?.id === sleep.id ? null : sleep)}>
-                <rect x={xNoonLeft} y={y - barH / 2} width={Math.max(4, x2 - xNoonLeft)} height={barH} rx={barH / 2} fill="#a855f7" opacity={0.75} />
+                <rect x={xBoundaryLeft} y={y - barH / 2} width={Math.max(4, x2 - xBoundaryLeft)} height={barH} rx={barH / 2} fill="#a855f7" opacity={0.75} />
                 <circle cx={x2} cy={y} r={5} fill="#f97316" stroke="white" strokeWidth={1.5} />
               </g>
             );
           })}
 
-          {/* Orphan sleeps: crossed noon (→ right edge) or still sleeping (→ now) */}
-          {orphanSleeps.map(({ event: sleep, crossedNoon }, i) => {
+          {/* Orphan sleeps: crossed boundary (→ right edge) or still sleeping (→ now) */}
+          {orphanSleeps.map(({ event: sleep, crossedBoundary }, i) => {
             const y = laneY("sleeping");
             const x1 = toX(new Date(sleep.occurredAt));
-            const xEnd = crossedNoon ? tickX(24) : Math.min(toX(new Date()), tickX(24));
+            const xEnd = crossedBoundary ? tickX(24) : Math.min(toX(new Date()), tickX(24));
             return (
               <g key={`os-${i}`} style={{ cursor: "pointer" }} onClick={() => setSelected(selected?.id === sleep.id ? null : sleep)}>
                 <rect x={x1} y={y - barH / 2} width={Math.max(4, xEnd - x1)} height={barH} rx={barH / 2} fill="#a855f7" opacity={0.75} />
