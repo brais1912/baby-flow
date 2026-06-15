@@ -12,7 +12,11 @@
     "subtitle": "Today's summary · browse by day below",
     "sleepingEvents": "Sleeping events",
     "feedings": "Feedings",
-    "diapers": "Diapers"
+    "diapers": "Diapers",
+    "dayStart": "Day starts",
+    "save": "Save",
+    "saving": "Saving...",
+    "saveError": "Couldn't save"
   },
   "dayView": {
     "today": "Today",

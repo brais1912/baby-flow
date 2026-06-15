@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { useTranslations, useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatSleepDuration, aggregateSleepByDay, aggregateDiaperByDay, aggregateBreastFeedingByDay, noonWindowDate } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, formatSleepDuration, aggregateSleepByDay, aggregateDiaperByDay, aggregateBreastFeedingByDay, dayWindowDate } from "@/lib/utils/format";
 
 const NoTooltip = () => null;
 
@@ -44,13 +44,13 @@ function tapBarIndex(e: React.PointerEvent<HTMLDivElement>, barCount: number, ma
 
 // ── Sleep chart ───────────────────────────────────────────────────────────────
 
-export function SleepChart({ events }: { events: Event[] }) {
+export function SleepChart({ events, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; dayWindowStartMinutes?: number }) {
   const t = useTranslations("charts");
   const locale = useLocale();
   const now = new Date();
   const [selected, setSelected] = useState<{ label: string; hours: number; duration: string } | null>(null);
 
-  const sleepBars = aggregateSleepByDay(events, now, (d) => localeDateKey(d, locale))
+  const sleepBars = aggregateSleepByDay(events, now, (d) => localeDateKey(d, locale), dayWindowStartMinutes)
     .map(({ label, ms }) => ({
       label,
       hours: Math.round((ms / 3600000) * 10) / 10,
@@ -96,7 +96,7 @@ export function SleepChart({ events }: { events: Event[] }) {
 
 const BOTTLE_TYPES = new Set(["bottle", "formula", "solid"]);
 
-export function FeedingChart({ events }: { events: Event[] }) {
+export function FeedingChart({ events, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; dayWindowStartMinutes?: number }) {
   const t = useTranslations("charts");
   const locale = useLocale();
   const [selected, setSelected] = useState<{ label: string; tomas?: number; left?: number; right?: number; both?: number; quicklog?: number; ml?: number } | null>(null);
@@ -104,12 +104,12 @@ export function FeedingChart({ events }: { events: Event[] }) {
 
   if (feedingEvents.length === 0) return <EmptyChart message={t("noFeedingData")} />;
 
-  const breastData = aggregateBreastFeedingByDay(events, (d) => localeDateKey(d, locale));
+  const breastData = aggregateBreastFeedingByDay(events, (d) => localeDateKey(d, locale), dayWindowStartMinutes);
 
   const bottleData = events
     .filter((e) => e.type === "feeding" && e.feedingType && BOTTLE_TYPES.has(e.feedingType))
     .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime())
-    .map((e) => ({ label: localeDateKey(noonWindowDate(new Date(e.occurredAt)), locale), ml: e.feedingAmountMl ?? 0 }));
+    .map((e) => ({ label: localeDateKey(dayWindowDate(new Date(e.occurredAt), dayWindowStartMinutes), locale), ml: e.feedingAmountMl ?? 0 }));
 
   return (
     <>
@@ -185,12 +185,12 @@ export function FeedingChart({ events }: { events: Event[] }) {
 
 // ── Diaper chart ──────────────────────────────────────────────────────────────
 
-export function DiaperChart({ events }: { events: Event[] }) {
+export function DiaperChart({ events, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; dayWindowStartMinutes?: number }) {
   const t = useTranslations("charts");
   const tDiaper = useTranslations("diaperTypes");
   const locale = useLocale();
   const [selected, setSelected] = useState<{ label: string; pee: number; poop: number; both: number } | null>(null);
-  const barData = aggregateDiaperByDay(events, (d) => localeDateKey(d, locale));
+  const barData = aggregateDiaperByDay(events, (d) => localeDateKey(d, locale), dayWindowStartMinutes);
 
   if (barData.length === 0) return <EmptyChart message={t("noDiaperData")} />;
 

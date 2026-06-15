@@ -14,6 +14,9 @@ import {
   buildWeekDayTotals,
   buildFeedingHeatmap,
   buildDiaperHeatmap,
+  dayWindowBounds,
+  dayWindowDate,
+  isValidDayWindowStartMinutes,
   noonWindowDate,
 } from "./format";
 import type { Event } from "@/lib/db/schema";
@@ -173,6 +176,20 @@ describe("aggregateSleepByDay", () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ label: "2024-01-15", ms: 6 * 60 * 60 * 1000 });
   });
+
+  it("splits a sleep session at a configured non-noon boundary", () => {
+    const dayStart = 8 * 60;
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2024-06-02T07:40:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-06-02T08:30:00") }),
+    ];
+
+    const result = aggregateSleepByDay(events, new Date("2024-06-02T09:00:00"), dayKey, dayStart);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ label: "2024-06-01", ms: 20 * 60 * 1000 });
+    expect(result[1]).toMatchObject({ label: "2024-06-02", ms: 30 * 60 * 1000 });
+  });
 });
 
 // ── aggregateDiaperByDay ──────────────────────────────────────────────────────
@@ -254,6 +271,40 @@ describe("noonWindowDate", () => {
   it("returns the same day exactly at noon", () => {
     const result = noonWindowDate(new Date("2024-01-15T12:00:00"));
     expect(result).toEqual(new Date("2024-01-15T00:00:00"));
+  });
+});
+
+// ── dayWindowDate / dayWindowBounds ───────────────────────────────────────────
+
+describe("dayWindowDate", () => {
+  it("returns the same day at or after the configured start time", () => {
+    expect(dayWindowDate(new Date("2024-01-15T08:00:00"), 8 * 60)).toEqual(new Date("2024-01-15T00:00:00"));
+    expect(dayWindowDate(new Date("2024-01-15T08:30:00"), 8 * 60)).toEqual(new Date("2024-01-15T00:00:00"));
+  });
+
+  it("returns the previous day before the configured start time", () => {
+    expect(dayWindowDate(new Date("2024-01-15T07:59:00"), 8 * 60)).toEqual(new Date("2024-01-14T00:00:00"));
+  });
+});
+
+describe("dayWindowBounds", () => {
+  it("builds a 24-hour window from the configured start time", () => {
+    expect(dayWindowBounds(new Date("2024-01-15T00:00:00"), 8 * 60)).toEqual({
+      start: new Date("2024-01-15T08:00:00"),
+      end: new Date("2024-01-16T08:00:00"),
+    });
+  });
+});
+
+describe("isValidDayWindowStartMinutes", () => {
+  it("accepts only the approved day start presets", () => {
+    expect([0, 8 * 60, 9 * 60, 10 * 60, 11 * 60, 12 * 60].every(isValidDayWindowStartMinutes)).toBe(true);
+  });
+
+  it("rejects arbitrary in-range and out-of-range minute values", () => {
+    expect(isValidDayWindowStartMinutes(6 * 60)).toBe(false);
+    expect(isValidDayWindowStartMinutes(7 * 60 + 30)).toBe(false);
+    expect(isValidDayWindowStartMinutes(24 * 60)).toBe(false);
   });
 });
 
@@ -400,6 +451,21 @@ describe("buildWeekDayTotals", () => {
     expect(totals[6].feedings).toBe(1);
     expect(totals[6].diapers).toBe(1);
   });
+
+  it("uses a configured non-noon boundary for daily totals", () => {
+    const dayStart = 8 * 60;
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T07:50:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T08:10:00") }),
+    ];
+
+    const totals = buildWeekDayTotals(events, weekStart, dayStart);
+
+    expect(totals[0].feedings).toBe(1);
+    expect(totals[1].feedings).toBe(0);
+    expect(totals[0].diapers).toBe(0);
+    expect(totals[1].diapers).toBe(1);
+  });
 });
 
 // ── buildFeedingHeatmap ───────────────────────────────────────────────────────
@@ -440,6 +506,14 @@ describe("buildFeedingHeatmap", () => {
 
     expect(buildFeedingHeatmap(events, previousWeekStart)).toEqual([{ dayIdx: 6, hourBucket: 4, count: 1 }]);
   });
+
+  it("rotates feeding hour buckets from a configured non-noon boundary", () => {
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+
+    expect(buildFeedingHeatmap(events, weekStart, 8 * 60, true)).toEqual([{ dayIdx: 1, hourBucket: 0, count: 1 }]);
+  });
 });
 
 // ── buildDiaperHeatmap ────────────────────────────────────────────────────────
@@ -478,6 +552,14 @@ describe("buildDiaperHeatmap", () => {
 
     expect(buildDiaperHeatmap(events, previousWeekStart)).toEqual([{ dayIdx: 6, hourBucket: 4, count: 1 }]);
   });
+
+  it("rotates diaper hour buckets from a configured non-noon boundary", () => {
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+
+    expect(buildDiaperHeatmap(events, weekStart, 8 * 60, true)).toEqual([{ dayIdx: 1, hourBucket: 0, count: 1 }]);
+  });
 });
 
 // ── aggregateBreastFeedingByDay ───────────────────────────────────────────────
@@ -501,6 +583,17 @@ describe("aggregateBreastFeedingByDay", () => {
       makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T14:00:00") }),
     ];
     const result = aggregateBreastFeedingByDay(events, dayKey);
+    expect(result).toHaveLength(2);
+    expect(result[0].label).toBe("2024-01-15");
+    expect(result[1].label).toBe("2024-01-16");
+  });
+
+  it("uses a configured non-noon boundary", () => {
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T07:50:00") }),
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2024-01-16T08:10:00") }),
+    ];
+    const result = aggregateBreastFeedingByDay(events, dayKey, 8 * 60);
     expect(result).toHaveLength(2);
     expect(result[0].label).toBe("2024-01-15");
     expect(result[1].label).toBe("2024-01-16");

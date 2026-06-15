@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { format, startOfDay, addDays, subDays } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -77,15 +77,14 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
   return "";
 }
 
-export function DayView({ events, currentDay: controlledDay, onDayChange }: {
+export function DayView({ events, currentDay: controlledDay, onDayChange, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
   events: Event[];
   currentDay?: Date;
   onDayChange?: (day: Date) => void;
+  dayWindowStartMinutes?: number;
 }) {
   const [internalDay, setInternalDay] = useState(() => {
-    const now = new Date();
-    // If before noon, the active window started yesterday at 12:00
-    return now.getHours() < 12 ? startOfDay(subDays(now, 1)) : startOfDay(now);
+    return dayWindowDate(new Date(), dayWindowStartMinutes);
   });
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
@@ -100,8 +99,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
   const locale = useLocale();
   const dateFnsLocale = locale === "es" ? es : enUS;
 
-  const windowStart = new Date(currentDay); windowStart.setHours(12, 0, 0, 0);
-  const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const canGoForward = windowEnd <= new Date();
 
   const dayEvents = deduplicateBothBreasts(
@@ -272,7 +270,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange }: {
       {/* Timeline */}
       <div className="pt-3 border-t border-gray-100">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t("timeline")}</p>
-        <TimelineChart events={events} visibleEvents={filteredEvents} currentDay={currentDay} />
+        <TimelineChart events={events} visibleEvents={filteredEvents} currentDay={currentDay} dayWindowStartMinutes={dayWindowStartMinutes} />
         <div className="flex gap-4 mt-2 text-xs text-gray-400">
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />{tFilters("sleeping")}</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />{tFilters("feeding")}</span>

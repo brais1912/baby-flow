@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { format, addDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { buildWeeklySleepSessions, formatSleepDuration, type SleepSession, type DayIndex } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, buildWeeklySleepSessions, dayWindowBounds, dayWindowHourTicks, dayWindowOffsetMinutes, formatHourLabel, formatSleepDuration, type SleepSession, type DayIndex } from "@/lib/utils/format";
 import type { Event } from "@/lib/db/schema";
 
 const DAY_HEIGHT  = 36;
@@ -46,7 +46,7 @@ function DetailSheet({ session, dayLabel, onClose }: { session: SleepSession; da
   );
 }
 
-export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStart: Date }) {
+export function SleepSwimLane({ events, weekStart, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; weekStart: Date; dayWindowStartMinutes?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
   const [selected, setSelected] = useState<{ session: SleepSession; dayLabel: string } | null>(null);
@@ -62,24 +62,16 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
     return () => ro.disconnect();
   }, []);
 
-  const sessions = buildWeeklySleepSessions(events, weekStart);
+  const sessions = buildWeeklySleepSessions(events, weekStart, dayWindowStartMinutes);
   const plotW    = width - MARGIN_LEFT;
   const svgH     = 7 * DAY_HEIGHT + MARGIN_TOP + MARGIN_BOT;
 
-  // X axis represents a 24-hour window starting at 12:00 (noon) of each row's day.
-  // Clock hours 12–23 → offsets 0–11; clock hours 0–11 → offsets 12–23.
   const toOffsetHours = (date: Date) => {
-    const h = date.getHours() + date.getMinutes() / 60;
-    return h >= 12 ? h - 12 : h + 12;
+    return dayWindowOffsetMinutes(date, dayWindowStartMinutes) / 60;
   };
   const toX = (date: Date) => MARGIN_LEFT + (toOffsetHours(date) / 24) * plotW;
   const tickX = (offsetH: number) => MARGIN_LEFT + (offsetH / 24) * plotW;
-  // { offset: position on axis, label: clock hour to display }
-  const hourTicks = [
-    { offset: 0, label: 12 }, { offset: 3, label: 15 }, { offset: 6, label: 18 },
-    { offset: 9, label: 21 }, { offset: 12, label: 0 }, { offset: 15, label: 3 },
-    { offset: 18, label: 6 }, { offset: 21, label: 9 }, { offset: 24, label: 12 },
-  ];
+  const hourTicks = dayWindowHourTicks(dayWindowStartMinutes);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);
@@ -106,7 +98,7 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
           ))}
 
           {/* Vertical hour grid */}
-          {hourTicks.map(({ offset, label }) => (
+          {hourTicks.map(({ offset }) => (
             <line
               key={offset}
               x1={tickX(offset)} y1={MARGIN_TOP}
@@ -116,9 +108,9 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
           ))}
 
           {/* Hour labels */}
-          {hourTicks.filter(({ offset }) => offset < 24).map(({ offset, label }) => (
+          {hourTicks.filter(({ offset }) => offset < 24).map(({ offset, labelMinutes }) => (
             <text key={offset} x={tickX(offset)} y={svgH - 6} textAnchor="middle" fontSize={8} fill="#9ca3af">
-              {`${String(label).padStart(2, "0")}h`}
+              {formatHourLabel(labelMinutes, "")}
             </text>
           ))}
 
@@ -139,8 +131,9 @@ export function SleepSwimLane({ events, weekStart }: { events: Event[]; weekStar
           {/* Sleep bars */}
           {days.map(({ idx }) =>
             sessions[idx].map((session, si) => {
+              const windowEnd = dayWindowBounds(addDays(weekStart, idx), dayWindowStartMinutes).end;
               const x1  = Math.min(toX(session.start), width - 2);
-              const x2  = Math.min(toX(session.end),   width - 2);
+              const x2  = session.end.getTime() === windowEnd.getTime() ? width - 2 : Math.min(toX(session.end), width - 2);
               const barW = Math.max(4, x2 - x1);
               const cy  = rowY(idx);
               return (
