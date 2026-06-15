@@ -113,17 +113,6 @@ function noonOf(date: Date): Date {
   return d;
 }
 
-// Returns which day row (Mon=0…Sun=6) owns the noon-to-noon window containing this date.
-// The window for day D runs from noon(D) to noon(D+1), so times before noon belong to the previous day's row.
-function dayRowIndex(date: Date): DayIndex {
-  if (date.getHours() < 12) {
-    const prev = new Date(date);
-    prev.setDate(prev.getDate() - 1);
-    return dayIndex(prev);
-  }
-  return dayIndex(date);
-}
-
 // Returns the calendar date (at midnight) of the noon-window that owns this datetime.
 // Times before noon belong to the previous day's window.
 export function noonWindowDate(date: Date): Date {
@@ -133,8 +122,31 @@ export function noonWindowDate(date: Date): Date {
   return d;
 }
 
+// Returns which day row (Mon=0…Sun=6) owns the noon-to-noon window containing this date.
+// The window for day D runs from noon(D) to noon(D+1), so times before noon belong to the previous day's row.
+function dayRowIndex(date: Date): DayIndex {
+  return dayIndex(noonWindowDate(date));
+}
+
+function weekOwnerEndDate(weekStart: Date): Date {
+  const d = new Date(weekStart);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+
+function noonWindowBelongsToWeek(date: Date, weekStart: Date): boolean {
+  const ownerDate = noonWindowDate(date);
+  const start = new Date(weekStart);
+  start.setHours(0, 0, 0, 0);
+  const end = weekOwnerEndDate(weekStart);
+  return ownerDate >= start && ownerDate <= end;
+}
+
 export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Record<DayIndex, SleepSession[]> {
-  const weekEnd = endOfWeekSunday(weekStart);
+  const weekWindowEnd = new Date(weekStart);
+  weekWindowEnd.setDate(weekWindowEnd.getDate() + 7);
+  weekWindowEnd.setHours(12, 0, 0, 0);
   // Look back up to 24h before the week to catch overnight sleeps that cross noon into Monday
   const lookbackStart = new Date(weekStart.getTime() - 24 * 60 * 60 * 1000);
   const sorted = [...events]
@@ -146,11 +158,11 @@ export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Reco
 
   sorted.filter((e) => e.type === "sleep").forEach((sleepEvent) => {
     const start = new Date(sleepEvent.occurredAt);
-    if (start < lookbackStart || start > weekEnd) return;
+    if (start < lookbackStart || start >= weekWindowEnd) return;
     const wakeUp = sorted.find(
       (e) => e.type === "wake_up" && !usedWakeIds.has(e.id) && new Date(e.occurredAt) > start
     );
-    const end = wakeUp ? new Date(wakeUp.occurredAt) : new Date(Math.min(start.getTime() + 60 * 60 * 1000, weekEnd.getTime()));
+    const end = wakeUp ? new Date(wakeUp.occurredAt) : new Date(Math.min(start.getTime() + 60 * 60 * 1000, weekWindowEnd.getTime()));
     if (wakeUp) usedWakeIds.add(wakeUp.id);
     const isQuicklog = sleepEvent.notes === "QuickLog";
 
@@ -162,12 +174,9 @@ export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Reco
       const nextNoon = segStart < segNoon ? segNoon : new Date(segNoon.getTime() + 24 * 60 * 60 * 1000);
       const segEnd = end < nextNoon ? end : nextNoon;
 
-      const row = dayRowIndex(segStart);
-      // Only include segments that fall within the week
-      if (segStart >= weekStart || segEnd > weekStart) {
-        if (row >= 0 && row <= 6) {
-          byDay[row].push({ start: segStart, end: segEnd, durationMs: segEnd.getTime() - segStart.getTime(), isQuicklog });
-        }
+      if (noonWindowBelongsToWeek(segStart, weekStart)) {
+        const row = dayRowIndex(segStart);
+        byDay[row].push({ start: segStart, end: segEnd, durationMs: segEnd.getTime() - segStart.getTime(), isQuicklog });
       }
       segStart = nextNoon;
     }
@@ -179,7 +188,6 @@ export function buildWeeklySleepSessions(events: Event[], weekStart: Date): Reco
 export type WeekDayTotals = { sleepMs: number; feedings: number; diapers: number };
 
 export function buildWeekDayTotals(events: Event[], weekStart: Date): Record<DayIndex, WeekDayTotals> {
-  const weekEnd = endOfWeekSunday(weekStart);
   const byDay: Record<DayIndex, WeekDayTotals> = { 0: { sleepMs: 0, feedings: 0, diapers: 0 }, 1: { sleepMs: 0, feedings: 0, diapers: 0 }, 2: { sleepMs: 0, feedings: 0, diapers: 0 }, 3: { sleepMs: 0, feedings: 0, diapers: 0 }, 4: { sleepMs: 0, feedings: 0, diapers: 0 }, 5: { sleepMs: 0, feedings: 0, diapers: 0 }, 6: { sleepMs: 0, feedings: 0, diapers: 0 } };
 
   const sleepSessions = buildWeeklySleepSessions(events, weekStart);
@@ -187,10 +195,7 @@ export function buildWeekDayTotals(events: Event[], weekStart: Date): Record<Day
     byDay[Number(idx) as DayIndex].sleepMs = sessions.reduce((s, r) => s + r.durationMs, 0);
   });
 
-  const inWeek = events.filter((e) => {
-    const d = new Date(e.occurredAt);
-    return d >= weekStart && d <= weekEnd;
-  });
+  const inWeek = events.filter((e) => noonWindowBelongsToWeek(new Date(e.occurredAt), weekStart));
   const feedingEvents = deduplicateBothBreasts(inWeek.filter((e) => e.type === "feeding"));
   feedingEvents.forEach((e) => { byDay[dayRowIndex(new Date(e.occurredAt))].feedings += 1; });
   inWeek.filter((e) => e.type === "diaper").forEach((e) => { byDay[dayRowIndex(new Date(e.occurredAt))].diapers += 1; });
@@ -201,10 +206,9 @@ export function buildWeekDayTotals(events: Event[], weekStart: Date): Record<Day
 export type FeedingHeatmapCell = { dayIdx: DayIndex; hourBucket: number; count: number };
 
 export function buildFeedingHeatmap(events: Event[], weekStart: Date): FeedingHeatmapCell[] {
-  const weekEnd = endOfWeekSunday(weekStart);
   const counts: Record<string, number> = {};
   const feedingEvents = deduplicateBothBreasts(
-    events.filter((e) => e.type === "feeding" && new Date(e.occurredAt) >= weekStart && new Date(e.occurredAt) <= weekEnd)
+    events.filter((e) => e.type === "feeding" && noonWindowBelongsToWeek(new Date(e.occurredAt), weekStart))
   );
   feedingEvents.forEach((e) => {
     const d = new Date(e.occurredAt);
@@ -220,10 +224,9 @@ export function buildFeedingHeatmap(events: Event[], weekStart: Date): FeedingHe
 export type DiaperHeatmapCell = { dayIdx: DayIndex; hourBucket: number; count: number };
 
 export function buildDiaperHeatmap(events: Event[], weekStart: Date): DiaperHeatmapCell[] {
-  const weekEnd = endOfWeekSunday(weekStart);
   const counts: Record<string, number> = {};
   events
-    .filter((e) => e.type === "diaper" && new Date(e.occurredAt) >= weekStart && new Date(e.occurredAt) <= weekEnd)
+    .filter((e) => e.type === "diaper" && noonWindowBelongsToWeek(new Date(e.occurredAt), weekStart))
     .forEach((e) => {
       const d = new Date(e.occurredAt);
       const key = `${dayRowIndex(d)}-${Math.floor(d.getHours() / 2)}`;

@@ -248,36 +248,56 @@ describe("buildWeeklySleepSessions", () => {
     expect(sessions[1]).toHaveLength(0);
   });
 
-  it("shows an overnight sleep that starts the day before the week on the correct Sunday row", () => {
-    // Sleep Sun 22:00 → Mon 04:00. With noon→noon windows, the Sunday row covers Sun 12:00→Mon 12:00,
-    // so 04:00 Mon is still within Sunday's row (idx 6).
+  it("does not wrap sleep from the previous week's Sunday window into the current week's future Sunday row", () => {
+    // Sleep Sun 22:00 → Mon 04:00 belongs to the previous week's Sunday noon-window,
+    // not the current week's future Sunday row.
     const events = [
       makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-14T22:00:00") }),
       makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-15T04:00:00") }),
     ];
     const sessions = buildWeeklySleepSessions(events, weekStart);
-    // Sun row (idx 6) should contain the carryover segment
-    expect(sessions[6]).toHaveLength(1);
-    expect(sessions[6][0].end).toEqual(new Date("2024-01-15T04:00:00"));
+    expect(sessions[6]).toHaveLength(0);
   });
 
-  it("splits a session that crosses noon into two rows", () => {
-    // Sleep Mon 11:00 → Mon 13:00 — crosses noon, so Mon row gets 11:00→12:00 and Mon+1 row? No:
-    // Mon row window is Mon 12:00→Tue 12:00. 11:00 Mon is BEFORE noon, so it belongs to Sun row (idx 6).
-    // Segment 1: Sun row, 11:00→12:00. Segment 2: Mon row, 12:00→13:00.
+  it("splits a Monday noon-crossing session without wrapping the pre-noon segment into future Sunday", () => {
+    // Sleep Mon 11:00 → Mon 13:00 crosses noon. The pre-noon segment belongs to
+    // the previous week's Sunday; the post-noon segment belongs to this Monday.
     const events = [
       makeEvent({ id: "s1", type: "sleep",   occurredAt: new Date("2024-01-15T11:00:00") }),
       makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-15T13:00:00") }),
     ];
     const sessions = buildWeeklySleepSessions(events, weekStart);
-    // Sun row (idx 6): 11:00 → 12:00
-    expect(sessions[6]).toHaveLength(1);
-    expect(sessions[6][0].start).toEqual(new Date("2024-01-15T11:00:00"));
-    expect(sessions[6][0].end).toEqual(new Date("2024-01-15T12:00:00"));
     // Mon row (idx 0): 12:00 → 13:00
+    expect(sessions[6]).toHaveLength(0);
     expect(sessions[0]).toHaveLength(1);
     expect(sessions[0][0].start).toEqual(new Date("2024-01-15T12:00:00"));
     expect(sessions[0][0].end).toEqual(new Date("2024-01-15T13:00:00"));
+  });
+
+  it("does not wrap Monday pre-noon sleep into the current week's future Sunday row", () => {
+    const currentWeekStart = new Date("2026-06-15T00:00:00"); // Mon Jun 15 … Sun Jun 21
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-15T08:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-15T09:00:00") }),
+    ];
+
+    const sessions = buildWeeklySleepSessions(events, currentWeekStart);
+
+    expect(sessions[6]).toHaveLength(0);
+  });
+
+  it("keeps Monday pre-noon sleep in the previous week's Sunday row", () => {
+    const previousWeekStart = new Date("2026-06-08T00:00:00"); // Mon Jun 8 … Sun Jun 14
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-15T08:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-15T09:00:00") }),
+    ];
+
+    const sessions = buildWeeklySleepSessions(events, previousWeekStart);
+
+    expect(sessions[6]).toHaveLength(1);
+    expect(sessions[6][0].start).toEqual(new Date("2026-06-15T08:00:00"));
+    expect(sessions[6][0].end).toEqual(new Date("2026-06-15T09:00:00"));
   });
 });
 
@@ -311,6 +331,32 @@ describe("buildWeekDayTotals", () => {
     expect(totals[0].feedings).toBe(0);
     expect(totals[0].diapers).toBe(0);
   });
+
+  it("does not wrap Monday pre-noon feedings and diapers into the current week's future Sunday row", () => {
+    const currentWeekStart = new Date("2026-06-15T00:00:00"); // Mon Jun 15 … Sun Jun 21
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2026-06-15T08:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    const totals = buildWeekDayTotals(events, currentWeekStart);
+
+    expect(totals[6].feedings).toBe(0);
+    expect(totals[6].diapers).toBe(0);
+  });
+
+  it("keeps Monday pre-noon feedings and diapers in the previous week's Sunday row", () => {
+    const previousWeekStart = new Date("2026-06-08T00:00:00"); // Mon Jun 8 … Sun Jun 14
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2026-06-15T08:00:00") }),
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    const totals = buildWeekDayTotals(events, previousWeekStart);
+
+    expect(totals[6].feedings).toBe(1);
+    expect(totals[6].diapers).toBe(1);
+  });
 });
 
 // ── buildFeedingHeatmap ───────────────────────────────────────────────────────
@@ -333,6 +379,24 @@ describe("buildFeedingHeatmap", () => {
     ];
     expect(buildFeedingHeatmap(events, weekStart)).toEqual([{ dayIdx: 1, hourBucket: 7, count: 1 }]);
   });
+
+  it("does not wrap Monday pre-noon feedings into the current week's future Sunday row", () => {
+    const currentWeekStart = new Date("2026-06-15T00:00:00");
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    expect(buildFeedingHeatmap(events, currentWeekStart)).toEqual([]);
+  });
+
+  it("keeps Monday pre-noon feedings in the previous week's Sunday row", () => {
+    const previousWeekStart = new Date("2026-06-08T00:00:00");
+    const events = [
+      makeEvent({ type: "feeding", feedingType: "breast_left", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    expect(buildFeedingHeatmap(events, previousWeekStart)).toEqual([{ dayIdx: 6, hourBucket: 4, count: 1 }]);
+  });
 });
 
 // ── buildDiaperHeatmap ────────────────────────────────────────────────────────
@@ -352,6 +416,24 @@ describe("buildDiaperHeatmap", () => {
       makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2024-01-16T14:00:00") }),
     ];
     expect(buildDiaperHeatmap(events, weekStart)).toEqual([{ dayIdx: 1, hourBucket: 7, count: 1 }]);
+  });
+
+  it("does not wrap Monday pre-noon diapers into the current week's future Sunday row", () => {
+    const currentWeekStart = new Date("2026-06-15T00:00:00");
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    expect(buildDiaperHeatmap(events, currentWeekStart)).toEqual([]);
+  });
+
+  it("keeps Monday pre-noon diapers in the previous week's Sunday row", () => {
+    const previousWeekStart = new Date("2026-06-08T00:00:00");
+    const events = [
+      makeEvent({ type: "diaper", diaperType: "pee", occurredAt: new Date("2026-06-15T08:00:00") }),
+    ];
+
+    expect(buildDiaperHeatmap(events, previousWeekStart)).toEqual([{ dayIdx: 6, hourBucket: 4, count: 1 }]);
   });
 });
 
