@@ -240,6 +240,41 @@ export function buildDiaperHeatmap(events: Event[], weekStart: Date): DiaperHeat
 
 // ── Chart aggregation ─────────────────────────────────────────────────────────
 
+export type SleepDayData = { label: string; date: Date; ms: number };
+
+export function aggregateSleepByDay(events: Event[], now: Date, localeDateKeyFn: (d: Date) => string): SleepDayData[] {
+  const sorted = [...events]
+    .filter((e) => e.type === "sleep" || e.type === "wake_up")
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+  const usedWakeUpIds = new Set<string>();
+  const byDay: Record<string, SleepDayData> = {};
+
+  sorted.filter((e) => e.type === "sleep").forEach((sleepEvent) => {
+    const start = new Date(sleepEvent.occurredAt);
+    const wakeUp = sorted.find(
+      (e) => e.type === "wake_up" && !usedWakeUpIds.has(e.id) && new Date(e.occurredAt) > start
+    );
+    const end = wakeUp ? new Date(wakeUp.occurredAt) : now;
+    if (wakeUp) usedWakeUpIds.add(wakeUp.id);
+    if (end <= start) return;
+
+    let segStart = start;
+    while (segStart < end) {
+      const segNoon = noonOf(segStart);
+      const nextNoon = segStart < segNoon ? segNoon : new Date(segNoon.getTime() + 24 * 60 * 60 * 1000);
+      const segEnd = end < nextNoon ? end : nextNoon;
+      const ownerDate = noonWindowDate(segStart);
+      const key = localeDateKeyFn(ownerDate);
+
+      if (!byDay[key]) byDay[key] = { label: key, date: ownerDate, ms: 0 };
+      byDay[key].ms += segEnd.getTime() - segStart.getTime();
+      segStart = nextNoon;
+    }
+  });
+
+  return Object.values(byDay).sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
 export type DiaperDayData = { label: string; date: Date; pee: number; poop: number; both: number };
 
 export function aggregateDiaperByDay(events: Event[], localeDateKeyFn: (d: Date) => string): DiaperDayData[] {

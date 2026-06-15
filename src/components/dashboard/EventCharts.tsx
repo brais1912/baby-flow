@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { useTranslations, useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { formatSleepDuration, aggregateDiaperByDay, aggregateBreastFeedingByDay, noonWindowDate } from "@/lib/utils/format";
+import { formatSleepDuration, aggregateSleepByDay, aggregateDiaperByDay, aggregateBreastFeedingByDay, noonWindowDate } from "@/lib/utils/format";
 
 const NoTooltip = () => null;
 
@@ -49,31 +49,8 @@ export function SleepChart({ events }: { events: Event[] }) {
   const locale = useLocale();
   const now = new Date();
   const [selected, setSelected] = useState<{ label: string; hours: number; duration: string } | null>(null);
-  const sorted = [...events].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
 
-  const usedWakeUpIds = new Set<string>();
-  const pairs: { date: Date; ms: number }[] = [];
-
-  sorted.filter((e) => e.type === "sleep").forEach((sleepEvent) => {
-    const start = new Date(sleepEvent.occurredAt);
-    const wakeUp = sorted.find(
-      (e) => e.type === "wake_up" && !usedWakeUpIds.has(e.id) && new Date(e.occurredAt) > start
-    );
-    const end = wakeUp ? new Date(wakeUp.occurredAt) : now;
-    if (wakeUp) usedWakeUpIds.add(wakeUp.id);
-    pairs.push({ date: start, ms: end.getTime() - start.getTime() });
-  });
-
-  const byDay: Record<string, { label: string; date: Date; ms: number }> = {};
-  pairs.forEach(({ date, ms }) => {
-    const ownerDate = noonWindowDate(date);
-    const key = localeDateKey(ownerDate, locale);
-    if (!byDay[key]) byDay[key] = { label: key, date: ownerDate, ms: 0 };
-    byDay[key].ms += ms;
-  });
-
-  const sleepBars = Object.values(byDay)
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
+  const sleepBars = aggregateSleepByDay(events, now, (d) => localeDateKey(d, locale))
     .map(({ label, ms }) => ({
       label,
       hours: Math.round((ms / 3600000) * 10) / 10,

@@ -7,6 +7,7 @@ import {
   diaperTypeLabel,
   sleepMethodLabel,
   deduplicateBothBreasts,
+  aggregateSleepByDay,
   aggregateDiaperByDay,
   aggregateBreastFeedingByDay,
   buildWeeklySleepSessions,
@@ -129,6 +130,48 @@ describe("deduplicateBothBreasts", () => {
       makeEvent({ id: "b", type: "feeding", feedingType: "breast_right", occurredAt: new Date("2024-01-15T10:01:00") }),
     ];
     expect(deduplicateBothBreasts(events)).toHaveLength(2);
+  });
+});
+
+// ── aggregateSleepByDay ───────────────────────────────────────────────────────
+
+describe("aggregateSleepByDay", () => {
+  it("splits a sleep session at the noon boundary", () => {
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2024-06-02T11:40:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-06-02T13:30:00") }),
+    ];
+
+    const result = aggregateSleepByDay(events, new Date("2024-06-02T14:00:00"), dayKey);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ label: "2024-06-01", ms: 20 * 60 * 1000 });
+    expect(result[1]).toMatchObject({ label: "2024-06-02", ms: 90 * 60 * 1000 });
+  });
+
+  it("only assigns the pre-noon part of a Monday noon-crossing session to Sunday", () => {
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-15T11:40:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-15T13:30:00") }),
+    ];
+
+    const result = aggregateSleepByDay(events, new Date("2026-06-15T14:00:00"), dayKey);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ label: "2026-06-14", ms: 20 * 60 * 1000 });
+    expect(result[1]).toMatchObject({ label: "2026-06-15", ms: 90 * 60 * 1000 });
+  });
+
+  it("keeps a sleep session within the same noon window on one day", () => {
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2024-01-15T22:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2024-01-16T04:00:00") }),
+    ];
+
+    const result = aggregateSleepByDay(events, new Date("2024-01-16T05:00:00"), dayKey);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ label: "2024-01-15", ms: 6 * 60 * 60 * 1000 });
   });
 });
 
