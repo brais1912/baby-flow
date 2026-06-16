@@ -110,6 +110,10 @@ export const ALLOWED_DAY_WINDOW_START_MINUTES = [
   10 * 60,
   11 * 60,
   DEFAULT_DAY_WINDOW_START_MINUTES,
+  20 * 60,
+  21 * 60,
+  22 * 60,
+  23 * 60,
 ] as const;
 
 export function dayIndex(date: Date): DayIndex {

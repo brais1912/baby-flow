@@ -298,7 +298,18 @@ describe("dayWindowBounds", () => {
 
 describe("isValidDayWindowStartMinutes", () => {
   it("accepts only the approved day start presets", () => {
-    expect([0, 8 * 60, 9 * 60, 10 * 60, 11 * 60, 12 * 60].every(isValidDayWindowStartMinutes)).toBe(true);
+    expect([
+      0,
+      8 * 60,
+      9 * 60,
+      10 * 60,
+      11 * 60,
+      12 * 60,
+      20 * 60,
+      21 * 60,
+      22 * 60,
+      23 * 60,
+    ].every(isValidDayWindowStartMinutes)).toBe(true);
   });
 
   it("rejects arbitrary in-range and out-of-range minute values", () => {
