@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { startOfWeekMonday, endOfWeekSunday } from "@/lib/utils/format";
+import { startOfWeekMonday, weeklyInsightsFetchRange } from "@/lib/utils/format";
 import { getEventsForDateRange } from "@/lib/actions/events";
 import { getDayWindowStartMinutes } from "@/lib/actions/settings";
 import { InsightsClient } from "@/components/insights/InsightsClient";
@@ -14,11 +14,7 @@ export default async function InsightsPage({
   const dayWindowStartMinutes = await getDayWindowStartMinutes();
 
   const weekStart = week ? new Date(week) : startOfWeekMonday(new Date());
-  const weekEnd = endOfWeekSunday(weekStart);
-
-  // Fetch one extra day on each side so sleep sessions that cross midnight are included
-  const fetchStart = new Date(weekStart); fetchStart.setDate(fetchStart.getDate() - 1);
-  const fetchEnd   = new Date(weekEnd);   fetchEnd.setDate(fetchEnd.getDate() + 1);
+  const { start: fetchStart, end: fetchEnd } = weeklyInsightsFetchRange(weekStart);
 
   const events = await getEventsForDateRange(fetchStart, fetchEnd);
 

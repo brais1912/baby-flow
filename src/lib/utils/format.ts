@@ -96,6 +96,14 @@ export function endOfWeekSunday(weekStart: Date): Date {
   return d;
 }
 
+export function weeklyInsightsFetchRange(weekStart: Date): { start: Date; end: Date } {
+  const dayMs = 24 * 60 * 60 * 1000;
+  return {
+    start: new Date(weekStart.getTime() - 2 * dayMs),
+    end: new Date(weekStart.getTime() + 9 * dayMs - 1),
+  };
+}
+
 // ── Weekly insights aggregation ───────────────────────────────────────────────
 
 export type SleepSession = { start: Date; end: Date; durationMs: number; isQuicklog: boolean };

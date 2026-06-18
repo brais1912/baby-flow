@@ -18,6 +18,7 @@ import {
   dayWindowDate,
   isValidDayWindowStartMinutes,
   noonWindowDate,
+  weeklyInsightsFetchRange,
 } from "./format";
 import type { Event } from "@/lib/db/schema";
 
@@ -319,6 +320,18 @@ describe("isValidDayWindowStartMinutes", () => {
   });
 });
 
+// ── weeklyInsightsFetchRange ─────────────────────────────────────────────────
+
+describe("weeklyInsightsFetchRange", () => {
+  it("includes Monday morning wake-ups needed to render Sunday night on Vercel UTC", () => {
+    const range = weeklyInsightsFetchRange(new Date("2026-06-07T22:00:00.000Z"));
+
+    expect(range.start).toEqual(new Date("2026-06-05T22:00:00.000Z"));
+    expect(range.end).toEqual(new Date("2026-06-16T21:59:59.999Z"));
+    expect(range.end.getTime()).toBeGreaterThan(new Date("2026-06-15T05:00:00.000Z").getTime());
+  });
+});
+
 // ── buildWeeklySleepSessions ──────────────────────────────────────────────────
 
 describe("buildWeeklySleepSessions", () => {
@@ -403,6 +416,20 @@ describe("buildWeeklySleepSessions", () => {
     expect(sessions[6]).toHaveLength(1);
     expect(sessions[6][0].start).toEqual(new Date("2026-06-15T08:00:00"));
     expect(sessions[6][0].end).toEqual(new Date("2026-06-15T09:00:00"));
+  });
+
+  it("renders Sunday night sleep through a Monday wake-up for the production week URL", () => {
+    const previousWeekStart = new Date("2026-06-08T00:00:00"); // Mon Jun 8 … Sun Jun 14
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-14T23:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-15T07:00:00") }),
+    ];
+
+    const sessions = buildWeeklySleepSessions(events, previousWeekStart);
+
+    expect(sessions[6]).toHaveLength(1);
+    expect(sessions[6][0].start).toEqual(new Date("2026-06-14T23:00:00"));
+    expect(sessions[6][0].end).toEqual(new Date("2026-06-15T07:00:00"));
   });
 });
 
