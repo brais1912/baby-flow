@@ -112,6 +112,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   );
 
   const filteredEvents = dayEvents.filter((e) => matchesFilter(e, filter));
+  const hasScrollableEvents = filteredEvents.length > 6;
 
   const FILTERS: { value: FilterValue; label: string; emoji: string }[] = [
     { value: "all",      label: tFilters("all"),     emoji: "📋" },
@@ -188,7 +189,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}>
           {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
             const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
