@@ -168,68 +168,69 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
 
   return (
     <div className="space-y-4">
-      {/* Day navigation */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate("prev")}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150"
-          aria-label="Previous day"
-        >
-          ‹
-        </button>
-        <span className="text-center leading-tight">
-          <span className="text-sm font-bold text-gray-800 block">
-            {format(windowStart, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
-          </span>
-          <span className="text-xs text-gray-400 block">
-            {format(windowEnd, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
-          </span>
-        </span>
-        <button
-          onClick={() => navigate("next")}
-          disabled={!canGoForward}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
-          aria-label="Next day"
-        >
-          ›
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-        {FILTERS.map(({ value, label, emoji }) => (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+        {/* Day navigation */}
+        <div className="flex items-center justify-between">
           <button
-            key={value}
-            onClick={() => setFilter(value)}
-            className={`flex-shrink-0 flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all active:scale-95 ${filter === value ? FILTER_ACTIVE[value] : FILTER_IDLE[value]}`}
+            onClick={() => navigate("prev")}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150"
+            aria-label="Previous day"
           >
-            <span>{emoji}</span>
-            <span>{label}</span>
-            {value !== "all" && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === value ? "bg-white/20" : "bg-white/60"}`}>
-                {filterCount(value)}
-              </span>
-            )}
+            ‹
           </button>
-        ))}
-      </div>
-
-      {/* Event cards */}
-      {filteredEvents.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-3xl mb-2">🌙</p>
-          <p className="text-sm text-gray-400">
-            {dayEvents.length === 0 ? t("noEvents") : t("noEventsFilter")}
-          </p>
-        </div>
-      ) : (
-        <div className="relative">
-          <div
-            ref={eventListRef}
-            onScroll={updateEventListScroll}
-            className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}
+          <span className="text-center leading-tight">
+            <span className="text-sm font-bold text-gray-800 block">
+              {format(windowStart, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
+            </span>
+            <span className="text-xs text-gray-400 block">
+              {format(windowEnd, "EEE d MMM, HH:mm", { locale: dateFnsLocale })}
+            </span>
+          </span>
+          <button
+            onClick={() => navigate("next")}
+            disabled={!canGoForward}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 text-lg font-bold active:bg-gray-200 active:scale-90 transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
+            aria-label="Next day"
           >
-            {filteredEvents.map((event) => {
+            ›
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+          {FILTERS.map(({ value, label, emoji }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`flex-shrink-0 flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all active:scale-95 ${filter === value ? FILTER_ACTIVE[value] : FILTER_IDLE[value]}`}
+            >
+              <span>{emoji}</span>
+              <span>{label}</span>
+              {value !== "all" && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === value ? "bg-white/20" : "bg-white/60"}`}>
+                  {filterCount(value)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Event cards */}
+        {filteredEvents.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-3xl mb-2">🌙</p>
+            <p className="text-sm text-gray-400">
+              {dayEvents.length === 0 ? t("noEvents") : t("noEventsFilter")}
+            </p>
+          </div>
+        ) : (
+          <div className="relative">
+            <div
+              ref={eventListRef}
+              onScroll={updateEventListScroll}
+              className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}
+            >
+              {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
             const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
             const isConfirming = confirmDeleteId === event.id;
@@ -303,41 +304,42 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
                 )}
               </div>
             );
-            })}
+              })}
+            </div>
+            {eventListScroll.canScrollUp && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-xl bg-gradient-to-b from-white via-white/90 to-white/0 flex items-start justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => scrollEventListTo("top")}
+                  className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+                  aria-label="Scroll to top"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M14.78 12.53a.75.75 0 0 1-1.06 0L10 8.81l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {eventListScroll.canScrollDown && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-xl bg-gradient-to-t from-white via-white/95 to-white/0 flex items-end justify-center pb-1">
+                <button
+                  type="button"
+                  onClick={() => scrollEventListTo("bottom")}
+                  className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+                  aria-label="Scroll to bottom"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M5.22 7.47a.75.75 0 0 1 1.06 0L10 11.19l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
-          {eventListScroll.canScrollUp && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-xl bg-gradient-to-b from-white via-white/90 to-white/0 flex items-start justify-center pt-1">
-              <button
-                type="button"
-                onClick={() => scrollEventListTo("top")}
-                className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
-                aria-label="Scroll to top"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path fillRule="evenodd" d="M14.78 12.53a.75.75 0 0 1-1.06 0L10 8.81l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
-          {eventListScroll.canScrollDown && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-xl bg-gradient-to-t from-white via-white/95 to-white/0 flex items-end justify-center pb-1">
-              <button
-                type="button"
-                onClick={() => scrollEventListTo("bottom")}
-                className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
-                aria-label="Scroll to bottom"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path fillRule="evenodd" d="M5.22 7.47a.75.75 0 0 1 1.06 0L10 11.19l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Timeline */}
-      <div className="pt-5 border-t border-gray-100">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("timeline")}</p>
           <button
@@ -358,7 +360,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             )}
           </button>
         </div>
-        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
           <TimelineChart
             events={events}
             visibleEvents={filteredEvents}
