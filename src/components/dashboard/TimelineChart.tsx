@@ -40,6 +40,7 @@ interface Props {
   visibleEvents?: Event[];
   currentDay: Date;
   dayWindowStartMinutes?: number;
+  isExpanded?: boolean;
 }
 
 function buildSleepSessions(events: Event[]): Array<{ sleep: Event; wakeUp: Event }> {
@@ -125,9 +126,8 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
   );
 }
 
-export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: Props) {
+export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES, isExpanded = false }: Props) {
   const [selected, setSelected] = useState<Event | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -249,24 +249,7 @@ export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStar
 
   return (
     <>
-      <div ref={containerRef} className="relative w-full">
-        <button
-          type="button"
-          onClick={() => setIsExpanded((expanded) => !expanded)}
-          className="absolute right-1 top-1 z-10 h-8 w-8 rounded-lg bg-white/90 text-gray-500 shadow-sm ring-1 ring-gray-200 backdrop-blur flex items-center justify-center active:scale-95 transition-all hover:text-gray-800"
-          aria-label={isExpanded ? "Collapse timeline" : "Expand timeline"}
-          title={isExpanded ? "Collapse timeline" : "Expand timeline"}
-        >
-          {isExpanded ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 0 1 0-1.06L8.94 10 5.22 6.28a.75.75 0 0 1 1.06-1.06L10 8.94l3.72-3.72a.75.75 0 1 1 1.06 1.06L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-3.72 3.72a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M5.25 3A2.25 2.25 0 0 0 3 5.25v3a.75.75 0 0 0 1.5 0v-3a.75.75 0 0 1 .75-.75h3a.75.75 0 0 0 0-1.5h-3Zm6.5 0a.75.75 0 0 0 0 1.5h3a.75.75 0 0 1 .75.75v3a.75.75 0 0 0 1.5 0v-3A2.25 2.25 0 0 0 14.75 3h-3Zm4.5 8a.75.75 0 0 0-.75.75v3a.75.75 0 0 1-.75.75h-3a.75.75 0 0 0 0 1.5h3A2.25 2.25 0 0 0 17 14.75v-3a.75.75 0 0 0-.75-.75Zm-12.5 0a.75.75 0 0 1 .75.75v3a.75.75 0 0 0 .75.75h3a.75.75 0 0 1 0 1.5h-3A2.25 2.25 0 0 1 3 14.75v-3a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
-            </svg>
-          )}
-        </button>
+      <div ref={containerRef} className="w-full">
         <div
           ref={scrollRef}
           className={isExpanded ? "overflow-x-auto overscroll-x-contain pb-2" : "overflow-hidden"}

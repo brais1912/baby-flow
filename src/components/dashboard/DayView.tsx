@@ -89,6 +89,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const eventListRef = useRef<HTMLDivElement | null>(null);
   const [eventListScroll, setEventListScroll] = useState({ canScrollUp: false, canScrollDown: false });
   const [isPending, startTransition] = useTransition();
@@ -336,13 +337,40 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
       )}
 
       {/* Timeline */}
-      <div className="pt-3 border-t border-gray-100">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t("timeline")}</p>
-        <TimelineChart events={events} visibleEvents={filteredEvents} currentDay={currentDay} dayWindowStartMinutes={dayWindowStartMinutes} />
-        <div className="flex gap-4 mt-2 text-xs text-gray-400">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />{tFilters("sleeping")}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />{tFilters("feeding")}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />{tFilters("diaper")}</span>
+      <div className="pt-5 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("timeline")}</p>
+          <button
+            type="button"
+            onClick={() => setIsTimelineExpanded((expanded) => !expanded)}
+            className="h-8 w-8 rounded-lg bg-white text-gray-500 shadow-sm ring-1 ring-gray-200 flex items-center justify-center active:scale-95 transition-all hover:text-gray-800"
+            aria-label={isTimelineExpanded ? "Collapse timeline" : "Expand timeline"}
+            title={isTimelineExpanded ? "Collapse timeline" : "Expand timeline"}
+          >
+            {isTimelineExpanded ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 0 1 0-1.06L8.94 10 5.22 6.28a.75.75 0 0 1 1.06-1.06L10 8.94l3.72-3.72a.75.75 0 1 1 1.06 1.06L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-3.72 3.72a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M5.25 3A2.25 2.25 0 0 0 3 5.25v3a.75.75 0 0 0 1.5 0v-3a.75.75 0 0 1 .75-.75h3a.75.75 0 0 0 0-1.5h-3Zm6.5 0a.75.75 0 0 0 0 1.5h3a.75.75 0 0 1 .75.75v3a.75.75 0 0 0 1.5 0v-3A2.25 2.25 0 0 0 14.75 3h-3Zm4.5 8a.75.75 0 0 0-.75.75v3a.75.75 0 0 1-.75.75h-3a.75.75 0 0 0 0 1.5h3A2.25 2.25 0 0 0 17 14.75v-3a.75.75 0 0 0-.75-.75Zm-12.5 0a.75.75 0 0 1 .75.75v3a.75.75 0 0 0 .75.75h3a.75.75 0 0 1 0 1.5h-3A2.25 2.25 0 0 1 3 14.75v-3a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <TimelineChart
+            events={events}
+            visibleEvents={filteredEvents}
+            currentDay={currentDay}
+            dayWindowStartMinutes={dayWindowStartMinutes}
+            isExpanded={isTimelineExpanded}
+          />
+          <div className="flex gap-4 mt-2 text-xs text-gray-400">
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />{tFilters("sleeping")}</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />{tFilters("feeding")}</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />{tFilters("diaper")}</span>
+          </div>
         </div>
       </div>
     </div>
