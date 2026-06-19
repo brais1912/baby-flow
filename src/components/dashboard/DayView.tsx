@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { format, addDays, subDays } from "date-fns";
@@ -89,6 +89,8 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const eventListRef = useRef<HTMLDivElement | null>(null);
+  const [eventListScroll, setEventListScroll] = useState({ canScrollUp: false, canScrollDown: false });
   const [isPending, startTransition] = useTransition();
   const t = useTranslations("dayView");
   const tFilters = useTranslations("filters");
@@ -114,6 +116,27 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   const filteredEvents = dayEvents.filter((e) => matchesFilter(e, filter));
   const hasScrollableEvents = filteredEvents.length > 6;
 
+  const updateEventListScroll = useCallback(() => {
+    const list = eventListRef.current;
+
+    if (!list || !hasScrollableEvents) {
+      setEventListScroll({ canScrollUp: false, canScrollDown: false });
+      return;
+    }
+
+    setEventListScroll({
+      canScrollUp: list.scrollTop > 1,
+      canScrollDown: list.scrollTop + list.clientHeight < list.scrollHeight - 1,
+    });
+  }, [hasScrollableEvents]);
+
+  useEffect(() => {
+    const list = eventListRef.current;
+    if (list) list.scrollTop = 0;
+    const frame = requestAnimationFrame(updateEventListScroll);
+    return () => cancelAnimationFrame(frame);
+  }, [filteredEvents.length, filter, currentDay, updateEventListScroll]);
+
   const FILTERS: { value: FilterValue; label: string; emoji: string }[] = [
     { value: "all",      label: tFilters("all"),     emoji: "📋" },
     { value: "sleeping", label: tFilters("sleeping"), emoji: "😴" },
@@ -130,6 +153,16 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
 
   function filterCount(f: FilterValue) {
     return dayEvents.filter((e) => matchesFilter(e, f)).length;
+  }
+
+  function scrollEventListTo(position: "top" | "bottom") {
+    const list = eventListRef.current;
+    if (!list) return;
+
+    list.scrollTo({
+      top: position === "top" ? 0 : list.scrollHeight,
+      behavior: "smooth",
+    });
   }
 
   return (
@@ -189,8 +222,13 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
           </p>
         </div>
       ) : (
-        <div className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}>
-          {filteredEvents.map((event) => {
+        <div className="relative">
+          <div
+            ref={eventListRef}
+            onScroll={updateEventListScroll}
+            className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}
+          >
+            {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
             const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
             const isConfirming = confirmDeleteId === event.id;
@@ -264,7 +302,36 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
                 )}
               </div>
             );
-          })}
+            })}
+          </div>
+          {eventListScroll.canScrollUp && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-xl bg-gradient-to-b from-white via-white/90 to-white/0 flex items-start justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => scrollEventListTo("top")}
+                className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+                aria-label="Scroll to top"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M14.78 12.53a.75.75 0 0 1-1.06 0L10 8.81l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {eventListScroll.canScrollDown && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-xl bg-gradient-to-t from-white via-white/95 to-white/0 flex items-end justify-center pb-1">
+              <button
+                type="button"
+                onClick={() => scrollEventListTo("bottom")}
+                className="pointer-events-auto h-6 w-10 rounded-full bg-gray-900/70 text-white shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+                aria-label="Scroll to bottom"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M5.22 7.47a.75.75 0 0 1 1.06 0L10 11.19l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
