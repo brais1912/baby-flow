@@ -113,9 +113,7 @@ export function DashboardClient({
         <StatCard label={t("diapers")}        value={diaperCount}   emoji="👶" styleIdx={2} />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <DayView events={events} currentDay={currentDay} onDayChange={setCurrentDay} dayWindowStartMinutes={dayWindowStartMinutes} />
-      </div>
+      <DayView events={events} currentDay={currentDay} onDayChange={setCurrentDay} dayWindowStartMinutes={dayWindowStartMinutes} />
     </>
   );
 }

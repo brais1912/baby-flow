@@ -40,6 +40,7 @@ interface Props {
   visibleEvents?: Event[];
   currentDay: Date;
   dayWindowStartMinutes?: number;
+  isExpanded?: boolean;
 }
 
 function buildSleepSessions(events: Event[]): Array<{ sleep: Event; wakeUp: Event }> {
@@ -125,9 +126,10 @@ function EventDetail({ event, wakeUp, onClose }: { event: Event; wakeUp?: Event;
   );
 }
 
-export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: Props) {
+export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES, isExpanded = false }: Props) {
   const [selected, setSelected] = useState<Event | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
 
   useEffect(() => {
@@ -137,6 +139,11 @@ export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStar
     setWidth(containerRef.current.offsetWidth);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollLeft = 0;
+  }, [isExpanded, currentDay]);
 
   const visible = visibleEvents ?? events;
   const visibleIds = new Set(visible.map((e) => e.id));
@@ -224,7 +231,8 @@ export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStar
   const lanePad = 10;
   const numLanes = isEmpty ? 1 : Math.max(1, activeLanes.length);
   const svgHeight = numLanes * laneHeight + lanePad + marginBottom;
-  const plotW = width - marginLeft - marginRight;
+  const svgWidth = isExpanded ? Math.max(width * 2.4, 1200) : width;
+  const plotW = svgWidth - marginLeft - marginRight;
   const barH = 12;
 
   const laneY = (lane: Lane) => {
@@ -237,18 +245,24 @@ export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStar
   };
   const toX = (date: Date) => marginLeft + (toOffsetMins(date) / (24 * 60)) * plotW;
   const tickX = (offsetH: number) => marginLeft + (offsetH / 24) * plotW;
-  const hourTicks = dayWindowHourTicks(dayWindowStartMinutes);
+  const hourTicks = dayWindowHourTicks(dayWindowStartMinutes, isExpanded ? 1 : 3);
 
   return (
     <>
       <div ref={containerRef} className="w-full">
-        <svg width={width} height={svgHeight}>
+        <div
+          ref={scrollRef}
+          className={isExpanded ? "overflow-x-auto overscroll-x-contain pb-2" : "overflow-hidden"}
+          tabIndex={isExpanded ? 0 : undefined}
+          aria-label={isExpanded ? "Expanded timeline" : undefined}
+        >
+          <svg width={svgWidth} height={svgHeight}>
           {/* Lane backgrounds + labels */}
           {activeLanes.map((lane, i) => {
             const y = lanePad + i * laneHeight;
             return (
               <g key={lane}>
-                <rect x={0} y={y} width={width} height={laneHeight}
+                <rect x={0} y={y} width={svgWidth} height={laneHeight}
                   fill={i % 2 === 0 ? "#fafafa" : "#ffffff"} />
                 <text x={marginLeft - 4} y={y + laneHeight / 2} textAnchor="end"
                   dominantBaseline="middle" fontSize={12} fill="#9ca3af">
@@ -356,7 +370,8 @@ export function TimelineChart({ events, visibleEvents, currentDay, dayWindowStar
               </g>
             );
           })}
-        </svg>
+          </svg>
+        </div>
       </div>
 
       {selected && <EventDetail event={selected} wakeUp={selectedWakeUp} onClose={() => setSelected(null)} />}
