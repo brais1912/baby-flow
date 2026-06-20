@@ -192,6 +192,20 @@ function dayRowIndex(date: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_STAR
   return dayIndex(dayWindowDate(date, dayWindowStartMinutes));
 }
 
+function sleepSessionDisplayDate(date: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): Date {
+  const ownerDate = dayWindowDate(date, dayWindowStartMinutes);
+  if (validDayWindowStartMinutes(dayWindowStartMinutes) > 12 * 60) {
+    const displayDate = new Date(ownerDate);
+    displayDate.setDate(displayDate.getDate() + 1);
+    return displayDate;
+  }
+  return ownerDate;
+}
+
+function sleepSessionRowIndex(date: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): DayIndex {
+  return dayIndex(sleepSessionDisplayDate(date, dayWindowStartMinutes));
+}
+
 function weekOwnerEndDate(weekStart: Date): Date {
   const d = new Date(weekStart);
   d.setHours(0, 0, 0, 0);
@@ -205,6 +219,14 @@ function dayWindowBelongsToWeek(date: Date, weekStart: Date, dayWindowStartMinut
   start.setHours(0, 0, 0, 0);
   const end = weekOwnerEndDate(weekStart);
   return ownerDate >= start && ownerDate <= end;
+}
+
+function sleepSessionBelongsToWeek(date: Date, weekStart: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): boolean {
+  const displayDate = sleepSessionDisplayDate(date, dayWindowStartMinutes);
+  const start = new Date(weekStart);
+  start.setHours(0, 0, 0, 0);
+  const end = weekOwnerEndDate(weekStart);
+  return displayDate >= start && displayDate <= end;
 }
 
 export function buildWeeklySleepSessions(events: Event[], weekStart: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): Record<DayIndex, SleepSession[]> {
@@ -234,8 +256,8 @@ export function buildWeeklySleepSessions(events: Event[], weekStart: Date, dayWi
       const nextBoundary = nextDayBoundary(segStart, dayWindowStartMinutes);
       const segEnd = end < nextBoundary ? end : nextBoundary;
 
-      if (dayWindowBelongsToWeek(segStart, weekStart, dayWindowStartMinutes)) {
-        const row = dayRowIndex(segStart, dayWindowStartMinutes);
+      if (sleepSessionBelongsToWeek(segStart, weekStart, dayWindowStartMinutes)) {
+        const row = sleepSessionRowIndex(segStart, dayWindowStartMinutes);
         byDay[row].push({ start: segStart, end: segEnd, durationMs: segEnd.getTime() - segStart.getTime(), isQuicklog });
       }
       segStart = nextBoundary;

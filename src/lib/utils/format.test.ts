@@ -431,6 +431,36 @@ describe("buildWeeklySleepSessions", () => {
     expect(sessions[6][0].start).toEqual(new Date("2026-06-14T23:00:00"));
     expect(sessions[6][0].end).toEqual(new Date("2026-06-15T07:00:00"));
   });
+
+  it("labels Friday night sleep as Saturday with an evening day-window start", () => {
+    const weekStart = new Date("2026-06-15T00:00:00"); // Mon Jun 15 … Sun Jun 21
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-19T23:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-20T07:00:00") }),
+    ];
+
+    const sessions = buildWeeklySleepSessions(events, weekStart, 22 * 60);
+
+    expect(sessions[4]).toHaveLength(0);
+    expect(sessions[5]).toHaveLength(1);
+    expect(sessions[5][0].start).toEqual(new Date("2026-06-19T23:00:00"));
+    expect(sessions[5][0].end).toEqual(new Date("2026-06-20T07:00:00"));
+  });
+
+  it("keeps Monday morning sleep in Monday's row with an evening day-window start", () => {
+    const weekStart = new Date("2026-06-15T00:00:00"); // Mon Jun 15 … Sun Jun 21
+    const events = [
+      makeEvent({ id: "s1", type: "sleep", occurredAt: new Date("2026-06-15T06:00:00") }),
+      makeEvent({ id: "w1", type: "wake_up", occurredAt: new Date("2026-06-15T07:00:00") }),
+    ];
+
+    const sessions = buildWeeklySleepSessions(events, weekStart, 22 * 60);
+
+    expect(sessions[0]).toHaveLength(1);
+    expect(sessions[6]).toHaveLength(0);
+    expect(sessions[0][0].start).toEqual(new Date("2026-06-15T06:00:00"));
+    expect(sessions[0][0].end).toEqual(new Date("2026-06-15T07:00:00"));
+  });
 });
 
 // ── buildWeekDayTotals ────────────────────────────────────────────────────────
