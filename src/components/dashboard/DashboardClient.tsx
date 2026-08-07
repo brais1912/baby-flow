@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { updateDayWindowStartMinutes } from "@/lib/actions/settings";
-import { ALLOWED_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, deduplicateBothBreasts, formatHourLabel } from "@/lib/utils/format";
+import { ALLOWED_DAY_WINDOW_START_MINUTES, countNightWakings, dayWindowBounds, dayWindowDate, deduplicateBothBreasts, formatHourLabel } from "@/lib/utils/format";
 
 const DayView = dynamic(
   () => import("./DayView").then((m) => m.DayView),
@@ -15,15 +15,19 @@ const DayView = dynamic(
 
 const STAT_STYLES = [
   { bg: "bg-gradient-to-br from-purple-50 to-fuchsia-50", border: "border-purple-100" },
+  { bg: "bg-gradient-to-br from-indigo-50 to-purple-50",  border: "border-indigo-100" },
   { bg: "bg-gradient-to-br from-blue-50 to-cyan-50",      border: "border-blue-100" },
   { bg: "bg-gradient-to-br from-amber-50 to-orange-50",   border: "border-amber-100" },
 ];
 
-function StatCard({ label, value, emoji, styleIdx }: { label: string; value: number; emoji: string; styleIdx: number }) {
+function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; sublabel?: string; value: number; emoji: string; styleIdx: number }) {
   const s = STAT_STYLES[styleIdx];
   return (
-    <div className={`${s.bg} rounded-2xl border ${s.border} p-4 flex flex-col gap-1`}>
-      <span className="text-xl">{emoji}</span>
+    <div className={`${s.bg} rounded-2xl border ${s.border} p-3.5 flex flex-col gap-1`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xl">{emoji}</span>
+        {sublabel && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{sublabel}</span>}
+      </div>
       <span className="text-3xl font-bold text-gray-900 tabular-nums">{value}</span>
       <span className="text-xs font-medium text-gray-500 leading-tight">{label}</span>
     </div>
@@ -100,6 +104,7 @@ export function DashboardClient({
   }));
 
   const sleepingCount = dayEvents.filter((e) => e.type === "sleep" || e.type === "wake_up").length;
+  const nightWakings = countNightWakings(events, currentDay);
   const feedingCount  = dayEvents.filter((e) => e.type === "feeding").length;
   const diaperCount   = dayEvents.filter((e) => e.type === "diaper").length;
 
@@ -107,10 +112,11 @@ export function DashboardClient({
     <>
       <DayWindowStartSetting value={dayWindowStartMinutes} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label={t("sleepingEvents")} value={sleepingCount} emoji="😴" styleIdx={0} />
-        <StatCard label={t("feedings")}       value={feedingCount}  emoji="🍼" styleIdx={1} />
-        <StatCard label={t("diapers")}        value={diaperCount}   emoji="👶" styleIdx={2} />
+        <StatCard label={t("nightWakings")} sublabel={t("nightWindow")} value={nightWakings} emoji="🌙" styleIdx={1} />
+        <StatCard label={t("feedings")}       value={feedingCount}  emoji="🍼" styleIdx={2} />
+        <StatCard label={t("diapers")}        value={diaperCount}   emoji="👶" styleIdx={3} />
       </div>
 
       <DayView events={events} currentDay={currentDay} onDayChange={setCurrentDay} dayWindowStartMinutes={dayWindowStartMinutes} />

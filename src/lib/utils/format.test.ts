@@ -4,6 +4,7 @@ import {
   formatDate,
   formatSleepDuration,
   formatWakeUpDetail,
+  countNightWakings,
   eventTypeLabel,
   diaperTypeLabel,
   sleepMethodLabel,
@@ -97,6 +98,42 @@ describe("formatWakeUpDetail", () => {
     const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T07:00:00"), notes: "QuickLog" });
     const result = formatWakeUpDetail(wakeEvent, [sleepEvent, wakeEvent]);
     expect(result).toBe("22:00 → 07:00 · 9 hours");
+  });
+});
+
+// ── countNightWakings ─────────────────────────────────────────────────────────
+
+describe("countNightWakings", () => {
+  const day = new Date("2024-01-15T00:00:00");
+
+  it("excludes the final morning wake_up event, counting only night wakings", () => {
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T18:00:00") }), // Before 20:00 (excluded)
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T23:30:00") }), // Night waking 1
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T03:15:00") }), // Night waking 2
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T08:30:00") }), // Final morning wake up (excluded)
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T10:00:00") }), // After 09:00 (excluded)
+      makeEvent({ type: "sleep",   occurredAt: new Date("2024-01-16T02:00:00") }), // Not wake_up
+    ];
+
+    expect(countNightWakings(events, day)).toBe(2);
+  });
+
+  it("returns 0 when there is only a morning wake_up event in the 20:00-09:00 window", () => {
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T08:00:00") }),
+    ];
+
+    expect(countNightWakings(events, day)).toBe(0);
+  });
+
+  it("returns 0 if no wake_up events fall in the 20:00-09:00 night window", () => {
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T15:00:00") }),
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T11:00:00") }),
+    ];
+
+    expect(countNightWakings(events, day)).toBe(0);
   });
 });
 

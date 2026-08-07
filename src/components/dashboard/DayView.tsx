@@ -7,7 +7,7 @@ import { format, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, deduplicateBothBreasts } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, countNightWakings, deduplicateBothBreasts } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -208,6 +208,15 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             </button>
           ))}
         </div>
+
+        {filter === "sleeping" && (
+          <div className="bg-indigo-50/80 border border-indigo-100/80 rounded-xl px-3.5 py-2 text-xs text-indigo-800 flex items-center justify-between font-semibold">
+            <span className="flex items-center gap-1.5">
+              <span>🌙</span>
+              <span>{t("nightWakingsSummary", { count: countNightWakings(events, currentDay) })}</span>
+            </span>
+          </div>
+        )}
 
         {/* Event cards */}
         {filteredEvents.length === 0 ? (

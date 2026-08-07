@@ -56,6 +56,23 @@ export function formatWakeUpDetail(event: Event, allEvents: Event[]): string | n
   return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
 }
 
+export function countNightWakings(events: Event[], currentDay: Date): number {
+  const nightStart = new Date(currentDay);
+  nightStart.setHours(20, 0, 0, 0);
+
+  const nightEnd = new Date(currentDay);
+  nightEnd.setDate(nightEnd.getDate() + 1);
+  nightEnd.setHours(9, 0, 0, 0);
+
+  const nightWakeUps = events.filter((e) => {
+    if (e.type !== "wake_up") return false;
+    const t = new Date(e.occurredAt);
+    return t >= nightStart && t < nightEnd;
+  });
+
+  return Math.max(0, nightWakeUps.length - 1);
+}
+
 export function eventTypeLabel(type: EventType): string {
   const labels: Record<EventType, string> = {
     sleep: "Sleep",
