@@ -46,6 +46,16 @@ export function formatSleepDuration(start: Date, end: Date): string {
   return formatDuration(duration, { format: ["hours", "minutes"] });
 }
 
+export function formatWakeUpDetail(event: Event, allEvents: Event[]): string | null {
+  if (event.type !== "wake_up") return null;
+  const wakeTime = new Date(event.occurredAt);
+  const prevSleep = [...allEvents]
+    .filter((e) => e.type === "sleep" && new Date(e.occurredAt) < wakeTime)
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0];
+  if (!prevSleep) return null;
+  return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
+}
+
 export function eventTypeLabel(type: EventType): string {
   const labels: Record<EventType, string> = {
     sleep: "Sleep",

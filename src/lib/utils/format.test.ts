@@ -3,6 +3,7 @@ import {
   formatTime,
   formatDate,
   formatSleepDuration,
+  formatWakeUpDetail,
   eventTypeLabel,
   diaperTypeLabel,
   sleepMethodLabel,
@@ -75,6 +76,27 @@ describe("formatSleepDuration", () => {
 
   it("handles exactly 1 hour", () => {
     expect(formatSleepDuration(new Date("2024-01-15T20:00:00"), new Date("2024-01-15T21:00:00"))).toBe("1 hour");
+  });
+});
+
+// ── formatWakeUpDetail ────────────────────────────────────────────────────────
+
+describe("formatWakeUpDetail", () => {
+  it("returns null if event type is not wake_up", () => {
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T22:00:00") });
+    expect(formatWakeUpDetail(sleepEvent, [sleepEvent])).toBeNull();
+  });
+
+  it("returns null if no previous sleep event exists", () => {
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T07:00:00") });
+    expect(formatWakeUpDetail(wakeEvent, [wakeEvent])).toBeNull();
+  });
+
+  it("formats wake_up detail with range and duration regardless of notes (including QuickLog)", () => {
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T22:00:00"), notes: "QuickLog" });
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T07:00:00"), notes: "QuickLog" });
+    const result = formatWakeUpDetail(wakeEvent, [sleepEvent, wakeEvent]);
+    expect(result).toBe("22:00 → 07:00 · 9 hours");
   });
 });
 

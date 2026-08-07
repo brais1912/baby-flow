@@ -7,7 +7,7 @@ import { format, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatSleepDuration, deduplicateBothBreasts } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, deduplicateBothBreasts } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -66,13 +66,7 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
     return tMethods(event.sleepMethod === "bottle" ? "bottle" : event.sleepMethod);
   }
   if (event.type === "wake_up") {
-    const wakeTime = new Date(event.occurredAt);
-    const prevSleep = [...allEvents]
-      .filter((e) => e.type === "sleep" && new Date(e.occurredAt) < wakeTime)
-      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0];
-    if (prevSleep) {
-      return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
-    }
+    return formatWakeUpDetail(event, allEvents) ?? "";
   }
   return "";
 }
@@ -232,7 +226,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             >
               {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
-            const detail = eventDetail(event, dayEvents, tMethods, tDiaper, tFeeding);
+            const detail = eventDetail(event, events, tMethods, tDiaper, tFeeding);
             const isConfirming = confirmDeleteId === event.id;
             const isDeleting = isPending && isConfirming;
 
@@ -274,13 +268,12 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
                           {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
                         </span>
-                        {event.notes === "QuickLog" ? (
+                        {event.notes === "QuickLog" && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-100 flex items-center gap-1">
                             ⚡ QuickLog
                           </span>
-                        ) : (
-                          detail && <span className="text-xs text-gray-500 truncate">{detail}</span>
                         )}
+                        {detail && <span className="text-xs text-gray-500 truncate">{detail}</span>}
                       </div>
                       {event.notes && event.notes !== "QuickLog" && (
                         <p className="text-xs text-gray-400 italic mt-1 truncate">{event.notes}</p>
