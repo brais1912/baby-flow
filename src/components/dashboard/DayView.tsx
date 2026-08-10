@@ -43,6 +43,24 @@ const FILTER_IDLE: Record<FilterValue, string> = {
   diaper:   "bg-amber-50 text-amber-600",
 };
 
+const AWAKE_TONE = {
+  container: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/80 text-orange-900",
+  title: "text-orange-950",
+  subtitle: "text-orange-700/80",
+  dot: "bg-orange-500",
+  ping: "bg-orange-400",
+  emoji: "🌅",
+};
+
+const SLEEPING_TONE = {
+  container: "bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100/80 text-purple-900",
+  title: "text-purple-950",
+  subtitle: "text-purple-700/80",
+  dot: "bg-purple-500",
+  ping: "bg-purple-400",
+  emoji: "🌙",
+};
+
 function matchesFilter(event: Event, filter: FilterValue): boolean {
   if (filter === "all") return true;
   if (filter === "sleeping") return event.type === "sleep" || event.type === "wake_up";
@@ -92,6 +110,28 @@ function getNowServerSnapshot(): Date | null {
 
 function useNow(): Date | null {
   return useSyncExternalStore(subscribeNow, getNowSnapshot, getNowServerSnapshot);
+}
+
+function LiveStatusBanner({ tone, title, subtitle }: {
+  tone: typeof AWAKE_TONE;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className={`${tone.container} rounded-xl px-3.5 py-2.5 text-xs flex items-center justify-between font-medium shadow-2xs`}>
+      <div className="flex items-center gap-2.5">
+        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${tone.ping} opacity-75`}></span>
+          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${tone.dot}`}></span>
+        </span>
+        <span className="text-base leading-none">{tone.emoji}</span>
+        <div>
+          <span className={`font-semibold ${tone.title} block`}>{title}</span>
+          <span className={`text-[11px] ${tone.subtitle} block`}>{subtitle}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function DayView({ events, currentDay: controlledDay, onDayChange, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
@@ -217,25 +257,21 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
           </button>
         </div>
 
-        {/* Live awake status banner */}
-        {isCurrentWindow && awakeState?.isAwake && now && (
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/80 rounded-xl px-3.5 py-2.5 text-xs text-orange-900 flex items-center justify-between font-medium shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
-              </span>
-              <span className="text-base leading-none">🌅</span>
-              <div>
-                <span className="font-semibold text-orange-950 block">
-                  {t("currentlyAwake", { duration: formatSleepDuration(awakeState.since, now, dateFnsLocale) })}
-                </span>
-                <span className="text-[11px] text-orange-700/80 block">
-                  {t("awakeSince", { time: formatTime(awakeState.since) })}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* Live phase status banner */}
+        {isCurrentWindow && awakeState && now && (
+          awakeState.isAwake ? (
+            <LiveStatusBanner
+              tone={AWAKE_TONE}
+              title={t("currentlyAwake", { duration: formatSleepDuration(awakeState.since, now, dateFnsLocale) })}
+              subtitle={t("awakeSince", { time: formatTime(awakeState.since) })}
+            />
+          ) : (
+            <LiveStatusBanner
+              tone={SLEEPING_TONE}
+              title={t("currentlySleeping", { duration: formatSleepDuration(awakeState.since, now, dateFnsLocale) })}
+              subtitle={t("sleepingSince", { time: formatTime(awakeState.since) })}
+            />
+          )
         )}
 
         {/* Filters */}

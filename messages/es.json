@@ -28,6 +28,8 @@
     "nightWakingsSummary": "{count} despertares de noche (20:00 – 09:00)",
     "currentlyAwake": "Despierto/a desde hace {duration}",
     "awakeSince": "desde las {time}",
+    "currentlySleeping": "Durmiendo desde hace {duration}",
+    "sleepingSince": "desde las {time}",
     "timeline": "Línea de tiempo",
     "time": "Hora",
     "type": "Tipo",
