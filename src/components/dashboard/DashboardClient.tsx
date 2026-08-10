@@ -23,13 +23,21 @@ const STAT_STYLES = [
 function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; sublabel?: string; value: number; emoji: string; styleIdx: number }) {
   const s = STAT_STYLES[styleIdx];
   return (
-    <div className={`${s.bg} rounded-2xl border ${s.border} p-3.5 flex flex-col gap-1`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xl">{emoji}</span>
-        {sublabel && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{sublabel}</span>}
+    <div className={`${s.bg} rounded-xl border ${s.border} px-3 py-2.5 flex items-center gap-2.5`}>
+      <span className="w-8 h-8 rounded-lg bg-white/70 flex items-center justify-center text-base leading-none flex-shrink-0">
+        {emoji}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xl font-bold text-gray-900 tabular-nums leading-none">{value}</span>
+          {sublabel && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 text-indigo-700 whitespace-nowrap">
+              {sublabel}
+            </span>
+          )}
+        </div>
+        <span className="block text-[11px] font-medium text-gray-500 truncate leading-tight mt-0.5">{label}</span>
       </div>
-      <span className="text-3xl font-bold text-gray-900 tabular-nums">{value}</span>
-      <span className="text-xs font-medium text-gray-500 leading-tight">{label}</span>
     </div>
   );
 }
