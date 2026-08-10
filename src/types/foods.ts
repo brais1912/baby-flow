@@ -1,4 +1,4 @@
-export const FOOD_CATEGORIES = ["fruit", "vegetable", "cereal", "protein", "dairy", "other"] as const;
+export const FOOD_CATEGORIES = ["fruit", "vegetable", "cereal", "protein", "dairy", "legumes", "other"] as const;
 
 export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
 
