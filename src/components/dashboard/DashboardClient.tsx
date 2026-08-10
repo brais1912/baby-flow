@@ -23,8 +23,8 @@ const STAT_STYLES = [
 function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; sublabel?: string; value: number; emoji: string; styleIdx: number }) {
   const s = STAT_STYLES[styleIdx];
   return (
-    <div className={`${s.bg} rounded-xl border ${s.border} px-3 py-2.5 flex items-center gap-2.5`}>
-      <span className="w-8 h-8 rounded-lg bg-white/70 flex items-center justify-center text-base leading-none flex-shrink-0">
+    <div className={`${s.bg} rounded-xl border ${s.border} px-3 py-2.5 flex items-center gap-2`}>
+      <span className="w-7 h-7 rounded-lg bg-white/70 flex items-center justify-center text-sm leading-none flex-shrink-0">
         {emoji}
       </span>
       <div className="min-w-0 flex-1">
@@ -36,7 +36,7 @@ function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; 
             </span>
           )}
         </div>
-        <span className="block text-[11px] font-medium text-gray-500 truncate leading-tight mt-0.5">{label}</span>
+        <span className="block text-[11px] font-medium text-gray-500 leading-tight mt-0.5">{label}</span>
       </div>
     </div>
   );
