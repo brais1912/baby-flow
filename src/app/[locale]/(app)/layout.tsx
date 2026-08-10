@@ -30,6 +30,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               📊
             </Link>
+            <Link
+              href={`/${locale}/food`}
+              aria-label={t("food")}
+              className="flex items-center justify-center w-8 h-8 text-base text-gray-500 hover:text-emerald-600 bg-gray-100 hover:bg-emerald-50 rounded-full transition-all duration-150 active:scale-90 active:bg-emerald-100 flex-shrink-0"
+            >
+              🥣
+            </Link>
           </div>
           <div className="flex items-center gap-1">
             <LanguageSwitcher />

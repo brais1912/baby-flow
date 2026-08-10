@@ -5,6 +5,7 @@ export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rock
 export const sleepConditionEnum = pgEnum("sleep_condition", ["sleep_sack", "pajamas", "bodysuit", "top_and_bottoms", "swaddle", "other"]);
 export const diaperTypeEnum = pgEnum("diaper_type", ["pee", "poop", "both"]);
 export const feedingTypeEnum = pgEnum("feeding_type", ["breast_left", "breast_right", "both_breasts", "bottle", "formula", "solid"]);
+export const foodCategoryEnum = pgEnum("food_category", ["fruit", "vegetable", "cereal", "protein", "dairy", "other"]);
 
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -37,7 +38,21 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const foodEntries = pgTable("food_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  name: text("name").notNull(),
+  category: foodCategoryEnum("category").notNull().default("other"),
+  amount: text("amount"),
+  eatenAt: timestamp("eaten_at", { withTimezone: true }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+export type FoodEntry = typeof foodEntries.$inferSelect;
+export type NewFoodEntry = typeof foodEntries.$inferInsert;
