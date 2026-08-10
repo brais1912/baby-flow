@@ -204,5 +204,6 @@ const CATEGORY_EMOJI: Record<FoodCategory, string> = {
   cereal: "🌾",
   protein: "🍗",
   dairy: "🧀",
-  other: "🍪",
+  legumes: "🫘",
+  other: "🍴",
 };

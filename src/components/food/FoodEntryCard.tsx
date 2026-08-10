@@ -10,7 +10,8 @@ const CATEGORY_STYLE: Record<FoodCategory, { emoji: string; chip: string; card: 
   cereal:    { emoji: "🌾", chip: "bg-amber-50 text-amber-600",     card: "border-l-amber-400",   soft: "bg-amber-50" },
   protein:   { emoji: "🍗", chip: "bg-rose-50 text-rose-600",       card: "border-l-rose-400",    soft: "bg-rose-50" },
   dairy:     { emoji: "🧀", chip: "bg-blue-50 text-blue-600",       card: "border-l-blue-400",    soft: "bg-blue-50" },
-  other:     { emoji: "🍪", chip: "bg-gray-100 text-gray-600",      card: "border-l-gray-300",    soft: "bg-gray-100" },
+  legumes:   { emoji: "🫘", chip: "bg-teal-50 text-teal-600",       card: "border-l-teal-400",    soft: "bg-teal-50" },
+  other:     { emoji: "🍴", chip: "bg-gray-100 text-gray-600",      card: "border-l-gray-300",    soft: "bg-gray-100" },
 };
 
 const ICON_BUTTON =

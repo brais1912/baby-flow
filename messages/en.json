@@ -233,6 +233,7 @@
     "cereal": "Cereal",
     "protein": "Protein",
     "dairy": "Dairy",
+    "legumes": "Legumes",
     "other": "Other",
     "timeLabel": "Time",
     "today": "Today",

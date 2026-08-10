@@ -5,7 +5,7 @@ export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rock
 export const sleepConditionEnum = pgEnum("sleep_condition", ["sleep_sack", "pajamas", "bodysuit", "top_and_bottoms", "swaddle", "other"]);
 export const diaperTypeEnum = pgEnum("diaper_type", ["pee", "poop", "both"]);
 export const feedingTypeEnum = pgEnum("feeding_type", ["breast_left", "breast_right", "both_breasts", "bottle", "formula", "solid"]);
-export const foodCategoryEnum = pgEnum("food_category", ["fruit", "vegetable", "cereal", "protein", "dairy", "other"]);
+export const foodCategoryEnum = pgEnum("food_category", ["fruit", "vegetable", "cereal", "protein", "dairy", "legumes", "other"]);
 
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
