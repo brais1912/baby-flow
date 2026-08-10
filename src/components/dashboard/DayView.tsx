@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { format, addDays, subDays, type Locale } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, countNightWakings, deduplicateBothBreasts, getAwakeState, formatSleepDuration } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, formatAwakeDetail, countNightWakings, deduplicateBothBreasts, getAwakeState, formatSleepDuration } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -49,7 +49,7 @@ function matchesFilter(event: Event, filter: FilterValue): boolean {
   return event.type === filter;
 }
 
-function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => string, tDiaper: (k: string) => string, tFeeding: (k: string) => string, dateFnsLocale?: Locale): string {
+function eventDetail(event: Event, tMethods: (k: string) => string, tDiaper: (k: string) => string, tFeeding: (k: string) => string): string {
   if (event.type === "diaper" && event.diaperType) return tDiaper(event.diaperType === "both" ? "both" : event.diaperType);
   if (event.type === "feeding" && event.feedingType) {
     const keyMap: Record<string, string> = {
@@ -64,9 +64,6 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
   }
   if (event.type === "sleep" && event.sleepMethod) {
     return tMethods(event.sleepMethod === "bottle" ? "bottle" : event.sleepMethod);
-  }
-  if (event.type === "wake_up") {
-    return formatWakeUpDetail(event, allEvents, dateFnsLocale) ?? "";
   }
   return "";
 }
@@ -286,7 +283,9 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             >
               {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
-            const detail = eventDetail(event, events, tMethods, tDiaper, tFeeding);
+            const detail = eventDetail(event, tMethods, tDiaper, tFeeding);
+            const awakeDuration = event.type === "sleep" ? formatAwakeDetail(event, events, dateFnsLocale) : null;
+            const sleepDuration = event.type === "wake_up" ? formatWakeUpDetail(event, events, dateFnsLocale) : null;
             const isConfirming = confirmDeleteId === event.id;
             const isDeleting = isPending && isConfirming;
 
@@ -328,6 +327,16 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.pill}`}>
                           {tEventTypes(event.type === "wake_up" ? "wakeUp" : event.type)}
                         </span>
+                        {awakeDuration && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                            🌅 {awakeDuration}
+                          </span>
+                        )}
+                        {sleepDuration && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                            😴 {sleepDuration}
+                          </span>
+                        )}
                         {event.notes === "QuickLog" && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-100 flex items-center gap-1">
                             ⚡ QuickLog
