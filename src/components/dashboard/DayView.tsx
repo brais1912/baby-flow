@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { format, addDays, subDays } from "date-fns";
+import { format, addDays, subDays, type Locale } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
-import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, countNightWakings, deduplicateBothBreasts } from "@/lib/utils/format";
+import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, countNightWakings, deduplicateBothBreasts, getAwakeState, formatSleepDuration } from "@/lib/utils/format";
 import { deleteEvent } from "@/lib/actions/events";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -49,7 +49,7 @@ function matchesFilter(event: Event, filter: FilterValue): boolean {
   return event.type === filter;
 }
 
-function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => string, tDiaper: (k: string) => string, tFeeding: (k: string) => string): string {
+function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => string, tDiaper: (k: string) => string, tFeeding: (k: string) => string, dateFnsLocale?: Locale): string {
   if (event.type === "diaper" && event.diaperType) return tDiaper(event.diaperType === "both" ? "both" : event.diaperType);
   if (event.type === "feeding" && event.feedingType) {
     const keyMap: Record<string, string> = {
@@ -66,9 +66,35 @@ function eventDetail(event: Event, allEvents: Event[], tMethods: (k: string) => 
     return tMethods(event.sleepMethod === "bottle" ? "bottle" : event.sleepMethod);
   }
   if (event.type === "wake_up") {
-    return formatWakeUpDetail(event, allEvents) ?? "";
+    return formatWakeUpDetail(event, allEvents, dateFnsLocale) ?? "";
   }
   return "";
+}
+
+let nowCache: Date | null = null;
+
+function subscribeNow(callback: () => void): () => void {
+  const id = setInterval(() => {
+    nowCache = new Date();
+    callback();
+  }, 30000);
+  return () => {
+    clearInterval(id);
+    nowCache = null;
+  };
+}
+
+function getNowSnapshot(): Date | null {
+  if (nowCache === null) nowCache = new Date();
+  return nowCache;
+}
+
+function getNowServerSnapshot(): Date | null {
+  return null;
+}
+
+function useNow(): Date | null {
+  return useSyncExternalStore(subscribeNow, getNowSnapshot, getNowServerSnapshot);
 }
 
 export function DayView({ events, currentDay: controlledDay, onDayChange, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
@@ -84,6 +110,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   const [filter, setFilter] = useState<FilterValue>("all");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
+  const now = useNow();
   const eventListRef = useRef<HTMLDivElement | null>(null);
   const [eventListScroll, setEventListScroll] = useState({ canScrollUp: false, canScrollDown: false });
   const [isPending, startTransition] = useTransition();
@@ -98,6 +125,9 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
 
   const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const canGoForward = windowEnd <= new Date();
+
+  const isCurrentWindow = Boolean(now && windowStart <= now && now < windowEnd);
+  const awakeState = now ? getAwakeState(events, now) : null;
 
   const dayEvents = deduplicateBothBreasts(
     events
@@ -189,6 +219,27 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             ›
           </button>
         </div>
+
+        {/* Live awake status banner */}
+        {isCurrentWindow && awakeState?.isAwake && now && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/80 rounded-xl px-3.5 py-2.5 text-xs text-orange-900 flex items-center justify-between font-medium shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              </span>
+              <span className="text-base leading-none">🌅</span>
+              <div>
+                <span className="font-semibold text-orange-950 block">
+                  {t("currentlyAwake", { duration: formatSleepDuration(awakeState.since, now, dateFnsLocale) })}
+                </span>
+                <span className="text-[11px] text-orange-700/80 block">
+                  {t("awakeSince", { time: formatTime(awakeState.since) })}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">

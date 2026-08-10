@@ -25,6 +25,8 @@
     "noEvents": "No events this day",
     "noEventsFilter": "No events match this filter",
     "nightWakingsSummary": "{count} night wakings (20:00 – 09:00)",
+    "currentlyAwake": "Currently awake for {duration}",
+    "awakeSince": "since {time}",
     "timeline": "Day timeline",
     "time": "Time",
     "type": "Type",

@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { es } from "date-fns/locale";
 import {
   formatTime,
   formatDate,
   formatSleepDuration,
   formatWakeUpDetail,
+  getAwakeState,
   countNightWakings,
   eventTypeLabel,
   diaperTypeLabel,
@@ -77,6 +79,69 @@ describe("formatSleepDuration", () => {
 
   it("handles exactly 1 hour", () => {
     expect(formatSleepDuration(new Date("2024-01-15T20:00:00"), new Date("2024-01-15T21:00:00"))).toBe("1 hour");
+  });
+
+  it("formats with Spanish locale when provided", () => {
+    expect(formatSleepDuration(new Date("2024-01-15T20:00:00"), new Date("2024-01-15T22:15:00"), es)).toBe("2 horas 15 minutos");
+  });
+
+  it("returns fallback for durations under 1 minute", () => {
+    const ts = new Date("2024-01-15T20:00:00");
+    expect(formatSleepDuration(ts, ts)).toBe("< 1 min");
+  });
+});
+
+// ── getAwakeState ─────────────────────────────────────────────────────────────
+
+describe("getAwakeState", () => {
+  const now = new Date("2024-01-15T15:00:00");
+
+  it("returns null if there are no events", () => {
+    expect(getAwakeState([], now)).toBeNull();
+  });
+
+  it("returns null if there are no sleep-phase events", () => {
+    const events = [
+      makeEvent({ type: "feeding", occurredAt: new Date("2024-01-15T10:00:00") }),
+      makeEvent({ type: "diaper", occurredAt: new Date("2024-01-15T12:00:00") }),
+    ];
+    expect(getAwakeState(events, now)).toBeNull();
+  });
+
+  it("returns null if the latest event occurred in the future relative to now", () => {
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T16:00:00") }),
+    ];
+    expect(getAwakeState(events, now)).toBeNull();
+  });
+
+  it("returns isAwake: true when the latest sleep-phase event is wake_up", () => {
+    const wakeUpTime = new Date("2024-01-15T12:00:00");
+    const events = [
+      makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T08:00:00") }),
+      makeEvent({ type: "wake_up", occurredAt: wakeUpTime }),
+      makeEvent({ type: "diaper", occurredAt: new Date("2024-01-15T13:00:00") }),
+    ];
+    const state = getAwakeState(events, now);
+    expect(state).toEqual({
+      isAwake: true,
+      since: wakeUpTime,
+      durationMs: 3 * 60 * 60 * 1000,
+    });
+  });
+
+  it("returns isAwake: false when the latest sleep-phase event is sleep", () => {
+    const sleepTime = new Date("2024-01-15T14:00:00");
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T08:00:00") }),
+      makeEvent({ type: "sleep", occurredAt: sleepTime }),
+    ];
+    const state = getAwakeState(events, now);
+    expect(state).toEqual({
+      isAwake: false,
+      since: sleepTime,
+      durationMs: 1 * 60 * 60 * 1000,
+    });
   });
 });
 
