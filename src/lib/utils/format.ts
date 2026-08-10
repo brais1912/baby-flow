@@ -1,4 +1,4 @@
-import { format, formatDuration, intervalToDuration } from "date-fns";
+import { format, formatDuration, intervalToDuration, type Locale } from "date-fns";
 import type { EventType, DiaperType, SleepMethod } from "@/types/events";
 import type { Event } from "@/lib/db/schema";
 
@@ -41,19 +41,48 @@ export function formatDateTime(date: Date): string {
   return format(date, "MMM d · HH:mm");
 }
 
-export function formatSleepDuration(start: Date, end: Date): string {
+export function formatSleepDuration(start: Date, end: Date, locale?: Locale): string {
   const duration = intervalToDuration({ start, end });
-  return formatDuration(duration, { format: ["hours", "minutes"] });
+  const formatted = formatDuration(duration, { format: ["hours", "minutes"], locale });
+  if (!formatted) {
+    return "< 1 min";
+  }
+  return formatted;
 }
 
-export function formatWakeUpDetail(event: Event, allEvents: Event[]): string | null {
+export function formatWakeUpDetail(event: Event, allEvents: Event[], locale?: Locale): string | null {
   if (event.type !== "wake_up") return null;
   const wakeTime = new Date(event.occurredAt);
   const prevSleep = [...allEvents]
     .filter((e) => e.type === "sleep" && new Date(e.occurredAt) < wakeTime)
     .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0];
   if (!prevSleep) return null;
-  return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime)}`;
+  return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime, locale)}`;
+}
+
+export type AwakeState = {
+  isAwake: boolean;
+  since: Date;
+  durationMs: number;
+} | null;
+
+export function getAwakeState(events: Event[], now: Date = new Date()): AwakeState {
+  const sleepPhaseEvents = [...events]
+    .filter((e) => e.type === "sleep" || e.type === "wake_up")
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+
+  if (sleepPhaseEvents.length === 0) return null;
+
+  const latest = sleepPhaseEvents[sleepPhaseEvents.length - 1];
+  const latestTime = new Date(latest.occurredAt);
+
+  if (latestTime > now) return null;
+
+  return {
+    isAwake: latest.type === "wake_up",
+    since: latestTime,
+    durationMs: Math.max(0, now.getTime() - latestTime.getTime()),
+  };
 }
 
 export function countNightWakings(events: Event[], currentDay: Date): number {
