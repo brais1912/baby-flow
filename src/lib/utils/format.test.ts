@@ -5,6 +5,7 @@ import {
   formatDate,
   formatSleepDuration,
   formatWakeUpDetail,
+  formatAwakeDetail,
   getAwakeState,
   countNightWakings,
   eventTypeLabel,
@@ -158,11 +159,52 @@ describe("formatWakeUpDetail", () => {
     expect(formatWakeUpDetail(wakeEvent, [wakeEvent])).toBeNull();
   });
 
-  it("formats wake_up detail with range and duration regardless of notes (including QuickLog)", () => {
+  it("formats sleep duration for the wake_up regardless of notes (including QuickLog)", () => {
     const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T22:00:00"), notes: "QuickLog" });
     const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T07:00:00"), notes: "QuickLog" });
     const result = formatWakeUpDetail(wakeEvent, [sleepEvent, wakeEvent]);
-    expect(result).toBe("22:00 → 07:00 · 9 hours");
+    expect(result).toBe("9 hours");
+  });
+
+  it("uses the immediately preceding sleep even when later sleep events exist", () => {
+    const firstSleep = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T14:00:00"), notes: "QuickLog" });
+    const secondSleep = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T22:00:00"), notes: "QuickLog" });
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T07:00:00"), notes: "QuickLog" });
+    expect(formatWakeUpDetail(wakeEvent, [firstSleep, secondSleep, wakeEvent])).toBe("9 hours");
+  });
+});
+
+// ── formatAwakeDetail ─────────────────────────────────────────────────────────
+
+describe("formatAwakeDetail", () => {
+  it("returns null if event type is not sleep", () => {
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T12:00:00") });
+    expect(formatAwakeDetail(wakeEvent, [wakeEvent])).toBeNull();
+  });
+
+  it("returns null if no previous wake_up event exists", () => {
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T13:00:00") });
+    expect(formatAwakeDetail(sleepEvent, [sleepEvent])).toBeNull();
+  });
+
+  it("formats awake duration since the previous wake_up regardless of notes (including QuickLog)", () => {
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T12:00:00"), notes: "QuickLog" });
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T13:30:00"), notes: "QuickLog" });
+    const result = formatAwakeDetail(sleepEvent, [wakeEvent, sleepEvent]);
+    expect(result).toBe("1 hour 30 minutes");
+  });
+
+  it("uses the immediately preceding wake_up and honors the locale", () => {
+    const firstWake = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T06:00:00") });
+    const secondWake = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T12:00:00") });
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T13:30:00") });
+    expect(formatAwakeDetail(sleepEvent, [firstWake, secondWake, sleepEvent], es)).toBe("1 hora 30 minutos");
+  });
+
+  it("returns null when a wake_up is after the sleep event", () => {
+    const wakeEvent = makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T15:00:00") });
+    const sleepEvent = makeEvent({ type: "sleep", occurredAt: new Date("2024-01-15T13:00:00") });
+    expect(formatAwakeDetail(sleepEvent, [wakeEvent, sleepEvent])).toBeNull();
   });
 });
 

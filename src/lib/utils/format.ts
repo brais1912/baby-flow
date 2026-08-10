@@ -50,14 +50,27 @@ export function formatSleepDuration(start: Date, end: Date, locale?: Locale): st
   return formatted;
 }
 
+function latestPreviousEvent<T extends Event["type"]>(event: Event, allEvents: Event[], type: T): Event | null {
+  const eventTime = new Date(event.occurredAt);
+  return (
+    [...allEvents]
+      .filter((e) => e.type === type && new Date(e.occurredAt) < eventTime)
+      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0] ?? null
+  );
+}
+
 export function formatWakeUpDetail(event: Event, allEvents: Event[], locale?: Locale): string | null {
   if (event.type !== "wake_up") return null;
-  const wakeTime = new Date(event.occurredAt);
-  const prevSleep = [...allEvents]
-    .filter((e) => e.type === "sleep" && new Date(e.occurredAt) < wakeTime)
-    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0];
+  const prevSleep = latestPreviousEvent(event, allEvents, "sleep");
   if (!prevSleep) return null;
-  return `${formatTime(new Date(prevSleep.occurredAt))} → ${formatTime(wakeTime)} · ${formatSleepDuration(new Date(prevSleep.occurredAt), wakeTime, locale)}`;
+  return formatSleepDuration(new Date(prevSleep.occurredAt), new Date(event.occurredAt), locale);
+}
+
+export function formatAwakeDetail(event: Event, allEvents: Event[], locale?: Locale): string | null {
+  if (event.type !== "sleep") return null;
+  const prevWake = latestPreviousEvent(event, allEvents, "wake_up");
+  if (!prevWake) return null;
+  return formatSleepDuration(new Date(prevWake.occurredAt), new Date(event.occurredAt), locale);
 }
 
 export type AwakeState = {
