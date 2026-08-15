@@ -218,23 +218,33 @@ describe("countNightWakings", () => {
       makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T18:00:00") }), // Before 20:00 (excluded)
       makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T23:30:00") }), // Night waking 1
       makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T03:15:00") }), // Night waking 2
-      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T08:30:00") }), // Final morning wake up (excluded)
-      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T10:00:00") }), // After 09:00 (excluded)
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T08:30:00") }), // Night waking 3 (was the final morning wake up before end was 09:00)
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T09:15:00") }), // Final morning wake up (excluded)
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T10:00:00") }), // At 10:00 (excluded, end is exclusive)
       makeEvent({ type: "sleep",   occurredAt: new Date("2024-01-16T02:00:00") }), // Not wake_up
     ];
 
-    expect(countNightWakings(events, day)).toBe(2);
+    expect(countNightWakings(events, day)).toBe(3);
   });
 
-  it("returns 0 when there is only a morning wake_up event in the 20:00-09:00 window", () => {
+  it("returns 0 when there is only a morning wake_up event in the 20:00-10:00 window", () => {
     const events = [
-      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T08:00:00") }),
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T09:30:00") }),
     ];
 
     expect(countNightWakings(events, day)).toBe(0);
   });
 
-  it("returns 0 if no wake_up events fall in the 20:00-09:00 night window", () => {
+  it("counts wake_ups between 09:00 and 10:00 as night wakings", () => {
+    const events = [
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T23:30:00") }), // Night waking 1
+      makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T09:30:00") }), // Final morning wake up (excluded)
+    ];
+
+    expect(countNightWakings(events, day)).toBe(1);
+  });
+
+  it("returns 0 if no wake_up events fall in the 20:00-10:00 night window", () => {
     const events = [
       makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-15T15:00:00") }),
       makeEvent({ type: "wake_up", occurredAt: new Date("2024-01-16T11:00:00") }),

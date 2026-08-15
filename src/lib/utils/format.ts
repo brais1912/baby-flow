@@ -104,7 +104,7 @@ export function countNightWakings(events: Event[], currentDay: Date): number {
 
   const nightEnd = new Date(currentDay);
   nightEnd.setDate(nightEnd.getDate() + 1);
-  nightEnd.setHours(9, 0, 0, 0);
+  nightEnd.setHours(10, 0, 0, 0);
 
   const nightWakeUps = events.filter((e) => {
     if (e.type !== "wake_up") return false;
