@@ -19,7 +19,10 @@
     "dayStart": "Day starts",
     "save": "Save",
     "saving": "Saving...",
-    "saveError": "Couldn't save"
+    "saveError": "Couldn't save",
+    "loading": "Loading...",
+    "loadError": "Couldn't load events",
+    "retry": "Retry"
   },
   "dayView": {
     "today": "Today",

@@ -12,6 +12,9 @@ import {
   diaperTypeLabel,
   sleepMethodLabel,
   deduplicateBothBreasts,
+  mergeEvents,
+  eventsWithinChartWindow,
+  chartWindowBounds,
   aggregateSleepByDay,
   aggregateDiaperByDay,
   aggregateBreastFeedingByDay,
@@ -310,6 +313,72 @@ describe("deduplicateBothBreasts", () => {
       makeEvent({ id: "b", type: "feeding", feedingType: "breast_right", occurredAt: new Date("2024-01-15T10:01:00") }),
     ];
     expect(deduplicateBothBreasts(events)).toHaveLength(2);
+  });
+});
+
+// ── mergeEvents ───────────────────────────────────────────────────────────────
+
+describe("mergeEvents", () => {
+  it("dedupes by id, keeping the incoming version", () => {
+    const existing = makeEvent({ id: "a", occurredAt: new Date("2024-01-15T10:00:00"), notes: "old" });
+    const incoming = [makeEvent({ id: "a", occurredAt: new Date("2024-01-15T10:00:00"), notes: "new" })];
+    const result = mergeEvents([existing], incoming);
+    expect(result).toHaveLength(1);
+    expect(result[0].notes).toBe("new");
+  });
+
+  it("sorts events newest first", () => {
+    const existing = [makeEvent({ id: "a", occurredAt: new Date("2024-01-15T08:00:00") })];
+    const incoming = [
+      makeEvent({ id: "b", occurredAt: new Date("2024-01-15T12:00:00") }),
+      makeEvent({ id: "c", occurredAt: new Date("2024-01-15T10:00:00") }),
+    ];
+    const result = mergeEvents(existing, incoming);
+    expect(result.map((e) => e.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("returns an empty array when both inputs are empty", () => {
+    expect(mergeEvents([], [])).toEqual([]);
+  });
+
+  it("does not mutate the input arrays", () => {
+    const existing = [makeEvent({ id: "a" })];
+    const incoming = [makeEvent({ id: "b" })];
+    mergeEvents(existing, incoming);
+    expect(existing).toHaveLength(1);
+    expect(incoming).toHaveLength(1);
+  });
+});
+
+// ── eventsWithinChartWindow ───────────────────────────────────────────────────
+
+describe("eventsWithinChartWindow", () => {
+  const anchor = new Date("2024-01-15T00:00:00");
+
+  it("keeps events from the 10 owner days ending at the anchor", () => {
+    const events = [
+      makeEvent({ id: "in", occurredAt: new Date("2024-01-14T15:00:00") }),
+      makeEvent({ id: "before", occurredAt: new Date("2024-01-05T11:59:00") }),
+      makeEvent({ id: "after", occurredAt: new Date("2024-01-16T12:00:00") }),
+    ];
+    const result = eventsWithinChartWindow(events, anchor);
+    expect(result.map((e) => e.id)).toEqual(["in"]);
+  });
+
+  it("excludes events from the 11th day before the anchor", () => {
+    const events = [makeEvent({ id: "eleventh", occurredAt: new Date("2024-01-06T11:00:00") })];
+    expect(eventsWithinChartWindow(events, anchor)).toEqual([]);
+  });
+
+  it("returns an empty array when nothing falls in the window", () => {
+    const events = [makeEvent({ occurredAt: new Date("2023-12-01T12:00:00") })];
+    expect(eventsWithinChartWindow(events, anchor)).toEqual([]);
+  });
+
+  it("chartWindowBounds covers exactly the 10 owner days ending at the anchor", () => {
+    const { start, end } = chartWindowBounds(anchor);
+    expect(start.getTime()).toBe(new Date("2024-01-06T12:00:00").getTime());
+    expect(end.getTime()).toBe(new Date("2024-01-16T12:00:00").getTime());
   });
 });
 

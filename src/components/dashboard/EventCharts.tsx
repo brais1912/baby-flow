@@ -44,10 +44,10 @@ function tapBarIndex(e: React.PointerEvent<HTMLDivElement>, barCount: number, ma
 
 // ── Sleep chart ───────────────────────────────────────────────────────────────
 
-export function SleepChart({ events, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: { events: Event[]; dayWindowStartMinutes?: number }) {
+export function SleepChart({ events, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES, now: nowProp }: { events: Event[]; dayWindowStartMinutes?: number; now?: Date }) {
   const t = useTranslations("charts");
   const locale = useLocale();
-  const now = new Date();
+  const now = nowProp ?? new Date();
   const [selected, setSelected] = useState<{ label: string; hours: number; duration: string } | null>(null);
 
   const sleepBars = aggregateSleepByDay(events, now, (d) => localeDateKey(d, locale), dayWindowStartMinutes)

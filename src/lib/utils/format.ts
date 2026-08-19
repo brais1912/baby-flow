@@ -1,4 +1,4 @@
-import { format, formatDuration, intervalToDuration, type Locale } from "date-fns";
+import { format, formatDuration, intervalToDuration, subDays, type Locale } from "date-fns";
 import type { EventType, DiaperType, SleepMethod } from "@/types/events";
 import type { Event } from "@/lib/db/schema";
 
@@ -29,8 +29,33 @@ export function deduplicateBothBreasts(events: Event[]): Event[] {
   return result;
 }
 
+// Merges fetched events into an existing list, deduping by id and sorting newest first.
+export function mergeEvents(existing: Event[], incoming: Event[]): Event[] {
+  const byId = new Map(existing.map((e) => [e.id, e]));
+  for (const e of incoming) byId.set(e.id, e);
+  return [...byId.values()].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+}
+
 export function formatTime(date: Date): string {
   return format(date, "HH:mm");
+}
+
+// Bounds of the dashboard chart window anchored on an owner date: exactly the
+// 10 owner days [anchor - 9, anchor].
+export function chartWindowBounds(anchor: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): DayWindowBounds {
+  const firstOwnerDate = subDays(anchor, 9);
+  return {
+    start: dayWindowBounds(firstOwnerDate, dayWindowStartMinutes).start,
+    end: dayWindowBounds(anchor, dayWindowStartMinutes).end,
+  };
+}
+
+export function eventsWithinChartWindow(events: Event[], anchor: Date, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES): Event[] {
+  const { start, end } = chartWindowBounds(anchor, dayWindowStartMinutes);
+  return events.filter((e) => {
+    const d = new Date(e.occurredAt);
+    return d >= start && d < end;
+  });
 }
 
 export function formatDate(date: Date): string {

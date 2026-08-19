@@ -15,8 +15,8 @@ const DiaperChart = dynamic(() => import("./EventCharts").then((m) => m.DiaperCh
 
 type ChartWrapperProps = { events: Event[]; dayWindowStartMinutes: number };
 
-export function SleepChartWrapper({ events, dayWindowStartMinutes }: ChartWrapperProps) {
-  return <div className="w-full min-w-0 overflow-hidden"><SleepChart events={events} dayWindowStartMinutes={dayWindowStartMinutes} /></div>;
+export function SleepChartWrapper({ events, dayWindowStartMinutes, now }: ChartWrapperProps & { now?: Date }) {
+  return <div className="w-full min-w-0 overflow-hidden"><SleepChart events={events} dayWindowStartMinutes={dayWindowStartMinutes} now={now} /></div>;
 }
 
 export function FeedingChartWrapper({ events, dayWindowStartMinutes }: ChartWrapperProps) {
