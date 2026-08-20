@@ -20,18 +20,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
-html,
-body {
-  overflow-x: hidden;
+html {
+  /* Clip horizontally without creating a scroll container: prevents sideways
+     PWA scrolling but keeps wheel/trackpad page scroll working everywhere
+     (overflow-x: hidden on body turns it into a scroll container that swallows
+     wheel events in Chrome). */
+  overflow-x: clip;
+  overscroll-behavior-y: none; /* stop pull-to-refresh / rubber-banding in PWA */
 }
 
 body {
+  overflow-x: clip;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
   -webkit-font-smoothing: antialiased;
-  /* Stop the app shell rubber-banding like a web page in the installed PWA */
-  overscroll-behavior-y: none;
 }
 
 /* Native-feel touch behavior: we draw our own pressed states, so kill the

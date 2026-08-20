@@ -315,7 +315,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
             <div
               ref={eventListRef}
               onScroll={updateEventListScroll}
-              className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto overscroll-contain pr-1 -mr-1" : ""}`}
+              className={`space-y-2 ${hasScrollableEvents ? "max-h-[26.5rem] overflow-y-auto pr-1 -mr-1" : ""}`}
             >
               {filteredEvents.map((event) => {
             const style = EVENT_STYLE[event.type] ?? EVENT_STYLE.diaper;
