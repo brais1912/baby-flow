@@ -131,7 +131,7 @@ export function DashboardClient({
   initialRangeEnd: Date;
 }) {
   const [currentDay, setCurrentDay] = useState(() => dayWindowDate(new Date(), dayWindowStartMinutes));
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [extraEvents, setExtraEvents] = useState<Event[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const loadedBounds = useRef({ start: initialRangeStart, end: initialRangeEnd });
@@ -139,6 +139,12 @@ export function DashboardClient({
   const tCharts = useTranslations("charts");
   const locale = useLocale();
   const dateFnsLocale = locale === "es" ? es : enUS;
+
+  // Server-provided events are the source of truth — router.refresh() after a
+  // QuickLog re-fetches them and they must show up immediately. Client-side
+  // fetches (day navigation beyond the initial window) accumulate as extras,
+  // deduped by id.
+  const events = mergeEvents(initialEvents, extraEvents);
 
   const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const dayEvents = deduplicateBothBreasts(events.filter((e) => {
@@ -170,7 +176,7 @@ export function DashboardClient({
     startTransition(async () => {
       try {
         const fetched = await getEventsForDateRange(fetchStart, fetchEnd);
-        setEvents((prev) => mergeEvents(prev, fetched));
+        setExtraEvents((prev) => mergeEvents(prev, fetched));
       } catch {
         setLoadError(true);
         loadedBounds.current = { start, end };
