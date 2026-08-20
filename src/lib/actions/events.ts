@@ -5,7 +5,7 @@ import { db } from "@/lib/db/client";
 import { events, type NewEvent } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { INVALID_SLEEP_SEQUENCE_PREFIX } from "@/types/events";
-import { eq, and, or, gte, lte, desc } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, ne } from "drizzle-orm";
 
 async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient();
@@ -17,6 +17,21 @@ async function getAuthenticatedUserId(): Promise<string> {
 async function assertValidSleepSequence(userId: string, type: "sleep" | "wake_up") {
   const lastSleepPhaseEvent = await db.query.events.findFirst({
     where: and(eq(events.userId, userId), or(eq(events.type, "sleep"), eq(events.type, "wake_up"))),
+    orderBy: [desc(events.occurredAt)],
+  });
+
+  if (lastSleepPhaseEvent?.type === type) {
+    throw new Error(`${INVALID_SLEEP_SEQUENCE_PREFIX}${type}`);
+  }
+}
+
+async function assertValidSleepSequenceForUpdate(userId: string, eventId: string, type: "sleep" | "wake_up") {
+  const lastSleepPhaseEvent = await db.query.events.findFirst({
+    where: and(
+      eq(events.userId, userId),
+      or(eq(events.type, "sleep"), eq(events.type, "wake_up")),
+      ne(events.id, eventId)
+    ),
     orderBy: [desc(events.occurredAt)],
   });
 
@@ -42,6 +57,28 @@ export async function deleteEvent(eventId: string) {
   await db.delete(events).where(
     and(eq(events.id, eventId), eq(events.userId, userId))
   );
+  revalidatePath("/", "layout");
+}
+
+export type UpdateEventData = Partial<Omit<NewEvent, "id" | "userId" | "createdAt" | "updatedAt">>;
+
+export async function updateEvent(eventId: string, data: UpdateEventData) {
+  const userId = await getAuthenticatedUserId();
+
+  const existing = await db.query.events.findFirst({
+    where: and(eq(events.id, eventId), eq(events.userId, userId)),
+  });
+  if (!existing) throw new Error("Event not found");
+
+  const finalType = data.type ?? existing.type;
+  if (finalType === "sleep" || finalType === "wake_up") {
+    await assertValidSleepSequenceForUpdate(userId, eventId, finalType);
+  }
+
+  await db
+    .update(events)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(events.id, eventId), eq(events.userId, userId)));
   revalidatePath("/", "layout");
 }
 

@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { format, addDays, subDays } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import type { Event } from "@/lib/db/schema";
 import { DEFAULT_DAY_WINDOW_START_MINUTES, dayWindowBounds, dayWindowDate, formatTime, formatWakeUpDetail, formatAwakeDetail, countNightWakings, deduplicateBothBreasts, getAwakeState, formatSleepDuration } from "@/lib/utils/format";
-import { deleteEvent } from "@/lib/actions/events";
+import { deleteEvent, updateEvent } from "@/lib/actions/events";
+import { parseInvalidSleepSequenceError } from "@/types/events";
 import { Spinner } from "@/components/ui/Spinner";
+import { EventEditSheet } from "@/components/events/EventEditSheet";
 
 const TimelineChart = dynamic(
   () => import("./TimelineChart").then((m) => m.TimelineChart),
@@ -146,17 +149,21 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
   const currentDay = controlledDay ?? internalDay;
   const [filter, setFilter] = useState<FilterValue>("all");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [editEvent, setEditEvent] = useState<Event | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const now = useNow();
   const eventListRef = useRef<HTMLDivElement | null>(null);
   const [eventListScroll, setEventListScroll] = useState({ canScrollUp: false, canScrollDown: false });
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const t = useTranslations("dayView");
   const tFilters = useTranslations("filters");
   const tEventTypes = useTranslations("eventTypes");
   const tMethods = useTranslations("sleepMethods");
   const tDiaper = useTranslations("diaperTypes");
   const tFeeding = useTranslations("feedingTypes");
+  const tForm = useTranslations("eventForm");
   const locale = useLocale();
   const dateFnsLocale = locale === "es" ? es : enUS;
 
@@ -227,7 +234,40 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
     });
   }
 
+  function openEdit(event: Event) {
+    setEditError(null);
+    setEditEvent(event);
+  }
+
+  function submitEdit(occurredAt: Date): Promise<void> {
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        const target = editEvent;
+        if (!target) {
+          resolve();
+          return;
+        }
+        try {
+          await updateEvent(target.id, { occurredAt });
+          router.refresh();
+          setEditError(null);
+          setEditEvent(null);
+        } catch (err) {
+          const sequenceType = err instanceof Error ? parseInvalidSleepSequenceError(err.message) : null;
+          setEditError(
+            sequenceType
+              ? tForm(sequenceType === "sleep" ? "alreadyAsleep" : "alreadyAwake")
+              : tForm("genericError")
+          );
+        } finally {
+          resolve();
+        }
+      });
+    });
+  }
+
   return (
+    <>
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
         {/* Day navigation */}
@@ -389,6 +429,16 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
                         {formatTime(new Date(event.occurredAt))}
                       </span>
                       <button
+                        onClick={() => openEdit(event)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-purple-500 hover:bg-purple-50 active:bg-purple-100 active:scale-90 transition-all duration-150"
+                        aria-label={t("editEvent")}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                          <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                        </svg>
+                      </button>
+                      <button
                         onClick={() => setConfirmDeleteId(event.id)}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 active:bg-red-100 active:scale-90 transition-all duration-150"
                         aria-label="Delete event"
@@ -474,5 +524,17 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
         </div>
       </div>
     </div>
+
+    {editEvent && (
+      <EventEditSheet
+        key={editEvent.id}
+        event={editEvent}
+        onClose={() => setEditEvent(null)}
+        onSubmit={submitEdit}
+        pending={isPending}
+        submitError={editError}
+      />
+    )}
+    </>
   );
 }
