@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Event } from "@/lib/db/schema";
 
-const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock, getUserMock } = vi.hoisted(() => ({
+const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock, updateMock, updateSetMock, updateWhereMock, getUserMock } = vi.hoisted(() => ({
   findFirstMock: vi.fn(),
   insertValuesMock: vi.fn().mockResolvedValue(undefined),
   insertMock: vi.fn(),
   deleteWhereMock: vi.fn().mockResolvedValue(undefined),
   deleteMock: vi.fn(),
+  updateMock: vi.fn(),
+  updateSetMock: vi.fn(),
+  updateWhereMock: vi.fn().mockResolvedValue(undefined),
   getUserMock: vi.fn(),
 }));
 
@@ -19,6 +22,7 @@ vi.mock("@/lib/db/client", () => ({
     query: { events: { findFirst: findFirstMock } },
     insert: insertMock.mockImplementation(() => ({ values: insertValuesMock })),
     delete: deleteMock.mockImplementation(() => ({ where: deleteWhereMock })),
+    update: updateMock.mockImplementation(() => ({ set: updateSetMock })),
   },
 }));
 
@@ -28,7 +32,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createEvent, deleteEvent } from "./events";
+import { createEvent, deleteEvent, updateEvent } from "./events";
 import { INVALID_SLEEP_SEQUENCE_PREFIX } from "@/types/events";
 
 function makeEvent(overrides: Partial<Event>): Event {
@@ -57,6 +61,9 @@ beforeEach(() => {
   insertValuesMock.mockResolvedValue(undefined);
   deleteMock.mockImplementation(() => ({ where: deleteWhereMock }));
   deleteWhereMock.mockResolvedValue(undefined);
+  updateMock.mockImplementation(() => ({ set: updateSetMock }));
+  updateSetMock.mockImplementation(() => ({ where: updateWhereMock }));
+  updateWhereMock.mockResolvedValue(undefined);
   getUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 });
 
@@ -126,5 +133,65 @@ describe("deleteEvent", () => {
 
     await expect(deleteEvent("event-123")).rejects.toThrow("Unauthorized");
     expect(deleteWhereMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateEvent", () => {
+  it("updates the given fields scoped to the authenticated user", async () => {
+    const existing = makeEvent({ type: "diaper", diaperType: "pee" });
+    findFirstMock.mockResolvedValueOnce(existing);
+
+    const newTime = new Date("2024-01-15T11:30:00");
+    await updateEvent(existing.id, { occurredAt: newTime });
+
+    expect(findFirstMock).toHaveBeenCalledTimes(1);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateSetMock).toHaveBeenCalledWith({ occurredAt: newTime, updatedAt: expect.any(Date) });
+    expect(updateWhereMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws Unauthorized when there is no authenticated user", async () => {
+    getUserMock.mockResolvedValueOnce({ data: { user: null }, error: new Error("no user") });
+
+    await expect(updateEvent("event-123", { occurredAt: new Date() })).rejects.toThrow("Unauthorized");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when the event does not exist for this user", async () => {
+    findFirstMock.mockResolvedValueOnce(undefined);
+
+    await expect(updateEvent("event-123", { occurredAt: new Date() })).rejects.toThrow("Event not found");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sleep event edit that would break the sleep sequence", async () => {
+    const existing = makeEvent({ type: "sleep" });
+    findFirstMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(makeEvent({ type: "sleep" }));
+
+    await expect(
+      updateEvent(existing.id, { occurredAt: new Date("2024-01-15T09:00:00") })
+    ).rejects.toThrow(`${INVALID_SLEEP_SEQUENCE_PREFIX}sleep`);
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a sleep event edit when the sequence stays valid", async () => {
+    const existing = makeEvent({ type: "sleep" });
+    findFirstMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(makeEvent({ type: "wake_up" }));
+
+    await updateEvent(existing.id, { occurredAt: new Date("2024-01-15T09:00:00") });
+
+    expect(updateSetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("revalidates the sequence when the event type changes", async () => {
+    const existing = makeEvent({ type: "diaper" });
+    findFirstMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(makeEvent({ type: "wake_up" }));
+
+    await expect(
+      updateEvent(existing.id, { type: "wake_up" })
+    ).rejects.toThrow(`${INVALID_SLEEP_SEQUENCE_PREFIX}wake_up`);
+
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,11 @@
     "details": "Detalles",
     "deleteConfirm": "¿Eliminar este evento?",
     "deleteConfirmButton": "Eliminar",
-    "deleteCancelButton": "Cancelar"
+    "deleteCancelButton": "Cancelar",
+    "close": "Cerrar",
+    "editTitle": "Editar evento",
+    "saveChanges": "Guardar cambios",
+    "editEvent": "Editar evento"
   },
   "filters": {
     "all": "Todo",
