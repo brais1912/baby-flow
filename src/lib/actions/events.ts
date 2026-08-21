@@ -75,11 +75,15 @@ export async function updateEvent(eventId: string, data: UpdateEventData) {
     await assertValidSleepSequenceForUpdate(userId, eventId, finalType);
   }
 
-  await db
+  const [updatedEvent] = await db
     .update(events)
     .set({ ...data, updatedAt: new Date() })
-    .where(and(eq(events.id, eventId), eq(events.userId, userId)));
+    .where(and(eq(events.id, eventId), eq(events.userId, userId)))
+    .returning();
+  if (!updatedEvent) throw new Error("Event not found");
+
   revalidatePath("/", "layout");
+  return updatedEvent;
 }
 
 export async function getEventsForDateRange(startDate: Date, endDate: Date) {

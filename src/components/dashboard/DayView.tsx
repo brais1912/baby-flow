@@ -137,11 +137,12 @@ function LiveStatusBanner({ tone, title, subtitle }: {
   );
 }
 
-export function DayView({ events, currentDay: controlledDay, onDayChange, onEventUpdated, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
+export function DayView({ events, currentDay: controlledDay, onDayChange, onEventUpdated, onEventDeleted, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
   events: Event[];
   currentDay?: Date;
   onDayChange?: (day: Date) => void;
   onEventUpdated?: (event: Event) => void;
+  onEventDeleted?: (eventId: string) => void;
   dayWindowStartMinutes?: number;
 }) {
   const [internalDay, setInternalDay] = useState(() => {
@@ -249,8 +250,8 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, onEven
           return;
         }
         try {
-          await updateEvent(target.id, { occurredAt });
-          onEventUpdated?.({ ...target, occurredAt, updatedAt: new Date() });
+          const updatedEvent = await updateEvent(target.id, { occurredAt });
+          onEventUpdated?.(updatedEvent);
           router.refresh();
           setEditError(null);
           setEditEvent(null);
@@ -387,6 +388,8 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, onEven
                         onClick={() => {
                           startTransition(async () => {
                             await deleteEvent(event.id);
+                            onEventDeleted?.(event.id);
+                            router.refresh();
                             setConfirmDeleteId(null);
                           });
                         }}

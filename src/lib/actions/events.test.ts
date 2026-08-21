@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Event } from "@/lib/db/schema";
 
-const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock, updateMock, updateSetMock, updateWhereMock, getUserMock } = vi.hoisted(() => ({
+const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock, updateMock, updateSetMock, updateWhereMock, updateReturningMock, getUserMock } = vi.hoisted(() => ({
   findFirstMock: vi.fn(),
   insertValuesMock: vi.fn().mockResolvedValue(undefined),
   insertMock: vi.fn(),
@@ -9,7 +9,8 @@ const { findFirstMock, insertValuesMock, insertMock, deleteWhereMock, deleteMock
   deleteMock: vi.fn(),
   updateMock: vi.fn(),
   updateSetMock: vi.fn(),
-  updateWhereMock: vi.fn().mockResolvedValue(undefined),
+  updateWhereMock: vi.fn(),
+  updateReturningMock: vi.fn(),
   getUserMock: vi.fn(),
 }));
 
@@ -63,7 +64,8 @@ beforeEach(() => {
   deleteWhereMock.mockResolvedValue(undefined);
   updateMock.mockImplementation(() => ({ set: updateSetMock }));
   updateSetMock.mockImplementation(() => ({ where: updateWhereMock }));
-  updateWhereMock.mockResolvedValue(undefined);
+  updateWhereMock.mockImplementation(() => ({ returning: updateReturningMock }));
+  updateReturningMock.mockResolvedValue([makeEvent({})]);
   getUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 });
 
@@ -139,15 +141,19 @@ describe("deleteEvent", () => {
 describe("updateEvent", () => {
   it("updates the given fields scoped to the authenticated user", async () => {
     const existing = makeEvent({ type: "diaper", diaperType: "pee" });
+    const updated = { ...existing, occurredAt: new Date("2024-01-15T11:30:00"), updatedAt: new Date("2024-01-15T11:31:00") };
     findFirstMock.mockResolvedValueOnce(existing);
+    updateReturningMock.mockResolvedValueOnce([updated]);
 
     const newTime = new Date("2024-01-15T11:30:00");
-    await updateEvent(existing.id, { occurredAt: newTime });
+    const result = await updateEvent(existing.id, { occurredAt: newTime });
 
     expect(findFirstMock).toHaveBeenCalledTimes(1);
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(updateSetMock).toHaveBeenCalledWith({ occurredAt: newTime, updatedAt: expect.any(Date) });
     expect(updateWhereMock).toHaveBeenCalledTimes(1);
+    expect(updateReturningMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(updated);
   });
 
   it("throws Unauthorized when there is no authenticated user", async () => {

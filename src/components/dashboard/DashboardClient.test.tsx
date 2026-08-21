@@ -21,10 +21,11 @@ vi.mock("next/dynamic", () => ({
 }));
 
 vi.mock("@/components/dashboard/DayView", () => ({
-  DayView: ({ events, onDayChange, onEventUpdated }: {
+  DayView: ({ events, onDayChange, onEventUpdated, onEventDeleted }: {
     events: Event[];
     onDayChange?: (day: Date) => void;
     onEventUpdated?: (event: Event) => void;
+    onEventDeleted?: (eventId: string) => void;
   }) => (
     <div>
       <button type="button" onClick={() => onDayChange?.(new Date("2024-03-15T12:00:00"))}>
@@ -32,9 +33,16 @@ vi.mock("@/components/dashboard/DayView", () => ({
       </button>
       <button
         type="button"
-        onClick={() => events[0] && onEventUpdated?.({ ...events[0], occurredAt: new Date("2024-03-15T10:00:00") })}
+        onClick={() => events[0] && onEventUpdated?.({
+          ...events[0],
+          occurredAt: new Date("2024-03-15T10:00:00"),
+          updatedAt: new Date(Date.now() + 1_000),
+        })}
       >
         edit-local
+      </button>
+      <button type="button" onClick={() => events[0] && onEventDeleted?.(events[0].id)}>
+        delete-local
       </button>
       <ul>
         {events.map((e) => {
@@ -176,6 +184,63 @@ describe("DashboardClient", () => {
     await userEvent.click(screen.getByText("edit-local"));
 
     expect(await screen.findByText("10:00", { selector: "time" })).toBeInTheDocument();
+    expect(screen.queryByText("09:00", { selector: "time" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a local edit when a refreshed server payload is stale", async () => {
+    const stale = makeEvent({ id: "evt-stale", type: "feeding", occurredAt: new Date("2024-03-15T09:00:00") });
+    const { rerender } = render(
+      <DashboardClient
+        events={[stale]}
+        dayWindowStartMinutes={12 * 60}
+        initialRangeStart={rangeStart}
+        initialRangeEnd={rangeEnd}
+      />
+    );
+
+    await userEvent.click(await screen.findByText("edit-local"));
+    expect(await screen.findByText("10:00", { selector: "time" })).toBeInTheDocument();
+
+    rerender(
+      <DashboardClient
+        events={[{ ...stale }]}
+        dayWindowStartMinutes={12 * 60}
+        initialRangeStart={rangeStart}
+        initialRangeEnd={rangeEnd}
+      />
+    );
+
+    expect(screen.getByText("10:00", { selector: "time" })).toBeInTheDocument();
+    expect(screen.queryByText("09:00", { selector: "time" })).not.toBeInTheDocument();
+  });
+
+  it("does not restore a deleted event from stale fetched or server data", async () => {
+    const stale = makeEvent({ id: "evt-deleted", type: "feeding", occurredAt: new Date("2024-03-15T09:00:00") });
+    vi.mocked(getEventsForDateRange).mockResolvedValue([stale]);
+    const { rerender } = render(
+      <DashboardClient
+        events={[]}
+        dayWindowStartMinutes={12 * 60}
+        initialRangeStart={rangeStart}
+        initialRangeEnd={rangeEnd}
+      />
+    );
+
+    await userEvent.click(await screen.findByText("nav-next"));
+    expect(await screen.findByText("09:00", { selector: "time" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("delete-local"));
+    expect(screen.queryByText("09:00", { selector: "time" })).not.toBeInTheDocument();
+
+    rerender(
+      <DashboardClient
+        events={[stale]}
+        dayWindowStartMinutes={12 * 60}
+        initialRangeStart={rangeStart}
+        initialRangeEnd={rangeEnd}
+      />
+    );
+
     expect(screen.queryByText("09:00", { selector: "time" })).not.toBeInTheDocument();
   });
 });

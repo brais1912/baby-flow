@@ -66,11 +66,6 @@ function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; 
   );
 }
 
-type LocalEventUpdate = {
-  event: Event;
-  sourceEvents: Event[];
-};
-
 function DayWindowStartSetting({ value }: { value: number }) {
   const router = useRouter();
   const t = useTranslations("dashboard");
@@ -137,7 +132,8 @@ export function DashboardClient({
 }) {
   const [currentDay, setCurrentDay] = useState(() => dayWindowDate(new Date(), dayWindowStartMinutes));
   const [extraEvents, setExtraEvents] = useState<Event[]>([]);
-  const [localUpdates, setLocalUpdates] = useState<LocalEventUpdate[]>([]);
+  const [localUpdates, setLocalUpdates] = useState<Event[]>([]);
+  const [deletedEventIds, setDeletedEventIds] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const loadedBounds = useRef({ start: initialRangeStart, end: initialRangeEnd });
@@ -151,11 +147,13 @@ export function DashboardClient({
   // stale client-side fetch (day navigation beyond the initial window), which
   // only fills gaps outside the server range.
   const unresolvedLocalUpdates = localUpdates
-    .filter(({ event, sourceEvents }) => (
-      sourceEvents === initialEvents || !initialEvents.some((serverEvent) => serverEvent.id === event.id)
-    ))
-    .map(({ event }) => event);
-  const events = mergeEvents(mergeEvents(extraEvents, initialEvents), unresolvedLocalUpdates);
+    .filter((updatedEvent) => {
+      const serverEvent = initialEvents.find((event) => event.id === updatedEvent.id);
+      return !serverEvent || new Date(updatedEvent.updatedAt) > new Date(serverEvent.updatedAt);
+    });
+  const deletedIds = new Set(deletedEventIds);
+  const events = mergeEvents(mergeEvents(extraEvents, initialEvents), unresolvedLocalUpdates)
+    .filter((event) => !deletedIds.has(event.id));
 
   const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const dayEvents = deduplicateBothBreasts(events.filter((e) => {
@@ -201,10 +199,12 @@ export function DashboardClient({
   }
 
   function handleEventUpdated(event: Event) {
-    setLocalUpdates((prev) => [
-      ...prev.filter((update) => update.event.id !== event.id),
-      { event, sourceEvents: initialEvents },
-    ]);
+    setLocalUpdates((prev) => mergeEvents(prev, [event]));
+  }
+
+  function handleEventDeleted(eventId: string) {
+    setDeletedEventIds((prev) => prev.includes(eventId) ? prev : [...prev, eventId]);
+    setLocalUpdates((prev) => prev.filter((event) => event.id !== eventId));
   }
 
   return (
@@ -224,6 +224,7 @@ export function DashboardClient({
           currentDay={currentDay}
           onDayChange={handleDayChange}
           onEventUpdated={handleEventUpdated}
+          onEventDeleted={handleEventDeleted}
           dayWindowStartMinutes={dayWindowStartMinutes}
         />
         {isPending && (
