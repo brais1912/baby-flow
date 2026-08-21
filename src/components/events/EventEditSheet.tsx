@@ -13,7 +13,8 @@ export function eventTimePicker(event: Event): TimeValue {
   const eventDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
   const diffDays = Math.round((todayStart.getTime() - eventDate.getTime()) / 86_400_000);
-  return { dayOffset: Math.min(Math.max(diffDays, 0), 2), hour: d.getHours(), minute: d.getMinutes() };
+  const minute = Math.floor(d.getMinutes() / 5) * 5;
+  return { dayOffset: Math.min(Math.max(diffDays, 0), 2), hour: d.getHours(), minute };
 }
 
 export function EventEditSheet({
