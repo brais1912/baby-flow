@@ -9,7 +9,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-fuchsia-50 px-4">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 z-10">
         <LanguageSwitcher />
       </div>
       <div className="text-center max-w-md">
