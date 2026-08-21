@@ -37,6 +37,17 @@ describe("PullToRefresh", () => {
     Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
   });
 
+  it("does not create a transform containing block while idle", () => {
+    const { container } = render(
+      <PullToRefresh>
+        <div className="fixed inset-0">dialog</div>
+      </PullToRefresh>
+    );
+
+    expect(container.firstElementChild).not.toHaveClass("translate-y-[0px]");
+    expect(container.firstElementChild?.className).not.toContain("translate-y-");
+  });
+
   it("refreshes after pulling beyond the threshold", () => {
     const { getByText } = render(
       <PullToRefresh>

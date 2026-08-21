@@ -9,7 +9,7 @@ const MAX_PULL_DISTANCE = 96;
 const REFRESH_DISTANCE = 56;
 
 const TRANSLATE_CLASSES = [
-  "translate-y-[0px]",
+  "",
   "translate-y-[6px]",
   "translate-y-[12px]",
   "translate-y-[18px]",
