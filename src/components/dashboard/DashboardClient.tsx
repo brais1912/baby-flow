@@ -66,6 +66,11 @@ function StatCard({ label, sublabel, value, emoji, styleIdx }: { label: string; 
   );
 }
 
+type LocalEventUpdate = {
+  event: Event;
+  sourceEvents: Event[];
+};
+
 function DayWindowStartSetting({ value }: { value: number }) {
   const router = useRouter();
   const t = useTranslations("dashboard");
@@ -132,6 +137,7 @@ export function DashboardClient({
 }) {
   const [currentDay, setCurrentDay] = useState(() => dayWindowDate(new Date(), dayWindowStartMinutes));
   const [extraEvents, setExtraEvents] = useState<Event[]>([]);
+  const [localUpdates, setLocalUpdates] = useState<LocalEventUpdate[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const loadedBounds = useRef({ start: initialRangeStart, end: initialRangeEnd });
@@ -141,10 +147,15 @@ export function DashboardClient({
   const dateFnsLocale = locale === "es" ? es : enUS;
 
   // Server-provided events are the source of truth — router.refresh() after a
-  // QuickLog re-fetches them and they must show up immediately. Client-side
-  // fetches (day navigation beyond the initial window) accumulate as extras,
-  // deduped by id.
-  const events = mergeEvents(initialEvents, extraEvents);
+  // QuickLog or an edit re-fetches them and the fresh copy must win over any
+  // stale client-side fetch (day navigation beyond the initial window), which
+  // only fills gaps outside the server range.
+  const unresolvedLocalUpdates = localUpdates
+    .filter(({ event, sourceEvents }) => (
+      sourceEvents === initialEvents || !initialEvents.some((serverEvent) => serverEvent.id === event.id)
+    ))
+    .map(({ event }) => event);
+  const events = mergeEvents(mergeEvents(extraEvents, initialEvents), unresolvedLocalUpdates);
 
   const { start: windowStart, end: windowEnd } = dayWindowBounds(currentDay, dayWindowStartMinutes);
   const dayEvents = deduplicateBothBreasts(events.filter((e) => {
@@ -189,6 +200,13 @@ export function DashboardClient({
     loadAround(nextDay);
   }
 
+  function handleEventUpdated(event: Event) {
+    setLocalUpdates((prev) => [
+      ...prev.filter((update) => update.event.id !== event.id),
+      { event, sourceEvents: initialEvents },
+    ]);
+  }
+
   return (
     <>
       <DayWindowStartSetting value={dayWindowStartMinutes} />
@@ -201,7 +219,13 @@ export function DashboardClient({
       </div>
 
       <div className="relative">
-        <DayView events={events} currentDay={currentDay} onDayChange={handleDayChange} dayWindowStartMinutes={dayWindowStartMinutes} />
+        <DayView
+          events={events}
+          currentDay={currentDay}
+          onDayChange={handleDayChange}
+          onEventUpdated={handleEventUpdated}
+          dayWindowStartMinutes={dayWindowStartMinutes}
+        />
         {isPending && (
           <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-44">
             <div className="flex items-center gap-2 rounded-full bg-gray-900/80 text-white text-xs font-semibold px-4 py-2 shadow-lg">

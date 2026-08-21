@@ -6,7 +6,9 @@
     "sleep": "Sleep",
     "wakeUp": "Wake up",
     "feeding": "Feeding",
-    "diaper": "Diaper"
+    "diaper": "Diaper",
+    "releaseToRefresh": "Release to refresh",
+    "refreshing": "Refreshing"
   },
   "dashboard": {
     "title": "Dashboard",

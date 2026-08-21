@@ -6,7 +6,9 @@
     "sleep": "Dormir",
     "wakeUp": "Despertar",
     "feeding": "Toma",
-    "diaper": "Pañal"
+    "diaper": "Pañal",
+    "releaseToRefresh": "Suelta para actualizar",
+    "refreshing": "Actualizando"
   },
   "dashboard": {
     "title": "Inicio",

@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { LogoWithText } from "@/components/ui/Logo";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-[calc(env(safe-area-inset-top)+4.75rem)] pb-28">
-        {children}
+        <PullToRefresh>{children}</PullToRefresh>
       </main>
 
       <BottomNav />

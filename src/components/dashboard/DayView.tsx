@@ -137,10 +137,11 @@ function LiveStatusBanner({ tone, title, subtitle }: {
   );
 }
 
-export function DayView({ events, currentDay: controlledDay, onDayChange, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
+export function DayView({ events, currentDay: controlledDay, onDayChange, onEventUpdated, dayWindowStartMinutes = DEFAULT_DAY_WINDOW_START_MINUTES }: {
   events: Event[];
   currentDay?: Date;
   onDayChange?: (day: Date) => void;
+  onEventUpdated?: (event: Event) => void;
   dayWindowStartMinutes?: number;
 }) {
   const [internalDay, setInternalDay] = useState(() => {
@@ -249,6 +250,7 @@ export function DayView({ events, currentDay: controlledDay, onDayChange, dayWin
         }
         try {
           await updateEvent(target.id, { occurredAt });
+          onEventUpdated?.({ ...target, occurredAt, updatedAt: new Date() });
           router.refresh();
           setEditError(null);
           setEditEvent(null);
