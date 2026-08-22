@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Save } from "lucide-react";
+import { useI18n } from "../i18n/I18nProvider";
 
 export function ResetPasswordScreen({ error, onSubmit }: {
   error: string | null;
   onSubmit: (password: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [pending, setPending] = useState(false);
@@ -13,7 +15,7 @@ export function ResetPasswordScreen({ error, onSubmit }: {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (password !== confirmation) {
-      setLocalError("Passwords do not match.");
+      setLocalError(t("auth.passwordMismatch"));
       return;
     }
 
@@ -33,12 +35,12 @@ export function ResetPasswordScreen({ error, onSubmit }: {
       <div className="login-brand">
         <span className="brand-mark large" aria-hidden="true" />
         <h1>BabyFlow</h1>
-        <p>Choose a new password for your account</p>
+        <p>{t("auth.chooseNewPassword")}</p>
       </div>
 
       <form className="login-form" onSubmit={(event) => void submit(event)}>
-        <h2>Set new password</h2>
-        <label htmlFor="new-password">New password</label>
+        <h2>{t("auth.setNewPassword")}</h2>
+        <label htmlFor="new-password">{t("auth.newPassword")}</label>
         <input
           id="new-password"
           type="password"
@@ -48,7 +50,7 @@ export function ResetPasswordScreen({ error, onSubmit }: {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <label htmlFor="confirm-password">Confirm password</label>
+        <label htmlFor="confirm-password">{t("auth.confirmPassword")}</label>
         <input
           id="confirm-password"
           type="password"
@@ -60,8 +62,8 @@ export function ResetPasswordScreen({ error, onSubmit }: {
         />
         {(localError || error) && <p className="error-banner" role="alert">{localError ?? error}</p>}
         <button className="primary-button" type="submit" disabled={pending || password.length < 6 || confirmation.length < 6}>
-          {pending ? <span className="spinner small" aria-label="Saving" /> : <Save size={18} />}
-          <span>{pending ? "Saving" : "Save new password"}</span>
+          {pending ? <span className="spinner small" aria-label={t("common.saving")} /> : <Save size={18} />}
+          <span>{pending ? t("common.saving") : t("auth.savePassword")}</span>
         </button>
       </form>
     </main>

@@ -29,6 +29,8 @@ export type EventUpdateRow = Partial<Omit<EventInsertRow, "id" | "user_id">>;
 export type UserSettingsRow = {
   user_id: string;
   day_window_start_minutes: number;
+  baby_name: string | null;
+  baby_date_of_birth: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -47,11 +49,15 @@ export type Database = {
         Insert: {
           user_id: string;
           day_window_start_minutes?: number;
+          baby_name?: string | null;
+          baby_date_of_birth?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           day_window_start_minutes?: number;
+          baby_name?: string | null;
+          baby_date_of_birth?: string | null;
           updated_at?: string;
         };
         Relationships: [];

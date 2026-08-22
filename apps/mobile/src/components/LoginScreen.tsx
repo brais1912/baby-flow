@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, LockKeyhole, LogIn, Mail, UserPlus } from "lucide-react";
+import { useI18n } from "../i18n/I18nProvider";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -10,6 +11,7 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
   onSignUp: (email: string, password: string) => Promise<boolean>;
   onPasswordReset: (email: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,10 +31,10 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
     try {
       if (mode === "forgot") {
         await onPasswordReset(email.trim());
-        setSuccess("Check your email. We sent a password reset link.");
+        setSuccess(t("auth.resetSent"));
       } else if (mode === "signup") {
         const confirmationRequired = await onSignUp(email.trim(), password);
-        if (confirmationRequired) setSuccess("Check your email to confirm your account.");
+        if (confirmationRequired) setSuccess(t("auth.confirmSent"));
       } else {
         await onSignIn(email.trim(), password);
       }
@@ -44,19 +46,19 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
   }
 
   const title = {
-    signin: "Sign in",
-    signup: "Create account",
-    forgot: "Reset password",
+    signin: t("auth.signIn"),
+    signup: t("auth.signUp"),
+    forgot: t("auth.resetPassword"),
   }[mode];
   const subtitle = {
-    signin: "Enter your email and password",
-    signup: "Choose an email and password",
-    forgot: "Enter the email for your account",
+    signin: t("auth.signInSubtitle"),
+    signup: t("auth.signUpSubtitle"),
+    forgot: t("auth.resetSubtitle"),
   }[mode];
   const submitLabel = {
-    signin: "Sign in",
-    signup: "Create account",
-    forgot: "Send reset link",
+    signin: t("auth.signIn"),
+    signup: t("auth.signUp"),
+    forgot: t("auth.sendReset"),
   }[mode];
 
   return (
@@ -69,7 +71,7 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
 
       <form className="login-form" onSubmit={submit}>
         <h2>{title}</h2>
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t("auth.email")}</label>
         <div className="input-with-icon">
           <Mail size={18} aria-hidden="true" />
           <input
@@ -79,13 +81,13 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
             required
             value={email}
             onChange={(changeEvent) => setEmail(changeEvent.target.value)}
-            placeholder="you@example.com"
+            placeholder={t("auth.emailPlaceholder")}
           />
         </div>
 
         {mode !== "forgot" && (
           <>
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t("auth.password")}</label>
             <div className="input-with-icon">
               <LockKeyhole size={18} aria-hidden="true" />
               <input
@@ -96,7 +98,7 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
                 minLength={6}
                 value={password}
                 onChange={(changeEvent) => setPassword(changeEvent.target.value)}
-                placeholder="Password"
+                placeholder={t("auth.password")}
               />
             </div>
           </>
@@ -105,21 +107,21 @@ export function LoginScreen({ error, onClearError, onSignIn, onSignUp, onPasswor
         {success && <p className="success-banner" role="status">{success}</p>}
         {error && <p className="error-banner" role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={pending || !email.trim() || (mode !== "forgot" && password.length < 6)}>
-          {pending ? <span className="spinner small" aria-label="Submitting" /> : mode === "signup" ? <UserPlus size={18} /> : mode === "forgot" ? <Mail size={18} /> : <LogIn size={18} />}
-          <span>{pending ? "Please wait" : submitLabel}</span>
+          {pending ? <span className="spinner small" aria-label={t("auth.pleaseWait")} /> : mode === "signup" ? <UserPlus size={18} /> : mode === "forgot" ? <Mail size={18} /> : <LogIn size={18} />}
+          <span>{pending ? t("auth.pleaseWait") : submitLabel}</span>
         </button>
 
         <div className="auth-mode-actions">
           {mode === "signin" && (
             <>
-              <button type="button" onClick={() => switchMode("forgot")}>Forgot password?</button>
-              <button type="button" onClick={() => switchMode("signup")}>Create account</button>
+              <button type="button" onClick={() => switchMode("forgot")}>{t("auth.forgot")}</button>
+              <button type="button" onClick={() => switchMode("signup")}>{t("auth.signUp")}</button>
             </>
           )}
           {mode !== "signin" && (
             <button type="button" onClick={() => switchMode("signin")}>
               <ArrowLeft size={15} />
-              Back to sign in
+              {t("auth.backToSignIn")}
             </button>
           )}
         </div>

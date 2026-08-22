@@ -2,8 +2,10 @@ import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 import { authRedirectUrl } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { useI18n } from "../i18n/I18nProvider";
 
 export function useAuth(enabled: boolean) {
+  const { t } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +17,7 @@ export function useAuth(enabled: boolean) {
     let active = true;
     void supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!active) return;
-      if (sessionError) setError(sessionError.message);
+    if (sessionError) setError(t("auth.genericError"));
       setSession(data.session);
       setLoading(false);
     });
@@ -29,7 +31,7 @@ export function useAuth(enabled: boolean) {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [enabled]);
+  }, [enabled, t]);
 
   async function signIn(email: string, password: string): Promise<void> {
     setError(null);
@@ -38,7 +40,7 @@ export function useAuth(enabled: boolean) {
       password,
     });
     if (signInError) {
-      setError("Invalid email or password.");
+      setError(t("auth.invalidCredentials"));
       throw signInError;
     }
   }
@@ -51,7 +53,7 @@ export function useAuth(enabled: boolean) {
       options: { emailRedirectTo: authRedirectUrl("confirmation") },
     });
     if (signUpError) {
-      setError(signUpError.message);
+      setError(t("auth.genericError"));
       throw signUpError;
     }
     return data.session === null;
@@ -63,7 +65,7 @@ export function useAuth(enabled: boolean) {
       redirectTo: authRedirectUrl("password-recovery"),
     });
     if (resetError) {
-      setError(resetError.message);
+      setError(t("auth.genericError"));
       throw resetError;
     }
   }
@@ -72,7 +74,7 @@ export function useAuth(enabled: boolean) {
     setError(null);
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
-      setError(updateError.message);
+      setError(t("auth.genericError"));
       throw updateError;
     }
     setPasswordRecovery(false);
@@ -85,7 +87,7 @@ export function useAuth(enabled: boolean) {
   async function signOut(): Promise<void> {
     const { error: signOutError } = await supabase.auth.signOut();
     if (signOutError) {
-      setError(signOutError.message);
+      setError(t("auth.genericError"));
       throw signOutError;
     }
   }

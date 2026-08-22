@@ -1,17 +1,20 @@
 import { useState } from "react";
 import type { EventInput, EventType } from "../types/events";
+import { useI18n } from "../i18n/I18nProvider";
+import type { MessageKey } from "../i18n/messages";
 
-const actions: Array<{ type: EventType; emoji: string; label: string }> = [
-  { type: "sleep", emoji: "😴", label: "Sleep" },
-  { type: "wake_up", emoji: "🌅", label: "Wake" },
-  { type: "feeding", emoji: "🍼", label: "Feed" },
-  { type: "diaper", emoji: "👶", label: "Diaper" },
+const actions: Array<{ type: EventType; emoji: string; label: MessageKey }> = [
+  { type: "sleep", emoji: "😴", label: "quick.sleep" },
+  { type: "wake_up", emoji: "🌅", label: "quick.wake" },
+  { type: "feeding", emoji: "🍼", label: "quick.feed" },
+  { type: "diaper", emoji: "👶", label: "quick.diaper" },
 ];
 
 export function QuickLogBar({ disabled, onCreate }: {
   disabled: boolean;
   onCreate: (input: EventInput) => Promise<unknown>;
 }) {
+  const { t } = useI18n();
   const [saved, setSaved] = useState<EventType | null>(null);
 
   async function log(type: EventType) {
@@ -25,7 +28,7 @@ export function QuickLogBar({ disabled, onCreate }: {
   }
 
   return (
-    <div className="quick-log" aria-label="Quick log">
+    <div className="quick-log" aria-label={t("quick.label")}>
       {actions.map((action) => (
         <button
           key={action.type}
@@ -35,7 +38,7 @@ export function QuickLogBar({ disabled, onCreate }: {
           onClick={() => void log(action.type)}
         >
           <span className="quick-emoji">{saved === action.type ? "✓" : action.emoji}</span>
-          <span>{saved === action.type ? "Saved" : action.label}</span>
+          <span>{saved === action.type ? t("quick.saved") : t(action.label)}</span>
         </button>
       ))}
     </div>

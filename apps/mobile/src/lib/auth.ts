@@ -43,7 +43,8 @@ export async function completeAuthFromUrl(url: string): Promise<AuthCallbackKind
 
 export async function initializeNativeAuthLinks(
   onError: (message: string) => void,
-  onPasswordRecovery: () => void
+  onPasswordRecovery: () => void,
+  fallbackError: string
 ): Promise<() => void> {
   const complete = async (url: string) => {
     const kind = await completeAuthFromUrl(url);
@@ -53,8 +54,8 @@ export async function initializeNativeAuthLinks(
   if (!Capacitor.isNativePlatform()) {
     try {
       await complete(window.location.href);
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "Authentication failed");
+    } catch {
+      onError(fallbackError);
     }
     return () => undefined;
   }
@@ -62,8 +63,8 @@ export async function initializeNativeAuthLinks(
   const handleUrl = async (url: string) => {
     try {
       await complete(url);
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "Authentication failed");
+    } catch {
+      onError(fallbackError);
     }
   };
 

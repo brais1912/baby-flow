@@ -5,6 +5,17 @@ import type { BabyEvent, EventType } from "../types/events";
 import { useEvents } from "../hooks/useEvents";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { DashboardScreen } from "./DashboardScreen";
+import { I18nProvider, LANGUAGE_PREFERENCE_KEY } from "../i18n/I18nProvider";
+
+const preferences = vi.hoisted(() => ({ values: new Map<string, string>() }));
+
+vi.mock("@capacitor/preferences", () => ({
+  Preferences: {
+    get: vi.fn(async ({ key }: { key: string }) => ({ value: preferences.values.get(key) ?? null })),
+    set: vi.fn(async ({ key, value }: { key: string; value: string }) => preferences.values.set(key, value)),
+    remove: vi.fn(async ({ key }: { key: string }) => preferences.values.delete(key)),
+  },
+}));
 
 vi.mock("../hooks/useEvents");
 vi.mock("../hooks/useNetworkStatus");
@@ -40,12 +51,16 @@ describe("DashboardScreen", () => {
     event("sleep", "sleep", new Date(2026, 7, 21, 14)),
     event("feeding", "feeding", new Date(2026, 7, 21, 13)),
   ];
+  let data: ReturnType<typeof useEvents>;
 
   beforeEach(() => {
+    preferences.values.clear();
     vi.mocked(useNetworkStatus).mockReturnValue(true);
-    vi.mocked(useEvents).mockReturnValue({
+    data = {
       events,
       dayEvents: events,
+      sleepPhase: events[0],
+      sleepPhaseReady: true,
       loading: false,
       mutating: false,
       error: null,
@@ -58,12 +73,13 @@ describe("DashboardScreen", () => {
       create: vi.fn().mockResolvedValue(events[0]),
       updateTime: vi.fn().mockResolvedValue(events[0]),
       remove: vi.fn().mockResolvedValue(undefined),
-    });
+    };
+    vi.mocked(useEvents).mockReturnValue(data);
   });
 
   it("renders the event list before the timeline and filters it", async () => {
     const user = userEvent.setup();
-    render(<DashboardScreen userId="user-1" />);
+    render(<DashboardScreen data={data} babyName="Leo" />);
 
     const eventsHeading = screen.getByRole("heading", { name: "Events" });
     const timeline = screen.getByText("Day timeline");
@@ -74,5 +90,13 @@ describe("DashboardScreen", () => {
 
     expect(screen.getByText("Sleep", { selector: ".event-title-row strong" })).toBeInTheDocument();
     expect(screen.queryByText("Feeding", { selector: ".event-title-row strong" })).not.toBeInTheDocument();
+  });
+
+  it("renders an authenticated dashboard surface in Spanish", async () => {
+    preferences.values.set(LANGUAGE_PREFERENCE_KEY, "es");
+    render(<I18nProvider><DashboardScreen data={data} babyName="Leo" /></I18nProvider>);
+    expect(await screen.findByRole("heading", { name: "Eventos" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Filtrar eventos" })).toBeInTheDocument();
+    expect(screen.getByText("Dormir", { selector: ".event-title-row strong" })).toBeInTheDocument();
   });
 });
