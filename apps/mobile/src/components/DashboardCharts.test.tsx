@@ -32,16 +32,17 @@ describe("TimelineChart", () => {
     event("feed", "feeding", new Date(2026, 7, 21, 15), { feedingType: "bottle", feedingAmountMl: 90 }),
   ];
 
-  it("opens localized event details when a timeline marker is selected", async () => {
+  it("opens the chart tooltip with localized event details when a marker is selected", async () => {
     const user = userEvent.setup();
     render(<TimelineChart events={events} ownerDate={ownerDate} startMinutes={720} now={new Date(2026, 7, 21, 16)} />);
 
     await user.click(screen.getByRole("button", { name: "Feeding at 15:00" }));
-    const dialog = screen.getByRole("dialog", { name: "Feeding" });
-    expect(dialog.querySelector(".chart-detail-modal")).toBeInTheDocument();
-    expect(dialog).toHaveTextContent("15:00");
-    expect(dialog).toHaveTextContent("Bottle");
-    expect(dialog).toHaveTextContent("90 ml");
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.querySelector(".recharts-default-tooltip")).toBeInTheDocument();
+    expect(tooltip).toHaveTextContent("15:00");
+    expect(tooltip).toHaveTextContent("Bottle");
+    expect(tooltip).toHaveTextContent("90 ml");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows a paired sleep range and duration", async () => {
@@ -49,11 +50,23 @@ describe("TimelineChart", () => {
     render(<TimelineChart events={events} ownerDate={ownerDate} startMinutes={720} now={new Date(2026, 7, 21, 16)} />);
 
     await user.click(screen.getByRole("button", { name: "Sleep from 13:00 to 14:00" }));
-    const dialog = screen.getByRole("dialog", { name: "Sleep" });
-    expect(dialog).toHaveTextContent("13:00 → 14:00");
-    expect(dialog).toHaveTextContent("1h 0m");
-    expect(dialog).toHaveTextContent("Rocking");
-    expect(dialog).toHaveTextContent("Nap");
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("13:00 → 14:00");
+    expect(tooltip).toHaveTextContent("1h 0m");
+    expect(tooltip).toHaveTextContent("Rocking");
+    expect(tooltip).toHaveTextContent("Nap");
+  });
+
+  it("closes the timeline tooltip when the selected marker is tapped again", async () => {
+    const user = userEvent.setup();
+    render(<TimelineChart events={events} ownerDate={ownerDate} startMinutes={720} now={new Date(2026, 7, 21, 16)} />);
+
+    const marker = screen.getByRole("button", { name: "Feeding at 15:00" });
+    await user.click(marker);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    await user.click(marker);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("expands to hourly navigation and collapses again", async () => {

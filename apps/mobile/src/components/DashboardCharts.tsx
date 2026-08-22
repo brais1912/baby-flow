@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  DefaultTooltipContent,
   Legend,
   Line,
   LineChart,
@@ -24,13 +25,6 @@ import { ownerDayWindowBounds } from "../lib/events";
 import { useI18n } from "../i18n/I18nProvider";
 import { formatSleepChartDuration } from "../i18n/format";
 import type { MessageKey } from "../i18n/messages";
-
-const eventEmoji: Record<BabyEvent["type"], string> = {
-  sleep: "😴",
-  wake_up: "🌅",
-  feeding: "🍼",
-  diaper: "👶",
-};
 
 const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
   sleep: "event.sleep",
@@ -71,10 +65,10 @@ function durationLabel(start: Date, end: Date, t: ReturnType<typeof useI18n>["t"
   });
 }
 
-function TimelineEventDetail({ event, wakeUp, onClose }: {
+function TimelineEventTooltip({ event, wakeUp, left }: {
   event: BabyEvent;
   wakeUp: BabyEvent | null;
-  onClose: () => void;
+  left: number;
 }) {
   const { dateLocale, t } = useI18n();
   const details: string[] = [];
@@ -95,35 +89,19 @@ function TimelineEventDetail({ event, wakeUp, onClose }: {
   const timeRange = wakeUp
     ? `${time} → ${format(wakeUp.occurredAt, "HH:mm", { locale: dateLocale })}`
     : time;
+  if (event.notes && event.notes !== "QuickLog") details.push(event.notes);
 
   return (
-    <div className="chart-detail-layer" role="dialog" aria-modal="true" aria-labelledby="timeline-event-title">
-      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label={t("common.close")} />
-      <section className="chart-detail-modal">
-        <header className="sheet-header">
-          <div className="timeline-detail-heading">
-            <span aria-hidden="true">{eventEmoji[event.type]}</span>
-            <div>
-              <h2 id="timeline-event-title">{t(eventLabelKeys[event.type])}</h2>
-              <time dateTime={event.occurredAt.toISOString()}>{timeRange}</time>
-            </div>
-          </div>
-          <button className="icon-button" type="button" onClick={onClose} title={t("common.close")}>
-            <X size={19} />
-          </button>
-        </header>
-        {details.length > 0 && (
-          <div className="timeline-detail-pills">
-            {details.map((detail, index) => <span key={`${detail}-${index}`}>{detail}</span>)}
-          </div>
-        )}
-        {event.notes && event.notes !== "QuickLog" && (
-          <div className="timeline-detail-notes">
-            <strong>{t("event.details")}</strong>
-            <p>{event.notes}</p>
-          </div>
-        )}
-      </section>
+    <div className="timeline-event-tooltip" role="tooltip" aria-live="polite" style={{ left }}>
+      <DefaultTooltipContent
+        label={timeRange}
+        payload={[{
+          color: event.type === "sleep" ? "#8b5bc8" : event.type === "feeding" ? "#3989ce" : "#d5a52a",
+          graphicalItemId: event.id,
+          name: t(eventLabelKeys[event.type]),
+          value: details.length > 0 ? details.join(" · ") : t("common.notSpecified"),
+        }]}
+      />
     </div>
   );
 }
@@ -165,7 +143,8 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
 }) {
   const { dateLocale, t } = useI18n();
   const [expanded, setExpanded] = useState(false);
-  const [selected, setSelected] = useState<{ event: BabyEvent; wakeUp: BabyEvent | null } | null>(null);
+  const [selected, setSelected] = useState<{ event: BabyEvent; wakeUp: BabyEvent | null; left: number } | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timeline = useMemo(
     () => buildTimeline(events, ownerDate, startMinutes, now),
@@ -188,12 +167,22 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   }, [expanded, ownerDate]);
 
-  function selectEvent(eventId: string, wakeId: string | null = null) {
+  function selectEvent(eventId: string, wakeId: string | null = null, clientX?: number) {
     const event = eventsById.get(eventId);
     if (!event) return;
+    const panelBounds = panelRef.current?.getBoundingClientRect();
+    const panelWidth = panelBounds?.width ?? 320;
+    const tooltipHalfWidth = Math.min(145, Math.max(0, panelWidth / 2 - 12));
+    const pointerLeft = clientX !== undefined && panelBounds
+      ? clientX - panelBounds.left
+      : panelWidth / 2;
+    const left = Math.min(
+      Math.max(pointerLeft, tooltipHalfWidth),
+      panelWidth - tooltipHalfWidth
+    );
     setSelected((current) => current?.event.id === eventId
       ? null
-      : { event, wakeUp: wakeId ? eventsById.get(wakeId) ?? null : null });
+      : { event, wakeUp: wakeId ? eventsById.get(wakeId) ?? null : null, left });
   }
 
   function keySelect(keyEvent: React.KeyboardEvent<SVGGElement>, eventId: string, wakeId: string | null = null) {
@@ -203,7 +192,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
   }
 
   return (
-    <section className="timeline-panel">
+    <section className="timeline-panel" ref={panelRef}>
       <header className="chart-header">
         <div>
           <h2><span aria-hidden="true">◷</span>{t("chart.timeline")}</h2>
@@ -273,7 +262,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
                 role="button"
                 tabIndex={0}
                 aria-label={ariaLabel}
-                onClick={() => selectEvent(sleep.id, sleep.wakeId)}
+                onClick={(clickEvent) => selectEvent(sleep.id, sleep.wakeId, clickEvent.clientX)}
                 onKeyDown={(keyEvent) => keySelect(keyEvent, sleep.id, sleep.wakeId)}
               >
                 <rect x={startX} y="7" width={width} height="30" rx="7" className="timeline-hit-area" />
@@ -297,7 +286,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
                   event: t(eventLabelKeys[event.type]),
                   time: format(event.occurredAt, "HH:mm", { locale: dateLocale }),
                 })}
-                onClick={() => selectEvent(point.id)}
+                onClick={(clickEvent) => selectEvent(point.id, null, clickEvent.clientX)}
                 onKeyDown={(keyEvent) => keySelect(keyEvent, point.id)}
               >
                 <circle cx={pointX} cy={pointY} r="18" className="timeline-hit-area" />
@@ -321,7 +310,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
           {empty && <text x={plotStart + plotWidth / 2} y="61" textAnchor="middle" className="timeline-empty">{t("dashboard.noEvents")}</text>}
         </svg>
       </div>
-      {selected && <TimelineEventDetail event={selected.event} wakeUp={selected.wakeUp} onClose={() => setSelected(null)} />}
+      {selected && <TimelineEventTooltip event={selected.event} wakeUp={selected.wakeUp} left={selected.left} />}
     </section>
   );
 }
