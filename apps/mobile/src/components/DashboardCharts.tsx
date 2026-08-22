@@ -20,12 +20,7 @@ import {
   buildTimeline,
 } from "../lib/dashboard";
 import { ownerDayWindowBounds } from "../lib/events";
-
-function rangeLabel(ownerDate: Date): string {
-  const first = new Date(ownerDate);
-  first.setDate(first.getDate() - 9);
-  return `${format(first, "d MMM")} - ${format(ownerDate, "d MMM")}`;
-}
+import { useI18n } from "../i18n/I18nProvider";
 
 function ChartPanel({ title, icon, ownerDate, children }: {
   title: string;
@@ -33,12 +28,18 @@ function ChartPanel({ title, icon, ownerDate, children }: {
   ownerDate: Date;
   children: React.ReactNode;
 }) {
+  const { dateLocale, t } = useI18n();
+  const first = new Date(ownerDate);
+  first.setDate(first.getDate() - 9);
   return (
     <section className="chart-panel">
       <header className="chart-header">
         <div>
           <h2><span aria-hidden="true">{icon}</span>{title}</h2>
-          <p>{rangeLabel(ownerDate)}</p>
+          <p>{t("chart.range", {
+            start: format(first, "d MMM", { locale: dateLocale }),
+            end: format(ownerDate, "d MMM", { locale: dateLocale }),
+          })}</p>
         </div>
       </header>
       {children}
@@ -56,6 +57,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
   startMinutes: number;
   now?: Date;
 }) {
+  const { dateLocale, t } = useI18n();
   const timeline = useMemo(
     () => buildTimeline(events, ownerDate, startMinutes, now),
     [events, now, ownerDate, startMinutes]
@@ -72,16 +74,16 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
     <section className="timeline-panel">
       <header className="chart-header">
         <div>
-          <h2><span aria-hidden="true">◷</span>Day timeline</h2>
-          <p>{format(bounds.start, "HH:mm")} - {format(bounds.end, "HH:mm")}</p>
+          <h2><span aria-hidden="true">◷</span>{t("chart.timeline")}</h2>
+          <p>{format(bounds.start, "HH:mm", { locale: dateLocale })} - {format(bounds.end, "HH:mm", { locale: dateLocale })}</p>
         </div>
       </header>
       <div className="timeline-scroll">
-        <svg className="timeline-chart" viewBox="0 0 720 148" role="img" aria-label="Events across the selected day">
+        <svg className="timeline-chart" viewBox="0 0 720 148" role="img" aria-label={t("chart.timelineAria")}>
           {[
-            { label: "Sleep", y: 22 },
-            { label: "Feed", y: 60 },
-            { label: "Diaper", y: 98 },
+            { label: t("chart.sleepLane"), y: 22 },
+            { label: t("chart.feedingLane"), y: 60 },
+            { label: t("chart.diaperLane"), y: 98 },
           ].map((lane, index) => (
             <g key={lane.label}>
               <rect x="0" y={lane.y - 15} width="720" height="30" fill={index % 2 === 0 ? "#faf9fc" : "#ffffff"} />
@@ -126,11 +128,11 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
                 textAnchor="middle"
                 dominantBaseline="central"
                 className="timeline-point-label"
-              >{point.type === "feeding" ? "F" : "D"}</text>
+              >{point.type === "feeding" ? t("chart.feedingShort") : t("chart.diaperShort")}</text>
             </g>
           ))}
 
-          {empty && <text x="375" y="61" textAnchor="middle" className="timeline-empty">No events in this day</text>}
+          {empty && <text x="375" y="61" textAnchor="middle" className="timeline-empty">{t("dashboard.noEvents")}</text>}
         </svg>
       </div>
     </section>
@@ -143,25 +145,26 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
   startMinutes: number;
   now: Date;
 }) {
+  const { dateLocale, t } = useI18n();
   const data = useMemo(
     () => aggregateSleepByDay(events, ownerDate, startMinutes, now).map((day) => ({
-      label: format(day.date, "d MMM"),
+      label: format(day.date, "d MMM", { locale: dateLocale }),
       hours: day.hours,
     })),
-    [events, now, ownerDate, startMinutes]
+    [dateLocale, events, now, ownerDate, startMinutes]
   );
   const hasData = data.some(({ hours }) => hours > 0);
 
   return (
-    <ChartPanel title="Sleep duration" icon="😴" ownerDate={ownerDate}>
-      {!hasData ? <EmptyChart>No sleep data in this range</EmptyChart> : (
+    <ChartPanel title={t("chart.sleepDuration")} icon="😴" ownerDate={ownerDate}>
+      {!hasData ? <EmptyChart>{t("chart.noSleep")}</EmptyChart> : (
         <div className="chart-canvas">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 14, right: 4, bottom: 0, left: -14 }}>
               <CartesianGrid vertical={false} stroke="#ebe8ef" />
               <XAxis dataKey="label" interval={1} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
               <YAxis unit="h" tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} h`, "Sleep"]} />
+              <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} h`, t("event.sleep")]} />
               <Bar dataKey="hours" fill="#8b5bc8" radius={[4, 4, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
@@ -176,25 +179,26 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
   ownerDate: Date;
   startMinutes: number;
 }) {
+  const { dateLocale, t } = useI18n();
   const [mode, setMode] = useState<"breast" | "bottle">("breast");
   const data = useMemo(
     () => aggregateFeedingByDay(events, ownerDate, startMinutes).map((day) => ({
-      label: format(day.date, "d MMM"),
+      label: format(day.date, "d MMM", { locale: dateLocale }),
       breast: day.breastSessions,
       bottleSessions: day.bottleSessions,
       bottle: day.bottleMl,
     })),
-    [events, ownerDate, startMinutes]
+    [dateLocale, events, ownerDate, startMinutes]
   );
   const hasFeedingData = data.some(({ breast, bottleSessions }) => breast > 0 || bottleSessions > 0);
 
   return (
-    <ChartPanel title="Feeding" icon="🍼" ownerDate={ownerDate}>
-      {!hasFeedingData ? <EmptyChart>No feeding data in this range</EmptyChart> : (
+    <ChartPanel title={t("chart.feeding")} icon="🍼" ownerDate={ownerDate}>
+      {!hasFeedingData ? <EmptyChart>{t("chart.noFeeding")}</EmptyChart> : (
         <>
-          <div className="chart-segmented" role="group" aria-label="Feeding chart metric">
-            <button type="button" className={mode === "breast" ? "active" : ""} onClick={() => setMode("breast")}>Breast sessions</button>
-            <button type="button" className={mode === "bottle" ? "active" : ""} onClick={() => setMode("bottle")}>Bottle ml</button>
+          <div className="chart-segmented" role="group" aria-label={t("chart.metric")}>
+            <button type="button" className={mode === "breast" ? "active" : ""} onClick={() => setMode("breast")}>{t("chart.breastSessions")}</button>
+            <button type="button" className={mode === "bottle" ? "active" : ""} onClick={() => setMode("bottle")}>{t("chart.bottleMl")}</button>
           </div>
           <div className="chart-canvas">
             {mode === "breast" ? (
@@ -203,7 +207,7 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
                   <CartesianGrid vertical={false} stroke="#ebe8ef" />
                   <XAxis dataKey="label" interval={1} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => [Number(value), "Sessions"]} />
+                  <Tooltip formatter={(value) => [Number(value), t("chart.sessions")]} />
                   <Bar dataKey="breast" fill="#3989ce" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
@@ -213,7 +217,7 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
                   <CartesianGrid vertical={false} stroke="#ebe8ef" />
                   <XAxis dataKey="label" interval={1} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
                   <YAxis unit="ml" tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => [`${Number(value)} ml`, "Bottle"]} />
+                  <Tooltip formatter={(value) => [`${Number(value)} ml`, t("event.bottle")]} />
                   <Line dataKey="bottle" type="monotone" stroke="#2374b8" strokeWidth={2.5} dot={{ r: 3, fill: "#2374b8" }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -230,20 +234,21 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
   ownerDate: Date;
   startMinutes: number;
 }) {
+  const { dateLocale, t } = useI18n();
   const data = useMemo(
     () => aggregateDiaperByDay(events, ownerDate, startMinutes).map((day) => ({
-      label: format(day.date, "d MMM"),
+      label: format(day.date, "d MMM", { locale: dateLocale }),
       pee: day.pee,
       poop: day.poop,
       both: day.both,
     })),
-    [events, ownerDate, startMinutes]
+    [dateLocale, events, ownerDate, startMinutes]
   );
   const hasData = data.some(({ pee, poop, both }) => pee > 0 || poop > 0 || both > 0);
 
   return (
-    <ChartPanel title="Diaper changes" icon="👶" ownerDate={ownerDate}>
-      {!hasData ? <EmptyChart>No diaper data in this range</EmptyChart> : (
+    <ChartPanel title={t("chart.diaperChanges")} icon="👶" ownerDate={ownerDate}>
+      {!hasData ? <EmptyChart>{t("chart.noDiaper")}</EmptyChart> : (
         <div className="chart-canvas chart-canvas-with-legend">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -22 }}>
@@ -252,9 +257,9 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
               <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
               <Tooltip />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="pee" stackId="diaper" fill="#e8b923" name="Pee" isAnimationActive={false} />
-              <Bar dataKey="poop" stackId="diaper" fill="#98623a" name="Poop" isAnimationActive={false} />
-              <Bar dataKey="both" stackId="diaper" fill="#e47a36" name="Both" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="pee" stackId="diaper" fill="#e8b923" name={t("event.pee")} isAnimationActive={false} />
+              <Bar dataKey="poop" stackId="diaper" fill="#98623a" name={t("event.poop")} isAnimationActive={false} />
+              <Bar dataKey="both" stackId="diaper" fill="#e47a36" name={t("event.both")} radius={[4, 4, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>

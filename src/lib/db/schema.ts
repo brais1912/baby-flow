@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, integer, pgEnum, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const eventTypeEnum = pgEnum("event_type", ["sleep", "wake_up", "feeding", "diaper"]);
 export const sleepMethodEnum = pgEnum("sleep_method", ["pacifier", "held", "rocking", "self", "nursing", "bottle", "other"]);
@@ -34,6 +34,8 @@ export const events = pgTable("events", {
 export const userSettings = pgTable("user_settings", {
   userId: uuid("user_id").primaryKey(),
   dayWindowStartMinutes: integer("day_window_start_minutes").notNull().default(720),
+  babyName: text("baby_name"),
+  babyDateOfBirth: date("baby_date_of_birth", { mode: "string" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

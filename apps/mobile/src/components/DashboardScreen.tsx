@@ -16,15 +16,13 @@ import { EventCard } from "./EventCard";
 import { EventSheet } from "./EventSheet";
 import { PullToRefresh } from "./PullToRefresh";
 import { QuickLogBar } from "./QuickLogBar";
+import { useI18n } from "../i18n/I18nProvider";
 
 type EventFilter = "all" | "sleep" | "feeding" | "diaper";
 
-function elapsedLabel(durationMs: number): string {
+function elapsedParts(durationMs: number): { hours: number; minutes: number } {
   const totalMinutes = Math.max(0, Math.floor(durationMs / 60_000));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes} min`;
-  return `${hours}h ${minutes}m`;
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
 }
 
 function matchesFilter(type: EventType, filter: EventFilter): boolean {
@@ -33,8 +31,11 @@ function matchesFilter(type: EventType, filter: EventFilter): boolean {
   return type === filter;
 }
 
-export function DashboardScreen({ userId }: { userId: string }) {
-  const data = useEvents(userId);
+export function DashboardScreen({ data, babyName }: {
+  data: ReturnType<typeof useEvents>;
+  babyName: string;
+}) {
+  const { dateLocale, t } = useI18n();
   const online = useNetworkStatus();
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
@@ -57,30 +58,36 @@ export function DashboardScreen({ userId }: { userId: string }) {
   const diaperCount = data.dayEvents.filter((event) => event.type === "diaper").length;
   const nightWakings = countNightWakings(data.events, data.selectedDay);
   const chartNow = data.isToday ? now : bounds.end;
+  const elapsed = awakeState ? elapsedParts(awakeState.durationMs) : null;
+  const duration = elapsed
+    ? elapsed.hours === 0
+      ? t("duration.minutes", { count: elapsed.minutes })
+      : t("duration.hoursMinutes", elapsed)
+    : "";
 
   return (
     <PullToRefresh onRefresh={data.reload}>
       <section className="screen dashboard-screen">
         <div className="screen-heading dashboard-heading">
           <div>
-            <p className="eyebrow">{format(bounds.start, "EEE d MMM, HH:mm")} - {format(bounds.end, "EEE d MMM, HH:mm")}</p>
-            <h1>{data.isToday ? "Today" : format(data.selectedDay, "EEEE, d MMMM")}</h1>
+            <p className="eyebrow">{format(bounds.start, "EEE d MMM, HH:mm", { locale: dateLocale })} - {format(bounds.end, "EEE d MMM, HH:mm", { locale: dateLocale })}</p>
+            <h1>{data.isToday ? t("dashboard.todayFor", { name: babyName }) : format(data.selectedDay, "EEEE, d MMMM", { locale: dateLocale })}</h1>
           </div>
-          <button className="icon-command" type="button" disabled={!online} onClick={() => setSheet({ mode: "create" })} title="New detailed event">
+          <button className="icon-command" type="button" disabled={!online} onClick={() => setSheet({ mode: "create" })} title={t("dashboard.newDetailed")}>
             <Plus size={20} />
-            <span>New</span>
+            <span>{t("dashboard.new")}</span>
           </button>
         </div>
 
-        <div className="day-navigator" aria-label="Select day">
-          <button className="icon-button" type="button" onClick={() => void data.selectAdjacentDay(-1)} disabled={data.loading} title="Previous day">
+        <div className="day-navigator" aria-label={t("dashboard.selectDay")}>
+          <button className="icon-button" type="button" onClick={() => void data.selectAdjacentDay(-1)} disabled={data.loading} title={t("dashboard.previousDay")}>
             <ChevronLeft size={20} />
           </button>
           <button className="day-navigator-label" type="button" onClick={() => void data.goToToday()} disabled={data.isToday || data.loading}>
-            <strong>{data.isToday ? "Current day" : format(data.selectedDay, "d MMM yyyy")}</strong>
-            <span>{data.isToday ? "Latest activity" : "Tap to return to today"}</span>
+            <strong>{data.isToday ? t("dashboard.currentDay") : format(data.selectedDay, "d MMM yyyy", { locale: dateLocale })}</strong>
+            <span>{data.isToday ? t("dashboard.latestActivity") : t("dashboard.returnToday")}</span>
           </button>
-          <button className="icon-button" type="button" onClick={() => void data.selectAdjacentDay(1)} disabled={data.isToday || data.loading} title="Next day">
+          <button className="icon-button" type="button" onClick={() => void data.selectAdjacentDay(1)} disabled={data.isToday || data.loading} title={t("dashboard.nextDay")}>
             <ChevronRight size={20} />
           </button>
         </div>
@@ -88,7 +95,7 @@ export function DashboardScreen({ userId }: { userId: string }) {
         {!online && (
           <div className="offline-banner" role="status">
             <WifiOff size={17} />
-            <span>Offline. New changes are unavailable.</span>
+            <span>{t("dashboard.offline")}</span>
           </div>
         )}
 
@@ -96,8 +103,8 @@ export function DashboardScreen({ userId }: { userId: string }) {
           <div className={`status-strip ${awakeState.isAwake ? "awake" : "sleep"}`}>
             <span className="status-dot" />
             <div>
-              <strong>{awakeState.isAwake ? "Awake" : "Sleeping"}</strong>
-              <span>since {format(awakeState.since, "HH:mm")} · {elapsedLabel(awakeState.durationMs)}</span>
+              <strong>{awakeState.isAwake ? t("dashboard.awake") : t("dashboard.sleeping")}</strong>
+              <span>{t("dashboard.since", { time: format(awakeState.since, "HH:mm", { locale: dateLocale }), duration })}</span>
             </div>
           </div>
         )}
@@ -105,30 +112,30 @@ export function DashboardScreen({ userId }: { userId: string }) {
         {data.error && (
           <div className="error-banner error-with-action" role="alert">
             <span>{data.error}</span>
-            <button className="icon-button" type="button" onClick={() => void data.reload()} title="Retry">
+            <button className="icon-button" type="button" onClick={() => void data.reload()} title={t("common.retry")}>
               <RefreshCw size={17} />
             </button>
           </div>
         )}
 
-        <div className="stats-grid" aria-label="Day totals">
-          <Stat label="Sleep events" value={sleepEventCount} icon="😴" tone="sleep" />
-          <Stat label="Night wakings" value={nightWakings} icon="🌙" tone="night" />
-          <Stat label="Feedings" value={feedingCount} icon="🍼" tone="feeding" />
-          <Stat label="Diapers" value={diaperCount} icon="👶" tone="diaper" />
+        <div className="stats-grid" aria-label={t("dashboard.dayTotals")}>
+          <Stat label={t("dashboard.sleepEvents")} value={sleepEventCount} icon="😴" tone="sleep" />
+          <Stat label={t("dashboard.nightWakings")} value={nightWakings} icon="🌙" tone="night" />
+          <Stat label={t("dashboard.feedings")} value={feedingCount} icon="🍼" tone="feeding" />
+          <Stat label={t("dashboard.diapers")} value={diaperCount} icon="👶" tone="diaper" />
         </div>
 
         <div className="events-heading">
           <div className="section-title">
-            <h2>Events</h2>
+            <h2>{t("dashboard.events")}</h2>
             <span>{visibleEvents.length}</span>
           </div>
-          <div className="event-filters" role="group" aria-label="Filter events">
+          <div className="event-filters" role="group" aria-label={t("dashboard.filterEvents")}>
             {([
-              ["all", "All"],
-              ["sleep", "Sleep"],
-              ["feeding", "Feed"],
-              ["diaper", "Diaper"],
+              ["all", t("dashboard.filterAll")],
+              ["sleep", t("dashboard.filterSleep")],
+              ["feeding", t("dashboard.filterFeed")],
+              ["diaper", t("dashboard.filterDiaper")],
             ] as const).map(([value, label]) => (
               <button key={value} type="button" className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{label}</button>
             ))}
@@ -136,7 +143,7 @@ export function DashboardScreen({ userId }: { userId: string }) {
         </div>
 
         {data.loading && data.events.length === 0 ? (
-          <div className="list-loading" aria-label="Loading events">
+          <div className="list-loading" aria-label={t("dashboard.loadingEvents")}>
             <span className="skeleton-line" />
             <span className="skeleton-line" />
             <span className="skeleton-line" />
@@ -144,7 +151,7 @@ export function DashboardScreen({ userId }: { userId: string }) {
         ) : visibleEvents.length === 0 ? (
           <div className="empty-state">
             <span aria-hidden="true">🌙</span>
-            <strong>{data.dayEvents.length === 0 ? "No events in this day" : "No matching events"}</strong>
+            <strong>{data.dayEvents.length === 0 ? t("dashboard.noEvents") : t("dashboard.noMatching")}</strong>
           </div>
         ) : (
           <div className="event-list">
@@ -161,7 +168,7 @@ export function DashboardScreen({ userId }: { userId: string }) {
         )}
 
         {data.loading && data.events.length === 0 ? (
-          <div className="dashboard-loading" aria-label="Loading dashboard">
+          <div className="dashboard-loading" aria-label={t("dashboard.loadingDashboard")}>
             <span className="skeleton-chart" />
             <span className="skeleton-chart" />
           </div>

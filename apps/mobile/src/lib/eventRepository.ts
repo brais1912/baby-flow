@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
-import type { BabyEvent, EventInput, EventType } from "../types/events";
+import type { BabyEvent, EventInput } from "../types/events";
 import { assertValidSleepSequence, mapEventRow, toEventInsert } from "./events";
 
 type Client = SupabaseClient<Database>;
@@ -34,11 +34,11 @@ export async function fetchEvents(
   return (data ?? []).map(mapEventRow);
 }
 
-async function latestSleepPhase(
+export async function fetchLatestSleepPhase(
   client: Client,
   userId: string,
   excludedEventId?: string
-): Promise<BabyEvent[]> {
+): Promise<BabyEvent | null> {
   let query = client
     .from("events")
     .select("*")
@@ -51,7 +51,7 @@ async function latestSleepPhase(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map(mapEventRow);
+  return data?.[0] ? mapEventRow(data[0]) : null;
 }
 
 export async function createEvent(
@@ -60,7 +60,8 @@ export async function createEvent(
   input: EventInput
 ): Promise<BabyEvent> {
   if (input.type === "sleep" || input.type === "wake_up") {
-    assertValidSleepSequence(await latestSleepPhase(client, userId), input.type);
+    const latest = await fetchLatestSleepPhase(client, userId);
+    assertValidSleepSequence(latest ? [latest] : [], input.type);
   }
 
   const { data, error } = await client
@@ -80,8 +81,9 @@ export async function updateEventTime(
   occurredAt: Date
 ): Promise<BabyEvent> {
   if (event.type === "sleep" || event.type === "wake_up") {
+    const latest = await fetchLatestSleepPhase(client, userId, event.id);
     assertValidSleepSequence(
-      await latestSleepPhase(client, userId, event.id),
+      latest ? [latest] : [],
       event.type
     );
   }
@@ -109,13 +111,4 @@ export async function deleteEvent(client: Client, userId: string, eventId: strin
     .eq("user_id", userId);
 
   if (error) throw error;
-}
-
-export function eventTypeLabel(type: EventType): string {
-  return {
-    sleep: "Sleep",
-    wake_up: "Wake up",
-    feeding: "Feeding",
-    diaper: "Diaper",
-  }[type];
 }

@@ -8,17 +8,19 @@ import type {
   FeedingType,
   SleepMethod,
 } from "../types/events";
+import { useI18n } from "../i18n/I18nProvider";
+import type { MessageKey } from "../i18n/messages";
 
 function localDateTime(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-const typeOptions: Array<{ type: EventType; label: string; emoji: string }> = [
-  { type: "sleep", label: "Sleep", emoji: "😴" },
-  { type: "wake_up", label: "Wake", emoji: "🌅" },
-  { type: "feeding", label: "Feed", emoji: "🍼" },
-  { type: "diaper", label: "Diaper", emoji: "👶" },
+const typeOptions: Array<{ type: EventType; label: MessageKey; emoji: string }> = [
+  { type: "sleep", label: "quick.sleep", emoji: "😴" },
+  { type: "wake_up", label: "quick.wake", emoji: "🌅" },
+  { type: "feeding", label: "quick.feed", emoji: "🍼" },
+  { type: "diaper", label: "quick.diaper", emoji: "👶" },
 ];
 
 export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateTime }: {
@@ -29,6 +31,7 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
   onCreate: (input: EventInput) => Promise<unknown>;
   onUpdateTime: (event: BabyEvent, occurredAt: Date) => Promise<unknown>;
 }) {
+  const { t } = useI18n();
   const [type, setType] = useState<EventType>(event?.type ?? "sleep");
   const [occurredAt, setOccurredAt] = useState(() => localDateTime(event?.occurredAt ?? new Date()));
   const [notes, setNotes] = useState(event?.notes === "QuickLog" ? "" : event?.notes ?? "");
@@ -64,12 +67,12 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
 
   return (
     <div className="sheet-layer" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
-      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label="Close" />
+      <button className="sheet-backdrop" type="button" onClick={onClose} aria-label={t("common.close")} />
       <section className="bottom-sheet">
         <div className="sheet-handle" />
         <header className="sheet-header">
-          <h2 id="event-sheet-title">{event ? "Edit event time" : "New event"}</h2>
-          <button className="icon-button" type="button" onClick={onClose} title="Close" disabled={pending}>
+          <h2 id="event-sheet-title">{event ? t("event.editTimeTitle") : t("event.new")}</h2>
+          <button className="icon-button" type="button" onClick={onClose} title={t("common.close")} disabled={pending}>
             <X size={19} />
           </button>
         </header>
@@ -77,7 +80,7 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
         <form className="event-form" onSubmit={(formEvent) => void submit(formEvent)}>
           {!event && (
             <fieldset className="type-selector">
-              <legend>Event type</legend>
+              <legend>{t("event.type")}</legend>
               <div>
                 {typeOptions.map((option) => (
                   <button
@@ -87,7 +90,7 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
                     onClick={() => setType(option.type)}
                   >
                     <span>{option.emoji}</span>
-                    {option.label}
+                    {t(option.label)}
                   </button>
                 ))}
               </div>
@@ -95,22 +98,22 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
           )}
 
           <label>
-            Date and time
+            {t("event.dateTime")}
             <input type="datetime-local" step="300" required value={occurredAt} onChange={(changeEvent) => setOccurredAt(changeEvent.target.value)} />
           </label>
 
           {!event && type === "sleep" && (
             <label>
-              How baby fell asleep
+              {t("event.sleepMethod")}
               <select value={sleepMethod} onChange={(changeEvent) => setSleepMethod(changeEvent.target.value as SleepMethod | "")}>
-                <option value="">Not specified</option>
-                <option value="self">Self</option>
-                <option value="nursing">Nursing</option>
-                <option value="bottle">Bottle</option>
-                <option value="pacifier">Pacifier</option>
-                <option value="held">Held</option>
-                <option value="rocking">Rocking</option>
-                <option value="other">Other</option>
+                <option value="">{t("common.notSpecified")}</option>
+                <option value="self">{t("event.self")}</option>
+                <option value="nursing">{t("event.nursing")}</option>
+                <option value="bottle">{t("event.bottle")}</option>
+                <option value="pacifier">{t("event.pacifier")}</option>
+                <option value="held">{t("event.held")}</option>
+                <option value="rocking">{t("event.rocking")}</option>
+                <option value="other">{t("common.other")}</option>
               </select>
             </label>
           )}
@@ -118,19 +121,19 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
           {!event && type === "feeding" && (
             <div className="form-grid">
               <label>
-                Feeding type
+                {t("event.feedingType")}
                 <select value={feedingType} onChange={(changeEvent) => setFeedingType(changeEvent.target.value as FeedingType | "")}>
-                  <option value="">Not specified</option>
-                  <option value="breast_left">Left breast</option>
-                  <option value="breast_right">Right breast</option>
-                  <option value="both_breasts">Both breasts</option>
-                  <option value="bottle">Bottle</option>
-                  <option value="formula">Formula</option>
-                  <option value="solid">Solid</option>
+                  <option value="">{t("common.notSpecified")}</option>
+                  <option value="breast_left">{t("event.leftBreast")}</option>
+                  <option value="breast_right">{t("event.rightBreast")}</option>
+                  <option value="both_breasts">{t("event.bothBreasts")}</option>
+                  <option value="bottle">{t("event.bottle")}</option>
+                  <option value="formula">{t("event.formula")}</option>
+                  <option value="solid">{t("event.solid")}</option>
                 </select>
               </label>
               <label>
-                Amount (ml)
+                {t("event.amountMl")}
                 <input type="number" min="0" step="5" value={feedingAmountMl} onChange={(changeEvent) => setFeedingAmountMl(changeEvent.target.value)} />
               </label>
             </div>
@@ -138,19 +141,19 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
 
           {!event && type === "diaper" && (
             <label>
-              Diaper type
+              {t("event.diaperType")}
               <select value={diaperType} required onChange={(changeEvent) => setDiaperType(changeEvent.target.value as DiaperType | "")}>
-                <option value="">Select</option>
-                <option value="pee">Pee</option>
-                <option value="poop">Poop</option>
-                <option value="both">Both</option>
+                <option value="">{t("event.select")}</option>
+                <option value="pee">{t("event.pee")}</option>
+                <option value="poop">{t("event.poop")}</option>
+                <option value="both">{t("event.both")}</option>
               </select>
             </label>
           )}
 
           {!event && (
             <label>
-              Notes
+              {t("event.notes")}
               <textarea rows={2} maxLength={500} value={notes} onChange={(changeEvent) => setNotes(changeEvent.target.value)} />
             </label>
           )}
@@ -158,8 +161,8 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
           {error && <p className="error-banner" role="alert">{error}</p>}
 
           <button className="primary-button" type="submit" disabled={pending}>
-            {pending ? <span className="spinner small" aria-label="Saving" /> : <Save size={18} />}
-            <span>{pending ? "Saving" : "Save"}</span>
+            {pending ? <span className="spinner small" aria-label={t("common.saving")} /> : <Save size={18} />}
+            <span>{pending ? t("common.saving") : t("common.save")}</span>
           </button>
         </form>
       </section>
