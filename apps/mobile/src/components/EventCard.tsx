@@ -3,7 +3,9 @@ import { format } from "date-fns";
 import { Pencil, Trash2, X } from "lucide-react";
 import type { BabyEvent } from "../types/events";
 import { useI18n } from "../i18n/I18nProvider";
+import { formatEventDuration } from "../i18n/format";
 import type { MessageKey } from "../i18n/messages";
+import { eventPhaseDuration } from "../lib/eventDurations";
 
 const emoji = {
   sleep: "😴",
@@ -48,15 +50,20 @@ function eventDetail(event: BabyEvent, t: (key: MessageKey) => string): string |
   return null;
 }
 
-export function EventCard({ event, pending, onEdit, onDelete }: {
+export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
   event: BabyEvent;
+  allEvents: BabyEvent[];
   pending: boolean;
   onEdit: (event: BabyEvent) => void;
   onDelete: (eventId: string) => Promise<void>;
 }) {
-  const { dateLocale, t } = useI18n();
+  const { dateLocale, locale, t } = useI18n();
   const [confirming, setConfirming] = useState(false);
   const detail = eventDetail(event, t);
+  const phaseDuration = eventPhaseDuration(event, allEvents);
+  const phaseDurationLabel = phaseDuration
+    ? formatEventDuration(phaseDuration.durationMs, locale)
+    : null;
 
   return (
     <article className={`event-card ${event.type}`}>
@@ -78,6 +85,17 @@ export function EventCard({ event, pending, onEdit, onDelete }: {
           <div className="event-copy">
             <div className="event-title-row">
               <strong>{t(eventLabelKeys[event.type])}</strong>
+              {phaseDuration && phaseDurationLabel && (
+                <span
+                  className={`duration-badge ${phaseDuration.kind}`}
+                  aria-label={t(phaseDuration.kind === "awake" ? "event.awakeDuration" : "event.sleepDuration", {
+                    duration: phaseDurationLabel,
+                  })}
+                >
+                  <span aria-hidden="true">{phaseDuration.kind === "awake" ? "🌅" : "😴"}</span>
+                  {phaseDurationLabel}
+                </span>
+              )}
               {event.notes === "QuickLog" && <span className="quick-badge">{t("event.quickLog")}</span>}
             </div>
             {detail && <span className="event-detail">{detail}</span>}

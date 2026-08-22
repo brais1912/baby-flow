@@ -36,3 +36,20 @@ export function formatMinutesDuration(minutes: number, locale: Locale): string {
     count: new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(hours),
   });
 }
+
+export function formatSleepChartDuration(hours: number, locale: Locale): string {
+  if (!Number.isFinite(hours) || hours <= 0) return "";
+  const value = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(hours);
+  return locale === "es" ? `${value} h` : `${value}h`;
+}
+
+export function formatEventDuration(durationMs: number, locale: Locale): string {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return "";
+  const totalMinutes = Math.max(0, Math.floor(durationMs / 60_000));
+  if (totalMinutes === 0) return translate(locale, "duration.lessThanMinute");
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return translate(locale, "duration.minutes", { count: minutes });
+  if (minutes === 0) return translate(locale, "duration.hours", { count: hours });
+  return translate(locale, "duration.hoursMinutes", { hours, minutes });
+}

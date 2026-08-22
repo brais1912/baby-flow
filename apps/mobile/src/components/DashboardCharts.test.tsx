@@ -38,6 +38,7 @@ describe("TimelineChart", () => {
 
     await user.click(screen.getByRole("button", { name: "Feeding at 15:00" }));
     const dialog = screen.getByRole("dialog", { name: "Feeding" });
+    expect(dialog.querySelector(".chart-detail-modal")).toBeInTheDocument();
     expect(dialog).toHaveTextContent("15:00");
     expect(dialog).toHaveTextContent("Bottle");
     expect(dialog).toHaveTextContent("90 ml");

@@ -159,6 +159,7 @@ export function DashboardScreen({ data, babyName }: {
               <EventCard
                 key={event.id}
                 event={event}
+                allEvents={data.events}
                 pending={data.mutating}
                 onEdit={(selected) => setSheet({ mode: "edit", event: selected })}
                 onDelete={data.remove}

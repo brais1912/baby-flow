@@ -22,6 +22,7 @@ import {
 } from "../lib/dashboard";
 import { ownerDayWindowBounds } from "../lib/events";
 import { useI18n } from "../i18n/I18nProvider";
+import { formatSleepChartDuration } from "../i18n/format";
 import type { MessageKey } from "../i18n/messages";
 
 const eventEmoji: Record<BabyEvent["type"], string> = {
@@ -96,10 +97,9 @@ function TimelineEventDetail({ event, wakeUp, onClose }: {
     : time;
 
   return (
-    <div className="sheet-layer" role="dialog" aria-modal="true" aria-labelledby="timeline-event-title">
+    <div className="chart-detail-layer" role="dialog" aria-modal="true" aria-labelledby="timeline-event-title">
       <button className="sheet-backdrop" type="button" onClick={onClose} aria-label={t("common.close")} />
-      <section className="bottom-sheet timeline-detail-sheet">
-        <div className="sheet-handle" />
+      <section className="chart-detail-modal">
         <header className="sheet-header">
           <div className="timeline-detail-heading">
             <span aria-hidden="true">{eventEmoji[event.type]}</span>
@@ -332,7 +332,7 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
   startMinutes: number;
   now: Date;
 }) {
-  const { dateLocale, t } = useI18n();
+  const { dateLocale, locale, t } = useI18n();
   const data = useMemo(
     () => aggregateSleepByDay(events, ownerDate, startMinutes, now).map((day) => ({
       label: format(day.date, "d MMM", { locale: dateLocale }),
@@ -347,12 +347,24 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
       {!hasData ? <EmptyChart>{t("chart.noSleep")}</EmptyChart> : (
         <div className="chart-canvas">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 14, right: 4, bottom: 0, left: -14 }}>
+            <BarChart data={data} margin={{ top: 28, right: 4, bottom: 0, left: -14 }}>
               <CartesianGrid vertical={false} stroke="#ebe8ef" />
               <XAxis dataKey="label" interval={1} tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
               <YAxis unit="h" tick={{ fontSize: 10, fill: "#77717d" }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} h`, t("event.sleep")]} />
-              <Bar dataKey="hours" fill="#8b5bc8" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <Tooltip formatter={(value) => [formatSleepChartDuration(Number(value), locale), t("event.sleep")]} />
+              <Bar
+                dataKey="hours"
+                fill="#8b5bc8"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+                label={{
+                  position: "top",
+                  fill: "#6f389d",
+                  fontSize: 10,
+                  fontWeight: 750,
+                  formatter: (value: unknown) => formatSleepChartDuration(Number(value), locale),
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
