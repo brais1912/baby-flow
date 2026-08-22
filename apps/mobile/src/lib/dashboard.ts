@@ -7,7 +7,7 @@ export const CHART_DAY_COUNT = 10;
 export type SleepDay = { date: Date; hours: number };
 export type FeedingDay = { date: Date; breastSessions: number; bottleSessions: number; bottleMl: number };
 export type DiaperDay = { date: Date; pee: number; poop: number; both: number };
-export type TimelineSleep = { id: string; start: Date; end: Date };
+export type TimelineSleep = { id: string; start: Date; end: Date; wakeId: string | null };
 export type TimelinePoint = { id: string; type: "feeding" | "diaper"; occurredAt: Date };
 
 function shiftDay(date: Date, amount: number): Date {
@@ -189,7 +189,12 @@ export function buildTimeline(
     const sessionEnd = wake?.occurredAt ?? now;
     const clippedStart = sleep.occurredAt > start ? sleep.occurredAt : start;
     const clippedEnd = sessionEnd < end ? sessionEnd : end;
-    if (clippedStart < clippedEnd) sleeps.push({ id: sleep.id, start: clippedStart, end: clippedEnd });
+    if (clippedStart < clippedEnd) sleeps.push({
+      id: sleep.id,
+      start: clippedStart,
+      end: clippedEnd,
+      wakeId: wake?.id ?? null,
+    });
   }
 
   const points = sorted

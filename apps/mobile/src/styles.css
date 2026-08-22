@@ -581,6 +581,27 @@ code {
   height: auto;
 }
 
+.timeline-chart.expanded {
+  width: 1200px;
+  min-width: 1200px;
+}
+
+.timeline-interactive {
+  cursor: pointer;
+  outline: none;
+}
+
+.timeline-interactive:focus-visible .timeline-sleep,
+.timeline-interactive:focus-visible .timeline-point {
+  filter: brightness(0.82);
+  stroke: #3f245f;
+}
+
+.timeline-hit-area {
+  fill: transparent;
+  pointer-events: all;
+}
+
 .timeline-lane-label,
 .timeline-hour,
 .timeline-empty {
@@ -629,6 +650,62 @@ code {
   font-family: inherit;
   font-size: 8px;
   font-weight: 900;
+}
+
+.timeline-detail-sheet {
+  min-height: 190px;
+}
+
+.timeline-detail-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.timeline-detail-heading > span {
+  font-size: 28px;
+}
+
+.timeline-detail-heading time {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 13px;
+}
+
+.timeline-detail-pills span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f0eef3;
+  color: #625c68;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.timeline-detail-notes {
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: #faf9fb;
+}
+
+.timeline-detail-notes strong {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.timeline-detail-notes p {
+  margin: 4px 0 0;
+  font-size: 13px;
 }
 
 .dashboard-loading {

@@ -113,7 +113,27 @@ describe("timeline", () => {
       event("old-feed", "feeding", new Date(2026, 7, 21, 11)),
     ], owner, 720, new Date(2026, 7, 21, 16));
 
-    expect(result.sleeps).toEqual([{ id: "sleep", start: new Date(2026, 7, 21, 12), end: new Date(2026, 7, 21, 14) }]);
+    expect(result.sleeps).toEqual([{
+      id: "sleep",
+      start: new Date(2026, 7, 21, 12),
+      end: new Date(2026, 7, 21, 14),
+      wakeId: "wake",
+    }]);
     expect(result.points.map(({ id }) => id)).toEqual(["feed"]);
+  });
+
+  it("marks an in-progress sleep without a wake-up pair", () => {
+    const owner = new Date(2026, 7, 21);
+    const now = new Date(2026, 7, 21, 15);
+    const result = buildTimeline([
+      event("sleep", "sleep", new Date(2026, 7, 21, 13)),
+    ], owner, 720, now);
+
+    expect(result.sleeps).toEqual([{
+      id: "sleep",
+      start: new Date(2026, 7, 21, 13),
+      end: now,
+      wakeId: null,
+    }]);
   });
 });
