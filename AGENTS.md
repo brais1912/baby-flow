@@ -1,7 +1,7 @@
-# BabyFlow — Claude Code Guidelines
+# BabyFlow — Agent Guidelines
 
 ## Project Overview
-BabyFlow is a Next.js 15 (App Router) web app for tracking baby events (sleep, feeding, diaper changes). Stack: TypeScript · Tailwind CSS v4 · Drizzle ORM · Supabase (Postgres + Auth) · Recharts · Vercel.
+BabyFlow contains a Next.js 16 App Router web app and a React/Vite/Capacitor mobile app for tracking baby events. Stack: TypeScript · Tailwind CSS v4 (web) · Drizzle ORM · Supabase (Postgres + Auth) · Recharts · Vercel · Capacitor.
 
 ## Memory
 
@@ -11,15 +11,19 @@ BabyFlow is a Next.js 15 (App Router) web app for tracking baby events (sleep, f
 ## Architecture
 
 ```
+apps/
+  mobile/        # React/Vite client plus Capacitor Android and iOS projects
 src/
   app/           # Next.js App Router — pages, layouts, API routes
-  components/    # Shared UI components (no business logic)
+  components/    # Web React components
   lib/
-    db/          # Drizzle schema, client, migrations
+    db/          # Drizzle schema and client
     supabase/    # Supabase client helpers (server / browser)
     actions/     # Server Actions (data mutations)
     utils/       # Pure utility functions
   types/         # Shared TypeScript types
+supabase/
+  migrations/    # Drizzle-generated migrations plus RLS policies
 ```
 
 ## Development Commands
@@ -29,6 +33,12 @@ npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
 npm run lint         # ESLint
 npm run test         # Vitest (watch mode)
+npm run mobile:dev   # Start the Vite mobile client
+npm run mobile:test  # Run mobile Vitest tests once
+npm run mobile:build # Build the mobile web bundle
+npm run mobile:sync  # Build and synchronize both native projects
+npm run mobile:ios   # Open the iOS project in Xcode
+npm run mobile:android # Open the Android project in Android Studio
 npm run db:generate  # Generate Drizzle migrations
 npm run db:migrate   # Apply migrations
 npm run db:studio    # Open Drizzle Studio
@@ -37,24 +47,26 @@ npm run db:studio    # Open Drizzle Studio
 ## Code Style
 
 - **TypeScript strict mode** — no `any`, no type assertions unless unavoidable
-- **Named exports** for components, functions, types; default exports only for Next.js pages/layouts
+- **Named exports** for application components, functions, and types; default exports only where a framework requires them, such as Next.js pages/layouts and configuration files
 - **No comments** unless the WHY is non-obvious (a hidden constraint, a tricky invariant)
-- **Server Actions** for all data mutations — no dedicated API routes unless required by a third party
-- **Server Components by default** — add `"use client"` only when interactivity requires it
-- Tailwind utility classes only — no inline `style` props, no CSS modules unless Tailwind cannot express it
+- **Web mutations** use Server Actions — no dedicated API routes unless required by a third party
+- **Web components** are Server Components by default — add `"use client"` only when interactivity requires it
+- Web styling uses Tailwind utilities; the mobile client follows its existing `apps/mobile/src/styles.css` stylesheet
 
 ## Data Layer
 
 - Drizzle schema lives in `src/lib/db/schema.ts`
-- Always use the typed Drizzle query builder — no raw SQL except in migrations
-- Supabase Row Level Security (RLS) must be enabled on every table; policies live in `supabase/migrations/`
+- Web data access uses the typed Drizzle query builder — no raw SQL except in migrations
+- Mobile data access uses the typed Supabase client under the authenticated user's RLS policies
+- Supabase Row Level Security (RLS) must be enabled on every client-accessible table; policies live in `supabase/migrations/`
 - Never expose `SERVICE_ROLE_KEY` to the client — only `ANON_KEY`
 
 ## Authentication
 
-- Supabase Auth via `@supabase/ssr` — cookie-based sessions
-- Middleware (`src/middleware.ts`) refreshes sessions on every request
-- Protected routes redirect to `/login` when no session exists
+- Web authentication uses email/password Supabase Auth via `@supabase/ssr` with cookie-based sessions
+- Mobile authentication mirrors the email/password sign-in, sign-up, and recovery flows using `@supabase/supabase-js`
+- Middleware (`src/middleware.ts`) refreshes web sessions on every request
+- Protected web routes redirect to `/${locale}/login` when no session exists
 - All Server Actions must validate the session before touching the DB
 
 ## Testing
@@ -72,6 +84,7 @@ npm run db:studio    # Open Drizzle Studio
 - No snapshot tests — they are brittle and provide low signal
 - **Null/undefined inputs**: always test the boundary — if a field can be null (e.g. QuickLog events with no diaperType), test that the code handles it correctly
 - Run `npm run test -- --run` (single pass, no watch) before every commit to confirm nothing is broken
+- Run `npm run mobile:test` and `npm run mobile:build` when mobile code is affected
 
 ## Environment Variables
 
@@ -82,23 +95,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 DATABASE_URL=          # Supabase pooler connection string
 ```
 
-`.env.example` must stay up to date with every new variable added.
+Required in `apps/mobile/.env.local` for mobile development:
+```
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_AUTH_REDIRECT_URL=com.babyflow.app://auth
+```
+
+Keep the root `.env.example` and `apps/mobile/.env.example` synchronized with their respective variables.
 
 ## Commits & PRs
 
 - Small, focused commits — one logical change per commit
 - Commit messages: imperative mood, ≤72 chars subject line
-- Always run `npm run lint && npm run test` before committing
+- Always run `npm run lint && npm run test -- --run` before committing; include the mobile checks when mobile code is affected
 
 ## Security
 
 - Validate and sanitize all user input in Server Actions before DB writes
+- Validate mobile mutation input before direct Supabase writes; RLS and database constraints remain mandatory
 - Never log sensitive data (tokens, passwords, PII)
 - Keep dependencies up to date; review `npm audit` output regularly
-- Supabase RLS is the last line of defence — it must always be on
+- Supabase RLS is the last line of defence — it must always be on for client-accessible tables
 
 ## Performance
 
-- Prefer `async` Server Components for data fetching — avoids client waterfalls
-- Use `next/image` for all images
-- Avoid large client bundles: keep Recharts and heavy libs client-only with `dynamic(() => import(...), { ssr: false })`
+- Prefer `async` Server Components for web data fetching — avoids client waterfalls
+- Use `next/image` for web content images
+- Avoid large web client bundles: keep Recharts and heavy libraries client-only with `dynamic(() => import(...), { ssr: false })`

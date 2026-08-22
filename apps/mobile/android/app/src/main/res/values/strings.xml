@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BabyFlow</string>
+    <string name="title_activity_main">BabyFlow</string>
+    <string name="package_name">com.babyflow.app</string>
+    <string name="custom_url_scheme">com.babyflow.app</string>
+</resources>

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/apps/mobile/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,10 +20,15 @@
 
 # production
 /build
+/apps/mobile/dist
 
 # misc
 .DS_Store
 *.pem
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
 
 # memory
 /memory
@@ -36,6 +42,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!/apps/mobile/.env.example
 
 # vercel
 .vercel
