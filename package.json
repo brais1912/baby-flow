@@ -2,6 +2,9 @@
   "name": "baby-flow",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/mobile"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,6 +13,12 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "mobile:dev": "npm run dev --workspace @babyflow/mobile",
+    "mobile:build": "npm run build --workspace @babyflow/mobile",
+    "mobile:test": "npm run test --workspace @babyflow/mobile",
+    "mobile:sync": "npm run sync --workspace @babyflow/mobile",
+    "mobile:ios": "npm run open:ios --workspace @babyflow/mobile",
+    "mobile:android": "npm run open:android --workspace @babyflow/mobile",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
