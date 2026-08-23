@@ -8,7 +8,7 @@
     "scheme": "com.babyflow.app",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.babyflow.app",
+      "bundleIdentifier": "com.brais1912.babyflow",
       "supportsTablet": false,
       "icon": "./assets/icon.png"
     },
