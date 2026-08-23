@@ -1,7 +1,7 @@
 # BabyFlow — Agent Guidelines
 
 ## Project Overview
-BabyFlow contains a Next.js 16 App Router web app and a React/Vite/Capacitor mobile app for tracking baby events. Stack: TypeScript · Tailwind CSS v4 (web) · Drizzle ORM · Supabase (Postgres + Auth) · Recharts · Vercel · Capacitor.
+BabyFlow contains a Next.js 16 App Router web app and a React Native + Expo mobile app for tracking baby events. Stack: TypeScript · Tailwind CSS v4 (web) · Drizzle ORM · Supabase (Postgres + Auth) · Recharts · Vercel · Expo.
 
 ## Memory
 
@@ -12,7 +12,8 @@ BabyFlow contains a Next.js 16 App Router web app and a React/Vite/Capacitor mob
 
 ```
 apps/
-  mobile/        # React/Vite client plus Capacitor Android and iOS projects
+  mobile/        # Legacy React/Vite/Capacitor client retained during Expo cutover
+  mobile-expo/   # Active React Native + Expo Android and iOS client
 src/
   app/           # Next.js App Router — pages, layouts, API routes
   components/    # Web React components
@@ -33,12 +34,16 @@ npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
 npm run lint         # ESLint
 npm run test         # Vitest (watch mode)
-npm run mobile:dev   # Start the Vite mobile client
+npm run mobile:install # Install the isolated Expo dependency graph
+npm run mobile:dev   # Start the Expo development server
 npm run mobile:test  # Run mobile Vitest tests once
-npm run mobile:build # Build the mobile web bundle
-npm run mobile:sync  # Build and synchronize both native projects
-npm run mobile:ios   # Open the iOS project in Xcode
-npm run mobile:android # Open the Android project in Android Studio
+npm run mobile:typecheck # Type-check the Expo client
+npm run mobile:lint  # Lint the Expo client
+npm run mobile:build # Export the Expo bundles
+npm run mobile:doctor # Validate Expo dependencies and configuration
+npm run mobile:prebuild # Generate native projects when needed
+npm run mobile:ios   # Start the iOS development target
+npm run mobile:android # Start the Android development target
 npm run db:generate  # Generate Drizzle migrations
 npm run db:migrate   # Apply migrations
 npm run db:studio    # Open Drizzle Studio
@@ -51,7 +56,7 @@ npm run db:studio    # Open Drizzle Studio
 - **No comments** unless the WHY is non-obvious (a hidden constraint, a tricky invariant)
 - **Web mutations** use Server Actions — no dedicated API routes unless required by a third party
 - **Web components** are Server Components by default — add `"use client"` only when interactivity requires it
-- Web styling uses Tailwind utilities; the mobile client follows its existing `apps/mobile/src/styles.css` stylesheet
+- Web styling uses Tailwind utilities; the mobile client uses React Native `StyleSheet` styles and native components
 
 ## Data Layer
 
@@ -84,7 +89,7 @@ npm run db:studio    # Open Drizzle Studio
 - No snapshot tests — they are brittle and provide low signal
 - **Null/undefined inputs**: always test the boundary — if a field can be null (e.g. QuickLog events with no diaperType), test that the code handles it correctly
 - Run `npm run test -- --run` (single pass, no watch) before every commit to confirm nothing is broken
-- Run `npm run mobile:test` and `npm run mobile:build` when mobile code is affected
+- Run `npm run mobile:test`, `npm run mobile:typecheck`, `npm run mobile:lint`, and `npm run mobile:build` when mobile code is affected
 
 ## Environment Variables
 
@@ -95,14 +100,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 DATABASE_URL=          # Supabase pooler connection string
 ```
 
-Required in `apps/mobile/.env.local` for mobile development:
+Required in `apps/mobile-expo/.env.local` for mobile development:
 ```
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-VITE_AUTH_REDIRECT_URL=com.babyflow.app://auth
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_AUTH_REDIRECT_URL=com.babyflow.app://auth
 ```
 
-Keep the root `.env.example` and `apps/mobile/.env.example` synchronized with their respective variables.
+Keep the root `.env.example` and `apps/mobile-expo/.env.example` synchronized with their respective variables.
 
 ## Commits & PRs
 
