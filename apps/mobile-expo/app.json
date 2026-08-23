@@ -30,6 +30,7 @@
     "plugins": [
       "expo-router",
       "expo-localization",
+      "./plugins/withoutPushNotifications",
       [
         "expo-notifications",
         {
