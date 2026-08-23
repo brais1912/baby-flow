@@ -14,6 +14,7 @@ import {
 import { ownerDayWindowBounds } from "../lib/events";
 import { colors } from "../theme";
 import type { BabyEvent } from "../types/events";
+import { ChartDetailDialog } from "../ui/ChartDetailDialog";
 import { Card, IconButton, coreStyles } from "../ui/Core";
 
 const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
@@ -80,16 +81,7 @@ function EmptyChart({ children }: { children: React.ReactNode }) {
   return <View style={styles.empty}><Text style={coreStyles.muted}>{children}</Text></View>;
 }
 
-function DetailBubble({ title, detail }: { title: string; detail: string }) {
-  return (
-    <View style={styles.detailBubble} accessibilityRole="summary">
-      <Text style={styles.detailTitle}>{title}</Text>
-      <Text style={styles.detailText}>{detail}</Text>
-    </View>
-  );
-}
-
-function TimelineEventDetail({ event, wakeUp }: { event: BabyEvent; wakeUp: BabyEvent | null }) {
+function TimelineEventDetail({ event, wakeUp, onClose }: { event: BabyEvent; wakeUp: BabyEvent | null; onClose: () => void }) {
   const { dateLocale, t } = useI18n();
   const details: string[] = [];
   const detailValue = event.type === "feeding"
@@ -108,7 +100,11 @@ function TimelineEventDetail({ event, wakeUp }: { event: BabyEvent; wakeUp: Baby
   if (event.notes && event.notes !== "QuickLog") details.push(event.notes);
   const start = format(event.occurredAt, "HH:mm", { locale: dateLocale });
   const time = wakeUp ? `${start} → ${format(wakeUp.occurredAt, "HH:mm", { locale: dateLocale })}` : start;
-  return <DetailBubble title={`${t(eventLabelKeys[event.type])} · ${time}`} detail={details.join(" · ") || t("common.notSpecified")} />;
+  return (
+    <ChartDetailDialog visible title={`${t(eventLabelKeys[event.type])} · ${time}`} onClose={onClose}>
+      <Text style={styles.detailText}>{details.join(" · ") || t("common.notSpecified")}</Text>
+    </ChartDetailDialog>
+  );
 }
 
 export function TimelineChart({ events, ownerDate, startMinutes, now = new Date() }: {
@@ -134,9 +130,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
   function selectEvent(eventId: string, wakeId: string | null = null) {
     const event = eventsById.get(eventId);
     if (!event) return;
-    setSelected((current) => current?.event.id === eventId
-      ? null
-      : { event, wakeUp: wakeId ? eventsById.get(wakeId) ?? null : null });
+    setSelected({ event, wakeUp: wakeId ? eventsById.get(wakeId) ?? null : null });
   }
 
   return (
@@ -146,7 +140,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
           <Text style={styles.chartTitle}>◷ {t("chart.timeline")}</Text>
           <Text style={coreStyles.muted}>{format(bounds.start, "HH:mm", { locale: dateLocale })} - {format(bounds.end, "HH:mm", { locale: dateLocale })}</Text>
         </View>
-        <IconButton label={expanded ? t("chart.collapseTimeline") : t("chart.expandTimeline")} icon={expanded ? "↙" : "↗"} onPress={() => setExpanded((current) => !current)} />
+        <IconButton compact label={expanded ? t("chart.collapseTimeline") : t("chart.expandTimeline")} icon={expanded ? "↙" : "↗"} onPress={() => setExpanded((current) => !current)} />
       </View>
       <ScrollView horizontal={expanded} showsHorizontalScrollIndicator={expanded} contentContainerStyle={styles.timelineScroll}>
         <Svg width={viewWidth} height={148} accessibilityLabel={t("chart.timelineAria")}>
@@ -199,7 +193,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
           {empty ? <SvgText x={plotStart + plotWidth / 2} y={63} textAnchor="middle" fill={colors.textMuted} fontSize={11}>{t("dashboard.noEvents")}</SvgText> : null}
         </Svg>
       </ScrollView>
-      {selected ? <TimelineEventDetail event={selected.event} wakeUp={selected.wakeUp} /> : null}
+      {selected ? <TimelineEventDetail event={selected.event} wakeUp={selected.wakeUp} onClose={() => setSelected(null)} /> : null}
     </Card>
   );
 }
@@ -278,7 +272,11 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
               );
             })}
           </Svg>
-          {selected !== null && data[selected] ? <DetailBubble title={data[selected].label} detail={formatSleepChartDuration(data[selected].hours, locale) || t("chart.noSleep")} /> : null}
+          {selected !== null && data[selected] ? (
+            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
+              <Text style={styles.detailText}>{formatSleepChartDuration(data[selected].hours, locale) || t("chart.noSleep")}</Text>
+            </ChartDetailDialog>
+          ) : null}
         </>
       )}
     </ChartPanel>
@@ -332,10 +330,9 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
             })}
           </Svg>
           {selected !== null && data[selected] ? (
-            <DetailBubble
-              title={data[selected].label}
-              detail={mode === "breast" ? `${data[selected].breast} ${t("chart.sessions")}` : `${data[selected].bottle} ml`}
-            />
+            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
+              <Text style={styles.detailText}>{mode === "breast" ? `${data[selected].breast} ${t("chart.sessions")}` : `${data[selected].bottle} ml`}</Text>
+            </ChartDetailDialog>
           ) : null}
         </>
       )}
@@ -405,7 +402,9 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
             })}
           </Svg>
           {selected !== null && data[selected] ? (
-            <DetailBubble title={data[selected].label} detail={`${t("event.pee")}: ${data[selected].pee} · ${t("event.poop")}: ${data[selected].poop} · ${t("event.both")}: ${data[selected].both}`} />
+            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
+              <Text style={styles.detailText}>{t("event.pee")}: {data[selected].pee} · {t("event.poop")}: {data[selected].poop} · {t("event.both")}: {data[selected].both}</Text>
+            </ChartDetailDialog>
           ) : null}
         </>
       )}
@@ -424,9 +423,7 @@ const styles = StyleSheet.create({
   chartTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   empty: { minHeight: 120, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 18 },
   timelineScroll: { minWidth: "100%" },
-  detailBubble: { backgroundColor: colors.surfaceMuted, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 11, gap: 3 },
-  detailTitle: { color: colors.text, fontSize: 12, fontWeight: "800" },
-  detailText: { color: colors.textMuted, fontSize: 11, lineHeight: 16 },
+  detailText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   segmented: { flexDirection: "row", backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 3 },
   segment: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   segmentActive: { backgroundColor: colors.surface },

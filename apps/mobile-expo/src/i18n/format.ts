@@ -3,7 +3,7 @@ import type { Locale } from "./messages";
 import { translate } from "./messages";
 
 function unit(locale: Locale, count: number, one: "profile.monthOne" | "profile.yearOne", many: "profile.monthMany" | "profile.yearMany"): string {
-  return translate(locale, new Intl.PluralRules(locale).select(count) === "one" ? one : many);
+  return translate(locale, count === 1 ? one : many);
 }
 
 export function formatAge(dateOfBirth: string, locale: Locale, now = new Date()): string {

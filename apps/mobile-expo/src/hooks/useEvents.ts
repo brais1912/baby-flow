@@ -93,6 +93,23 @@ export function useEvents(userId: string) {
     }
   }, [dayWindowStartMinutes, message, refreshSleepPhase, selectedDay, userId]);
 
+  const refreshToday = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    dispatch({ type: "load-start" });
+    try {
+      const startMinutes = await getDayWindowStartMinutes(supabase, userId);
+      const ownerDate = dayWindowDate(new Date(), startMinutes);
+      const events = await loadDashboardEvents(userId, ownerDate, startMinutes);
+      if (currentRequest !== requestId.current) return;
+      setDayWindowStartMinutes(startMinutes);
+      setSelectedDay(ownerDate);
+      dispatch({ type: "load-success", events });
+      void refreshSleepPhase();
+    } catch (error) {
+      if (currentRequest === requestId.current) dispatch({ type: "error", message: message(error) });
+    }
+  }, [message, refreshSleepPhase, userId]);
+
   useEffect(() => {
     let active = true;
     const currentRequest = ++requestId.current;
@@ -206,6 +223,7 @@ export function useEvents(userId: string) {
     dayWindowStartMinutes,
     isToday: isTodayOwner(selectedDay, dayWindowStartMinutes),
     reload,
+    refreshToday,
     selectAdjacentDay,
     goToToday,
     create,

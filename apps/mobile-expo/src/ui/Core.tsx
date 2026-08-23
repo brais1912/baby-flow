@@ -26,13 +26,14 @@ export function Card({ children, style }: {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function AppButton({ label, onPress, disabled = false, loading = false, tone = "primary", icon }: {
+export function AppButton({ label, onPress, disabled = false, loading = false, tone = "primary", icon, compact = false }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
   tone?: "primary" | "secondary" | "danger" | "text";
   icon?: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <Pressable
@@ -42,23 +43,25 @@ export function AppButton({ label, onPress, disabled = false, loading = false, t
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        compact && styles.buttonCompact,
         styles[`${tone}Button`],
         pressed && styles.buttonPressed,
         (disabled || loading) && styles.buttonDisabled,
       ]}
     >
       {loading ? <ActivityIndicator color={tone === "primary" ? "#ffffff" : colors.primary} /> : icon}
-      <Text style={[styles.buttonLabel, styles[`${tone}ButtonLabel`]]}>{label}</Text>
+      <Text style={[styles.buttonLabel, compact && styles.buttonLabelCompact, styles[`${tone}ButtonLabel`]]}>{label}</Text>
     </Pressable>
   );
 }
 
-export function IconButton({ label, icon, onPress, disabled = false, danger = false }: {
+export function IconButton({ label, icon, onPress, disabled = false, danger = false, compact = false }: {
   label: string;
   icon: ReactNode;
   onPress: () => void;
   disabled?: boolean;
   danger?: boolean;
+  compact?: boolean;
 }) {
   return (
     <Pressable
@@ -69,13 +72,14 @@ export function IconButton({ label, icon, onPress, disabled = false, danger = fa
       hitSlop={8}
       style={({ pressed }) => [
         styles.iconButton,
+        compact && styles.iconButtonCompact,
         danger && styles.iconButtonDanger,
         pressed && styles.buttonPressed,
         disabled && styles.buttonDisabled,
       ]}
     >
       {typeof icon === "string" ? (
-        <Text style={[styles.iconButtonText, danger && styles.dangerText]}>{icon}</Text>
+        <Text style={[styles.iconButtonText, compact && styles.iconButtonTextCompact, danger && styles.dangerText]}>{icon}</Text>
       ) : icon}
     </Pressable>
   );
@@ -194,6 +198,7 @@ const styles = StyleSheet.create({
   brandTextLarge: { fontSize: 30 },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, padding: 16, ...shadows.card },
   button: { minHeight: 48, borderRadius: 14, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderWidth: 1 },
+  buttonCompact: { minHeight: 38, borderRadius: 12, paddingHorizontal: 14, gap: 7 },
   primaryButton: { backgroundColor: colors.primary, borderColor: colors.primary },
   secondaryButton: { backgroundColor: colors.surface, borderColor: colors.border },
   dangerButton: { backgroundColor: colors.dangerSoft, borderColor: "#f6c9d1" },
@@ -201,13 +206,16 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   buttonDisabled: { opacity: 0.45 },
   buttonLabel: { fontSize: 15, fontWeight: "700" },
+  buttonLabelCompact: { fontSize: 13 },
   primaryButtonLabel: { color: "#ffffff" },
   secondaryButtonLabel: { color: colors.text },
   dangerButtonLabel: { color: colors.danger },
   textButtonLabel: { color: colors.primary },
   iconButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
+  iconButtonCompact: { width: 34, height: 34, borderRadius: 10 },
   iconButtonDanger: { backgroundColor: colors.dangerSoft },
   iconButtonText: { color: colors.text, fontSize: 22, fontWeight: "700" },
+  iconButtonTextCompact: { fontSize: 17 },
   dangerText: { color: colors.danger },
   field: { gap: 7 },
   fieldLabel: { color: colors.text, fontSize: 13, fontWeight: "700" },

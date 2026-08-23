@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { formatEventDuration, formatSleepChartDuration } from "./format";
+import { formatAge, formatEventDuration, formatSleepChartDuration } from "./format";
+
+describe("formatAge", () => {
+  it("formats singular and plural ages without Intl.PluralRules", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, "PluralRules");
+    Object.defineProperty(Intl, "PluralRules", { configurable: true, value: undefined });
+
+    try {
+      expect(formatAge("2026-07-23", "en", new Date(2026, 7, 23))).toBe("1 month");
+      expect(formatAge("2026-06-23", "es", new Date(2026, 7, 23))).toBe("2 meses");
+    } finally {
+      if (descriptor) Object.defineProperty(Intl, "PluralRules", descriptor);
+    }
+  });
+});
 
 describe("formatSleepChartDuration", () => {
   it("formats compact English and Spanish sleep totals", () => {

@@ -73,17 +73,20 @@ export function DashboardScreen({ data, babyName }: {
 
   return (
     <View style={styles.root}>
+      <View style={styles.actionBar}>
+        <Text style={styles.actionTitle}>{t("dashboard.events")}</Text>
+        <AppButton compact label={t("dashboard.new")} disabled={!online} onPress={() => setSheet({ mode: "create" })} />
+      </View>
       <ScrollView
         style={coreStyles.screen}
         contentContainerStyle={coreStyles.scrollContent}
-        refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.reload()} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.refreshToday()} tintColor={colors.primary} />}
       >
         <View style={styles.heading}>
           <View style={styles.headingCopy}>
             <Text style={coreStyles.eyebrow}>{format(bounds.start, "EEE d MMM, HH:mm", { locale: dateLocale })} - {format(bounds.end, "EEE d MMM, HH:mm", { locale: dateLocale })}</Text>
             <Text style={coreStyles.title}>{data.isToday ? t("dashboard.todayFor", { name: babyName }) : format(data.selectedDay, "EEEE, d MMMM", { locale: dateLocale })}</Text>
           </View>
-          <AppButton label={t("dashboard.new")} disabled={!online} onPress={() => setSheet({ mode: "create" })} />
         </View>
 
         <Card style={styles.navigator}>
@@ -186,6 +189,8 @@ function Stat({ label, value, icon, tone }: {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  actionBar: { minHeight: 52, backgroundColor: colors.surface, borderBottomColor: colors.border, borderBottomWidth: 1, paddingHorizontal: 16, paddingVertical: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  actionTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
   heading: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   headingCopy: { flex: 1, gap: 4 },
   navigator: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingVertical: 10 },
@@ -199,12 +204,12 @@ const styles = StyleSheet.create({
   statusTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
   errorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   errorCopy: { flex: 1 },
-  stats: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  stat: { width: "48%", minHeight: 82, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 17, padding: 13 },
-  statIcon: { fontSize: 22 },
+  stats: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  stat: { width: "48%", minHeight: 64, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 7, borderRadius: 14, padding: 9 },
+  statIcon: { fontSize: 18 },
   statCopy: { flex: 1, gap: 1 },
-  statValue: { color: colors.text, fontSize: 22, fontWeight: "900" },
-  statLabel: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  statValue: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: "700" },
   eventsHeading: { gap: 10, paddingTop: 3 },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   countBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
@@ -213,5 +218,5 @@ const styles = StyleSheet.create({
   empty: { minHeight: 130, alignItems: "center", justifyContent: "center", gap: 8 },
   emptyEmoji: { fontSize: 28 },
   emptyTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  eventList: { gap: 9 },
+  eventList: { gap: 7 },
 });

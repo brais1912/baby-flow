@@ -63,8 +63,8 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
       <View style={[styles.card, { borderLeftColor: tone }]}>
         <Text style={styles.confirmText}>{t("event.deleteConfirm")}</Text>
         <View style={styles.actions}>
-          <IconButton label={t("common.cancel")} icon="×" disabled={pending} onPress={() => setConfirming(false)} />
-          <IconButton label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => void onDelete(event.id)} />
+          <IconButton compact label={t("common.cancel")} icon="×" disabled={pending} onPress={() => setConfirming(false)} />
+          <IconButton compact label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => void onDelete(event.id)} />
         </View>
       </View>
     );
@@ -89,8 +89,8 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
       <View style={styles.meta}>
         <Text style={styles.time}>{format(event.occurredAt, "HH:mm", { locale: dateLocale })}</Text>
         <View style={styles.actions}>
-          <IconButton label={t("event.editTime")} icon="✎" disabled={pending} onPress={() => onEdit(event)} />
-          <IconButton label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => setConfirming(true)} />
+          <IconButton compact label={t("event.editTime")} icon="✎" disabled={pending} onPress={() => onEdit(event)} />
+          <IconButton compact label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => setConfirming(true)} />
         </View>
       </View>
     </View>
@@ -98,22 +98,22 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderRadius: 17, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 4, padding: 12, minHeight: 78 },
-  iconWrap: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
-  emoji: { fontSize: 20 },
-  copy: { flex: 1, gap: 3 },
-  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5 },
-  title: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  detail: { color: colors.textMuted, fontSize: 12 },
-  notes: { color: colors.text, fontSize: 12, fontStyle: "italic" },
-  meta: { alignItems: "flex-end", gap: 5 },
-  time: { color: colors.text, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  actions: { flexDirection: "row", gap: 4 },
-  badge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  card: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, padding: 9, minHeight: 62 },
+  iconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
+  emoji: { fontSize: 16 },
+  copy: { flex: 1, gap: 2 },
+  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  title: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  detail: { color: colors.textMuted, fontSize: 11 },
+  notes: { color: colors.text, fontSize: 11, fontStyle: "italic" },
+  meta: { alignItems: "flex-end", gap: 3 },
+  time: { color: colors.text, fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  actions: { flexDirection: "row", gap: 2 },
+  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7 },
   awakeBadge: { backgroundColor: colors.awakeSoft },
   sleepBadge: { backgroundColor: colors.sleepSoft },
-  badgeText: { color: colors.text, fontSize: 10, fontWeight: "700" },
-  quickBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
-  quickText: { color: colors.primaryDark, fontSize: 9, fontWeight: "700" },
-  confirmText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "700" },
+  badgeText: { color: colors.text, fontSize: 9, fontWeight: "700" },
+  quickBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 7 },
+  quickText: { color: colors.primaryDark, fontSize: 8, fontWeight: "700" },
+  confirmText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: "700" },
 });
