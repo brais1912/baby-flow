@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAge, formatEventDuration, formatSleepChartDuration } from "./format";
+import { formatAge, formatEventDuration, formatNaturalDuration, formatSleepChartDuration } from "./format";
 
 describe("formatAge", () => {
   it("formats singular and plural ages without Intl.PluralRules", () => {
@@ -26,6 +26,15 @@ describe("formatSleepChartDuration", () => {
     expect(formatSleepChartDuration(0, "en")).toBe("");
     expect(formatSleepChartDuration(-1, "en")).toBe("");
     expect(formatSleepChartDuration(Number.NaN, "en")).toBe("");
+  });
+});
+
+describe("formatNaturalDuration", () => {
+  it("uses readable singular and plural units in both languages", () => {
+    expect(formatNaturalDuration(61 * 60_000, "en")).toBe("1 hour 1 minute");
+    expect(formatNaturalDuration(90 * 60_000, "en")).toBe("1 hour 30 minutes");
+    expect(formatNaturalDuration(121 * 60_000, "es")).toBe("2 horas y 1 minuto");
+    expect(formatNaturalDuration(30_000, "es")).toBe("< 1 min");
   });
 });
 

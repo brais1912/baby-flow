@@ -1,8 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DashboardScreen } from "./components/DashboardScreen";
+import { InsightsScreen } from "./components/InsightsScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { ReminderPanel } from "./components/ReminderPanel";
@@ -11,17 +12,35 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { useAuth } from "./hooks/useAuth";
 import { useEvents } from "./hooks/useEvents";
 import { useProfile } from "./hooks/useProfile";
+import { useSleepInsights } from "./hooks/useSleepInsights";
 import { useSleepReminder } from "./hooks/useSleepReminder";
+import { useSleepSummaryNotificationNavigation } from "./hooks/useSleepSummaryNotificationNavigation";
 import { useI18n } from "./i18n/I18nProvider";
 import { initializeNativeAuthLinks } from "./lib/auth";
+import { clearUserNotificationState } from "./lib/notificationService";
+import {
+  clearSleepNotificationState,
+  reconcileDailySleepSummary,
+} from "./lib/sleepNotificationService";
+import {
+  mostRecentlyCompletedOwnerDate,
+  ownerDateFromKey,
+  ownerDateKey,
+} from "./lib/sleepInsights";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { colors, shadows } from "./theme";
 import type { BabyProfile } from "./types/profile";
 import { AppButton, Banner, Brand, Card, coreStyles } from "./ui/Core";
 
-type Tab = "events" | "reminders" | "settings";
+type Tab = "events" | "reminders" | "insights" | "settings";
 
-export function App({ passwordRecoveryRoute = false }: { passwordRecoveryRoute?: boolean }) {
+export function App({
+  initialInsightsOwnerDate,
+  passwordRecoveryRoute = false,
+}: {
+  initialInsightsOwnerDate?: string;
+  passwordRecoveryRoute?: boolean;
+}) {
   const { t } = useI18n();
   const auth = useAuth(isSupabaseConfigured);
   const { beginPasswordRecovery, session, setError } = auth;
@@ -68,12 +87,29 @@ export function App({ passwordRecoveryRoute = false }: { passwordRecoveryRoute?:
       />
     );
   }
-  return <AuthenticatedApp session={auth.session} onSignOut={auth.signOut} />;
+  return (
+    <AuthenticatedApp
+      initialInsightsOwnerDate={initialInsightsOwnerDate}
+      session={auth.session}
+      onSignOut={auth.signOut}
+    />
+  );
 }
 
-function AuthenticatedApp({ session, onSignOut }: { session: Session; onSignOut: () => Promise<void> }) {
+function AuthenticatedApp({ initialInsightsOwnerDate, session, onSignOut }: {
+  initialInsightsOwnerDate?: string;
+  session: Session;
+  onSignOut: () => Promise<void>;
+}) {
   const { t } = useI18n();
   const profile = useProfile(session.user.id);
+  const signOut = useCallback(async () => {
+    await Promise.all([
+      clearUserNotificationState(),
+      clearSleepNotificationState(),
+    ]).catch(() => undefined);
+    await onSignOut();
+  }, [onSignOut]);
   if (profile.loading) return <LoadingState />;
   if (profile.loadError && !profile.profile) {
     return (
@@ -82,27 +118,29 @@ function AuthenticatedApp({ session, onSignOut }: { session: Session; onSignOut:
         <Card style={styles.stateCard}>
           <Banner>{t("profile.loadError")}</Banner>
           <AppButton label={t("common.retry")} onPress={() => void profile.reload()} />
-          <AppButton label={t("settings.signOut")} tone="danger" onPress={() => void onSignOut().catch(() => undefined)} />
+          <AppButton label={t("settings.signOut")} tone="danger" onPress={() => void signOut().catch(() => undefined)} />
         </Card>
       </SafeAreaView>
     );
   }
   if (!profile.profile) {
-    return <ProfileOnboarding saving={profile.saving} error={profile.saveError} onSave={profile.save} onSignOut={onSignOut} />;
+    return <ProfileOnboarding saving={profile.saving} error={profile.saveError} onSave={profile.save} onSignOut={signOut} />;
   }
   return (
     <MobileShell
       session={session}
+      initialInsightsOwnerDate={initialInsightsOwnerDate}
       profile={profile.profile}
       profileSaving={profile.saving}
       profileError={profile.saveError}
       onSaveProfile={profile.save}
-      onSignOut={onSignOut}
+      onSignOut={signOut}
     />
   );
 }
 
-function MobileShell({ session, profile, profileSaving, profileError, onSaveProfile, onSignOut }: {
+function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving, profileError, onSaveProfile, onSignOut }: {
+  initialInsightsOwnerDate?: string;
   session: Session;
   profile: BabyProfile;
   profileSaving: boolean;
@@ -110,10 +148,38 @@ function MobileShell({ session, profile, profileSaving, profileError, onSaveProf
   onSaveProfile: (profile: BabyProfile) => Promise<BabyProfile>;
   onSignOut: () => Promise<void>;
 }) {
-  const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>("events");
-  const events = useEvents(session.user.id);
+  const { locale, t } = useI18n();
+  const requestedInsightsDate = initialInsightsOwnerDate
+    ? ownerDateFromKey(initialInsightsOwnerDate)
+    : null;
+  const [tab, setTab] = useState<Tab>(requestedInsightsDate ? "insights" : "events");
+  const [selectedInsightsDate, setSelectedInsightsDate] = useState<Date | null>(requestedInsightsDate);
+  const events = useEvents(session.user.id, profile);
   const sleepReminder = useSleepReminder({ profile, event: events.sleepPhase, ready: events.sleepPhaseReady });
+  const sleepInsights = useSleepInsights({
+    userId: session.user.id,
+    profile,
+    startMinutes: events.dayWindowStartMinutes,
+    refreshToken: events.insightsRevision,
+  });
+  const completedSummary = useMemo(() => {
+    const completed = mostRecentlyCompletedOwnerDate(new Date(), events.dayWindowStartMinutes);
+    return sleepInsights.summaries.find(
+      (summary) => ownerDateKey(summary.ownerDate) === ownerDateKey(completed)
+    ) ?? null;
+  }, [events.dayWindowStartMinutes, sleepInsights.summaries]);
+
+  useEffect(() => {
+    if (completedSummary && !sleepInsights.loading) {
+      void reconcileDailySleepSummary({ summary: completedSummary, profile, locale }).catch(() => undefined);
+    }
+  }, [completedSummary, locale, profile, sleepInsights.loading]);
+
+  const openSleepSummary = useCallback((ownerDate: Date) => {
+    setSelectedInsightsDate(ownerDate);
+    setTab("insights");
+  }, []);
+  useSleepSummaryNotificationNavigation(openSleepSummary);
 
   return (
     <SafeAreaView style={styles.shell} edges={["top", "bottom"]}>
@@ -123,14 +189,32 @@ function MobileShell({ session, profile, profileSaving, profileError, onSaveProf
       </View>
       <View style={styles.content}>
         {tab === "events" ? <DashboardScreen data={events} babyName={profile.name} /> : null}
-        {tab === "reminders" ? <ReminderPanel profile={profile} sleepReminder={sleepReminder} /> : null}
+        {tab === "reminders" ? <ReminderPanel profile={profile} sleepReminder={sleepReminder} sleepInsights={sleepInsights} /> : null}
+        {tab === "insights" ? (
+          <InsightsScreen
+            data={sleepInsights}
+            profile={profile}
+            selectedOwnerDate={selectedInsightsDate}
+            onSelectOwnerDate={setSelectedInsightsDate}
+          />
+        ) : null}
         {tab === "settings" ? (
-          <SettingsScreen email={session.user.email} profile={profile} savingProfile={profileSaving} profileError={profileError} onSaveProfile={onSaveProfile} onSignOut={onSignOut} />
+          <SettingsScreen
+            dayWindowStartMinutes={events.dayWindowStartMinutes}
+            email={session.user.email}
+            profile={profile}
+            savingProfile={profileSaving}
+            profileError={profileError}
+            onSaveDayWindow={events.saveDayWindowStart}
+            onSaveProfile={onSaveProfile}
+            onSignOut={onSignOut}
+          />
         ) : null}
       </View>
       <View style={styles.tabBar} accessibilityLabel={t("nav.main")} accessibilityRole="tablist">
         <TabButton active={tab === "events"} label={t("nav.events")} icon="◷" onPress={() => setTab("events")} />
         <TabButton active={tab === "reminders"} label={t("nav.reminders")} icon="♧" onPress={() => setTab("reminders")} />
+        <TabButton active={tab === "insights"} label={t("nav.insights")} icon="⌁" onPress={() => setTab("insights")} />
         <TabButton active={tab === "settings"} label={t("nav.settings")} icon="⚙" onPress={() => setTab("settings")} />
       </View>
     </SafeAreaView>

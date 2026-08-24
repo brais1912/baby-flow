@@ -202,6 +202,17 @@ export async function cancelSleepReminder(): Promise<void> {
   await AsyncStorage.removeItem(SLEEP_RECORD_KEY);
 }
 
+export async function clearUserNotificationState(): Promise<void> {
+  if (isNativePlatform()) await cancelNotification(DAILY_NOTIFICATION_ID);
+  await cancelSleepReminder();
+  await Promise.all([
+    AsyncStorage.removeItem(DAILY_ENABLED_KEY),
+    AsyncStorage.removeItem(DAILY_TIME_KEY),
+    AsyncStorage.removeItem(SLEEP_ENABLED_KEY),
+    AsyncStorage.removeItem(SLEEP_THRESHOLD_KEY),
+  ]);
+}
+
 function rangeLabel(profile: BabyProfile, locale: Locale, now: Date): string | null {
   const range = wakeWindowRecommendation(profile.dateOfBirth, now);
   if (!range) return null;

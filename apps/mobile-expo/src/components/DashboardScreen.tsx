@@ -20,10 +20,11 @@ import {
 import { ownerDayWindowBounds } from "../lib/events";
 import { colors } from "../theme";
 import type { BabyEvent, EventType } from "../types/events";
-import { AppButton, Banner, Card, ChoiceChips, IconButton, coreStyles } from "../ui/Core";
+import { Banner, Card, ChoiceChips, IconButton, coreStyles } from "../ui/Core";
 import { DashboardCharts } from "./DashboardChartsGroup";
 import { DashboardDayHeader } from "./DashboardDayHeader";
 import { EventCard } from "./EventCard";
+import { EventDetailSheet } from "./EventDetailSheet";
 import { EventSheet } from "./EventSheet";
 import { QuickLogBar } from "./QuickLogBar";
 
@@ -47,6 +48,7 @@ export function DashboardScreen({ data, babyName }: {
   const { dateLocale, t } = useI18n();
   const online = useNetworkStatus();
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
+  const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
   const now = new Date();
   const bounds = useMemo(() => ownerDayWindowBounds(data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.selectedDay]);
@@ -74,10 +76,6 @@ export function DashboardScreen({ data, babyName }: {
 
   return (
     <View style={styles.root}>
-      <View style={styles.actionBar}>
-        <Text style={styles.actionTitle}>{t("dashboard.events")}</Text>
-        <AppButton compact label={t("dashboard.new")} disabled={!online} onPress={() => setSheet({ mode: "create" })} />
-      </View>
       <ScrollView
         style={coreStyles.screen}
         contentContainerStyle={coreStyles.scrollContent}
@@ -113,13 +111,6 @@ export function DashboardScreen({ data, babyName }: {
           </View>
         ) : null}
 
-        <View style={styles.stats} accessibilityLabel={t("dashboard.dayTotals")}>
-          <Stat label={t("dashboard.sleepEvents")} value={sleepEventCount} icon="😴" tone="sleep" />
-          <Stat label={t("dashboard.nightWakings")} value={nightWakings} icon="🌙" tone="night" />
-          <Stat label={t("dashboard.feedings")} value={feedingCount} icon="🍼" tone="feeding" />
-          <Stat label={t("dashboard.diapers")} value={diaperCount} icon="👶" tone="diaper" />
-        </View>
-
         <View style={styles.eventsHeading}>
           <View style={styles.sectionTitleRow}>
             <Text style={coreStyles.sectionTitle}>{t("dashboard.events")}</Text>
@@ -135,7 +126,15 @@ export function DashboardScreen({ data, babyName }: {
         ) : (
           <View style={styles.eventList}>
             {visibleEvents.map((event) => (
-              <EventCard key={event.id} event={event} allEvents={data.events} pending={data.mutating} onEdit={(selected) => setSheet({ mode: "edit", event: selected })} onDelete={data.remove} />
+              <EventCard
+                key={event.id}
+                event={event}
+                allEvents={data.events}
+                pending={data.mutating}
+                onOpen={setDetailEvent}
+                onEdit={(selected) => setSheet({ mode: "edit", event: selected })}
+                onDelete={data.remove}
+              />
             ))}
           </View>
         )}
@@ -146,12 +145,43 @@ export function DashboardScreen({ data, babyName }: {
             chartEvents={chartEvents}
             ownerDate={data.selectedDay}
             startMinutes={data.dayWindowStartMinutes}
+            babyName={babyName}
             now={chartNow}
           />
         ) : null}
+
+        {!(data.loading && data.events.length === 0) ? (
+          <View style={styles.totalsSection} accessibilityLabel={t("dashboard.dayTotals")}>
+            <Text style={coreStyles.eyebrow}>{t("dashboard.dayTotals")}</Text>
+            <View style={styles.stats}>
+              <Stat label={t("dashboard.sleepEvents")} value={sleepEventCount} icon="😴" tone="sleep" />
+              <Stat label={t("dashboard.nightWakings")} value={nightWakings} icon="🌙" tone="night" />
+              <Stat label={t("dashboard.feedings")} value={feedingCount} icon="🍼" tone="feeding" />
+              <Stat label={t("dashboard.diapers")} value={diaperCount} icon="👶" tone="diaper" />
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
 
-      <QuickLogBar disabled={!online || data.mutating} onCreate={data.create} />
+      <QuickLogBar
+        disabled={!online || data.mutating}
+        onCreate={data.create}
+        onOpenDetailed={() => setSheet({ mode: "create" })}
+      />
+
+      {detailEvent ? (
+        <EventDetailSheet
+          visible
+          event={detailEvent}
+          allEvents={data.events}
+          babyName={babyName}
+          onClose={() => setDetailEvent(null)}
+          onEdit={(event) => {
+            setDetailEvent(null);
+            setSheet({ mode: "edit", event });
+          }}
+        />
+      ) : null}
 
       {sheet ? (
         <EventSheet
@@ -175,17 +205,18 @@ function Stat({ label, value, icon, tone }: {
 }) {
   const background = tone === "sleep" ? colors.sleepSoft : tone === "night" ? colors.nightSoft : tone === "feeding" ? colors.feedingSoft : colors.diaperSoft;
   return (
-    <View style={[styles.stat, { backgroundColor: background }]}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <View style={styles.statCopy}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>
+    <View accessibilityLabel={`${label}: ${value}`} style={[styles.stat, { backgroundColor: background }]}>
+      <View style={styles.statMetric}>
+        <Text style={styles.statIcon}>{icon}</Text>
+        <Text style={styles.statValue}>{value}</Text>
+      </View>
+      <Text numberOfLines={2} style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  actionBar: { minHeight: 52, backgroundColor: colors.surface, borderBottomColor: colors.border, borderBottomWidth: 1, paddingHorizontal: 16, paddingVertical: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  actionTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
   status: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 17, borderWidth: 1 },
   awakeStatus: { backgroundColor: colors.awakeSoft, borderColor: "#f5d0a7" },
   sleepStatus: { backgroundColor: colors.sleepSoft, borderColor: "#d8c5ec" },
@@ -194,12 +225,13 @@ const styles = StyleSheet.create({
   statusTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
   errorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   errorCopy: { flex: 1 },
-  stats: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  stat: { width: "48%", minHeight: 64, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 7, borderRadius: 14, padding: 9 },
-  statIcon: { fontSize: 18 },
-  statCopy: { flex: 1, gap: 1 },
-  statValue: { color: colors.text, fontSize: 18, fontWeight: "900" },
-  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: "700" },
+  totalsSection: { gap: 7, paddingTop: 2 },
+  stats: { flexDirection: "row", gap: 6 },
+  stat: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", gap: 1, borderRadius: 12, paddingHorizontal: 3, paddingVertical: 6 },
+  statMetric: { flexDirection: "row", alignItems: "center", gap: 3 },
+  statIcon: { fontSize: 13 },
+  statValue: { color: colors.text, fontSize: 16, fontWeight: "900" },
+  statLabel: { color: colors.textMuted, fontSize: 8, lineHeight: 10, fontWeight: "700", textAlign: "center" },
   eventsHeading: { gap: 10, paddingTop: 3 },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   countBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },

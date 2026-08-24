@@ -9,10 +9,14 @@ describe("ChartDetailDialog", () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <ChartDetailDialog visible title="23 Aug" onClose={onClose}>
+      <ChartDetailDialog visible eyebrow="Sleep duration" icon="😴" subtitle="Owner-day total" title="23 Aug" tone="sleep" onClose={onClose}>
         <Text>2h 15 min</Text>
       </ChartDetailDialog>
     );
+
+    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
+    expect(screen.getByText("Owner-day total")).toBeInTheDocument();
+    expect(screen.getByText("😴")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("chart-detail-dialog"));
     expect(onClose).not.toHaveBeenCalled();

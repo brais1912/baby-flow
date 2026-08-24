@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALLOWED_DAY_WINDOW_START_MINUTES,
   assertValidSleepSequence,
   dayWindowBounds,
   dayWindowDate,
   eventReducer,
   initialEventState,
+  isValidDayWindowStartMinutes,
   mapEventRow,
   ownerDayWindowBounds,
 } from "./events";
@@ -110,6 +112,13 @@ describe("eventReducer", () => {
 });
 
 describe("day windows", () => {
+  it("matches the web app's supported owner-day presets", () => {
+    expect(ALLOWED_DAY_WINDOW_START_MINUTES).toContain(10 * 60);
+    expect(isValidDayWindowStartMinutes(10 * 60)).toBe(true);
+    expect(isValidDayWindowStartMinutes(10 * 60 + 30)).toBe(false);
+    expect(isValidDayWindowStartMinutes(24 * 60)).toBe(false);
+  });
+
   it("assigns pre-boundary events to the previous owner day", () => {
     const date = new Date(2026, 7, 21, 8, 30);
 

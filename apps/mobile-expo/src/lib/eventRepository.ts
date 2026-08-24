@@ -1,7 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
 import type { BabyEvent, EventInput } from "../types/events";
-import { assertValidSleepSequence, mapEventRow, toEventInsert } from "./events";
+import {
+  assertValidSleepSequence,
+  DEFAULT_DAY_WINDOW_START_MINUTES,
+  isValidDayWindowStartMinutes,
+  mapEventRow,
+  toEventInsert,
+} from "./events";
 
 type Client = SupabaseClient<Database>;
 
@@ -13,7 +19,28 @@ export async function getDayWindowStartMinutes(client: Client, userId: string): 
     .maybeSingle();
 
   if (error) throw error;
-  return data?.day_window_start_minutes ?? 720;
+  return data && isValidDayWindowStartMinutes(data.day_window_start_minutes)
+    ? data.day_window_start_minutes
+    : DEFAULT_DAY_WINDOW_START_MINUTES;
+}
+
+export async function updateDayWindowStartMinutes(
+  client: Client,
+  userId: string,
+  dayWindowStartMinutes: number
+): Promise<void> {
+  if (!isValidDayWindowStartMinutes(dayWindowStartMinutes)) {
+    throw new Error("INVALID_DAY_WINDOW_START");
+  }
+  const { error } = await client
+    .from("user_settings")
+    .upsert({
+      user_id: userId,
+      day_window_start_minutes: dayWindowStartMinutes,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+
+  if (error) throw error;
 }
 
 export async function fetchEvents(
