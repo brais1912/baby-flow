@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /apps/mobile/node_modules
+/apps/mobile-expo/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -21,6 +22,10 @@
 # production
 /build
 /apps/mobile/dist
+/apps/mobile-expo/dist
+/apps/mobile-expo/.expo
+/apps/mobile-expo/ios
+/apps/mobile-expo/android
 
 # misc
 .DS_Store
@@ -43,6 +48,7 @@ yarn-error.log*
 .env*
 !.env.example
 !/apps/mobile/.env.example
+!/apps/mobile-expo/.env.example
 
 # vercel
 .vercel

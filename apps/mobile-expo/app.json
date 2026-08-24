@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "BabyFlow",
+    "slug": "babyflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "com.babyflow.app",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.brais1912.babyflow",
+      "supportsTablet": false,
+      "icon": "./assets/icon.png"
+    },
+    "android": {
+      "package": "com.babyflow.app",
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#9a45d7"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "./plugins/withoutPushNotifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#7c3aed",
+          "defaultChannel": "reminders"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#9a45d7",
+          "image": "./assets/splash.png",
+          "imageWidth": 180
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
