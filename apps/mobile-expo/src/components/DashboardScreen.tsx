@@ -50,6 +50,7 @@ export function DashboardScreen({ data, babyName }: {
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
   const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
+  const [openSwipeEventId, setOpenSwipeEventId] = useState<string | null>(null);
   const now = new Date();
   const bounds = useMemo(() => ownerDayWindowBounds(data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.selectedDay]);
   const chartEvents = useMemo(() => eventsWithinChartWindow(data.events, data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.events, data.selectedDay]);
@@ -79,6 +80,7 @@ export function DashboardScreen({ data, babyName }: {
       <ScrollView
         style={coreStyles.screen}
         contentContainerStyle={coreStyles.scrollContent}
+        onScrollBeginDrag={() => setOpenSwipeEventId(null)}
         refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.refreshToday()} tintColor={colors.primary} />}
       >
         <DashboardDayHeader
@@ -87,9 +89,18 @@ export function DashboardScreen({ data, babyName }: {
           isToday={data.isToday}
           loading={data.loading}
           selectedDay={data.selectedDay}
-          onNext={() => void data.selectAdjacentDay(1)}
-          onPrevious={() => void data.selectAdjacentDay(-1)}
-          onToday={() => void data.goToToday()}
+          onNext={() => {
+            setOpenSwipeEventId(null);
+            void data.selectAdjacentDay(1);
+          }}
+          onPrevious={() => {
+            setOpenSwipeEventId(null);
+            void data.selectAdjacentDay(-1);
+          }}
+          onToday={() => {
+            setOpenSwipeEventId(null);
+            void data.goToToday();
+          }}
         />
 
         {!online ? <Banner tone="warning">⌁ {t("dashboard.offline")}</Banner> : null}
@@ -116,7 +127,15 @@ export function DashboardScreen({ data, babyName }: {
             <Text style={coreStyles.sectionTitle}>{t("dashboard.events")}</Text>
             <View style={styles.countBadge}><Text style={styles.countText}>{visibleEvents.length}</Text></View>
           </View>
-          <ChoiceChips accessibilityLabel={t("dashboard.filterEvents")} value={filter} options={filterOptions} onChange={setFilter} />
+          <ChoiceChips
+            accessibilityLabel={t("dashboard.filterEvents")}
+            value={filter}
+            options={filterOptions}
+            onChange={(nextFilter) => {
+              setOpenSwipeEventId(null);
+              setFilter(nextFilter);
+            }}
+          />
         </View>
 
         {data.loading && data.events.length === 0 ? (
@@ -131,9 +150,19 @@ export function DashboardScreen({ data, babyName }: {
                 event={event}
                 allEvents={data.events}
                 pending={data.mutating}
-                onOpen={setDetailEvent}
-                onEdit={(selected) => setSheet({ mode: "edit", event: selected })}
+                swipeOpen={openSwipeEventId === event.id}
+                onOpen={(selected) => {
+                  setOpenSwipeEventId(null);
+                  setDetailEvent(selected);
+                }}
+                onEdit={(selected) => {
+                  setOpenSwipeEventId(null);
+                  setSheet({ mode: "edit", event: selected });
+                }}
                 onDelete={data.remove}
+                onDeleteRequest={() => setOpenSwipeEventId(null)}
+                onSwipeOpen={setOpenSwipeEventId}
+                onSwipeClose={(eventId) => setOpenSwipeEventId((current) => current === eventId ? null : current)}
               />
             ))}
           </View>
