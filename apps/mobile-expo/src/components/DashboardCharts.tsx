@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
-import { formatSleepChartDuration } from "../i18n/format";
+import { formatNaturalDuration, formatSleepChartDuration } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
 import {
@@ -16,6 +16,7 @@ import { colors } from "../theme";
 import type { BabyEvent } from "../types/events";
 import { ChartDetailDialog } from "../ui/ChartDetailDialog";
 import { Card, IconButton, coreStyles } from "../ui/Core";
+import { EventDetailSheet } from "./EventDetailSheet";
 
 const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
   sleep: "event.sleep",
@@ -23,47 +24,6 @@ const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
   feeding: "event.feed",
   diaper: "event.diaper",
 };
-const eventIcons: Record<BabyEvent["type"], string> = {
-  sleep: "😴",
-  wake_up: "🌅",
-  feeding: "🍼",
-  diaper: "👶",
-};
-const eventTones: Record<BabyEvent["type"], "sleep" | "feeding" | "diaper" | "neutral"> = {
-  sleep: "sleep",
-  wake_up: "neutral",
-  feeding: "feeding",
-  diaper: "diaper",
-};
-const detailLabelKeys: Partial<Record<string, MessageKey>> = {
-  breast_left: "event.leftBreast",
-  breast_right: "event.rightBreast",
-  both_breasts: "event.bothBreasts",
-  bottle: "event.bottle",
-  formula: "event.formula",
-  solid: "event.solid",
-  pee: "event.pee",
-  poop: "event.poop",
-  both: "event.both",
-  self: "event.self",
-  nursing: "event.nursing",
-  pacifier: "event.pacifier",
-  held: "event.held",
-  rocking: "event.rocking",
-  sleep_sack: "event.sleepSack",
-  pajamas: "event.pajamas",
-  bodysuit: "event.bodysuit",
-  top_and_bottoms: "event.topAndBottoms",
-  swaddle: "event.swaddle",
-  other: "common.other",
-};
-
-function durationLabel(start: Date, end: Date, t: ReturnType<typeof useI18n>["t"]): string {
-  const totalMinutes = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60_000));
-  if (totalMinutes < 60) return t("duration.minutes", { count: totalMinutes });
-  return t("duration.hoursMinutes", { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 });
-}
-
 function ChartPanel({ title, icon, ownerDate, children }: {
   title: string;
   icon: string;
@@ -91,56 +51,6 @@ function ChartPanel({ title, icon, ownerDate, children }: {
 
 function EmptyChart({ children }: { children: React.ReactNode }) {
   return <View style={styles.empty}><Text style={coreStyles.muted}>{children}</Text></View>;
-}
-
-function TimelineEventDetail({ event, wakeUp, onClose }: { event: BabyEvent; wakeUp: BabyEvent | null; onClose: () => void }) {
-  const { dateLocale, t } = useI18n();
-  const details: string[] = [];
-  const detailValue = event.type === "feeding"
-    ? event.feedingType
-    : event.type === "diaper"
-      ? event.diaperType
-      : event.type === "sleep"
-        ? event.sleepMethod
-        : null;
-  if (detailValue) details.push(t(detailLabelKeys[detailValue] ?? "common.other"));
-  if (event.feedingAmountMl) details.push(`${event.feedingAmountMl} ml`);
-  if (event.feedingDurationMinutes) details.push(t("duration.minutes", { count: event.feedingDurationMinutes }));
-  if (event.sleepCondition) details.push(t(detailLabelKeys[event.sleepCondition] ?? "common.other"));
-  if (event.sleepRoomTemperature !== null) details.push(`${event.sleepRoomTemperature}°C`);
-  const notes = event.notes && event.notes !== "QuickLog" ? event.notes : null;
-  const start = format(event.occurredAt, "HH:mm", { locale: dateLocale });
-  const time = wakeUp ? `${start} → ${format(wakeUp.occurredAt, "HH:mm", { locale: dateLocale })}` : start;
-  const primaryLabel = event.type === "sleep" && wakeUp ? t("chart.duration") : t("chart.recordedAt");
-  const primaryValue = event.type === "sleep" && wakeUp ? durationLabel(event.occurredAt, wakeUp.occurredAt, t) : start;
-  return (
-    <ChartDetailDialog
-      visible
-      eyebrow={t("chart.eventDetails")}
-      icon={eventIcons[event.type]}
-      subtitle={format(event.occurredAt, "EEEE, d MMMM yyyy", { locale: dateLocale })}
-      title={t(eventLabelKeys[event.type])}
-      tone={eventTones[event.type]}
-      onClose={onClose}
-    >
-      <DetailMetric label={primaryLabel} value={primaryValue} supporting={wakeUp ? time : undefined} tone={eventTones[event.type]} />
-      {details.length > 0 ? (
-        <View style={styles.detailSection}>
-          <Text style={styles.detailLabel}>{t("chart.recordedDetails")}</Text>
-          <View style={styles.detailPills}>
-            {details.map((detail) => <View key={detail} style={styles.detailPill}><Text style={styles.detailPillText}>{detail}</Text></View>)}
-          </View>
-        </View>
-      ) : null}
-      {notes ? (
-        <View style={styles.notesCard}>
-          <Text style={styles.detailLabel}>{t("chart.notes")}</Text>
-          <Text style={styles.detailText}>{notes}</Text>
-        </View>
-      ) : null}
-      {details.length === 0 && !notes ? <Text style={styles.detailText}>{t("chart.noAdditionalDetails")}</Text> : null}
-    </ChartDetailDialog>
-  );
 }
 
 function DetailMetric({ label, value, supporting, tone = "neutral" }: {
@@ -172,10 +82,11 @@ function DetailMetric({ label, value, supporting, tone = "neutral" }: {
   );
 }
 
-export function TimelineChart({ events, ownerDate, startMinutes, now = new Date() }: {
+export function TimelineChart({ events, ownerDate, startMinutes, babyName, now = new Date() }: {
   events: BabyEvent[];
   ownerDate: Date;
   startMinutes: number;
+  babyName: string;
   now?: Date;
 }) {
   const { width: screenWidth } = useWindowDimensions();
@@ -258,7 +169,16 @@ export function TimelineChart({ events, ownerDate, startMinutes, now = new Date(
           {empty ? <SvgText x={plotStart + plotWidth / 2} y={63} textAnchor="middle" fill={colors.textMuted} fontSize={11}>{t("dashboard.noEvents")}</SvgText> : null}
         </Svg>
       </ScrollView>
-      {selected ? <TimelineEventDetail event={selected.event} wakeUp={selected.wakeUp} onClose={() => setSelected(null)} /> : null}
+      {selected ? (
+        <EventDetailSheet
+          visible
+          event={selected.event}
+          allEvents={events}
+          babyName={babyName}
+          pairedWake={selected.wakeUp}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -300,10 +220,11 @@ function Grid({ width, max }: { width: number; max: number }) {
   );
 }
 
-export function SleepChart({ events, ownerDate, startMinutes, now }: {
+export function SleepChart({ events, ownerDate, startMinutes, babyName, now }: {
   events: BabyEvent[];
   ownerDate: Date;
   startMinutes: number;
+  babyName: string;
   now: Date;
 }) {
   const { width: screenWidth } = useWindowDimensions();
@@ -348,6 +269,12 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
               tone="sleep"
               onClose={() => setSelected(null)}
             >
+              <Text style={styles.detailSummary}>{data[selected].hours === 0
+                ? t("chart.sleepSummaryNone", { name: babyName })
+                : t("chart.sleepSummary", {
+                    name: babyName,
+                    duration: formatNaturalDuration(data[selected].hours * 60 * 60_000, locale),
+                  })}</Text>
               <DetailMetric
                 label={t("insights.totalSleep")}
                 value={formatSleepChartDuration(data[selected].hours, locale) || t("chart.noSleep")}
@@ -361,10 +288,11 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
   );
 }
 
-export function FeedingChart({ events, ownerDate, startMinutes }: {
+export function FeedingChart({ events, ownerDate, startMinutes, babyName }: {
   events: BabyEvent[];
   ownerDate: Date;
   startMinutes: number;
+  babyName: string;
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, t } = useI18n();
@@ -410,6 +338,9 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
           </Svg>
           {selected !== null && data[selected] ? (
             <ChartDetailDialog visible eyebrow={t("chart.feeding")} icon="🍼" subtitle={t("chart.ownerDayTotal")} title={format(data[selected].date, "EEEE, d MMMM", { locale: dateLocale })} tone="feeding" onClose={() => setSelected(null)}>
+              <Text style={styles.detailSummary}>{mode === "breast"
+                ? t(data[selected].breast === 0 ? "chart.breastSummaryNone" : data[selected].breast === 1 ? "chart.breastSummaryOne" : "chart.breastSummaryMany", { name: babyName, count: data[selected].breast })
+                : t(data[selected].bottle === 0 ? "chart.bottleSummaryNone" : "chart.bottleSummary", { name: babyName, amount: data[selected].bottle })}</Text>
               <DetailMetric
                 label={mode === "breast" ? t("chart.breastSessions") : t("chart.bottleMl")}
                 value={mode === "breast" ? `${data[selected].breast} ${t("chart.sessions")}` : `${data[selected].bottle} ml`}
@@ -431,10 +362,11 @@ function Segment({ active, label, onPress }: { active: boolean; label: string; o
   );
 }
 
-export function DiaperChart({ events, ownerDate, startMinutes }: {
+export function DiaperChart({ events, ownerDate, startMinutes, babyName }: {
   events: BabyEvent[];
   ownerDate: Date;
   startMinutes: number;
+  babyName: string;
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, t } = useI18n();
@@ -487,6 +419,7 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
           </Svg>
           {selected !== null && data[selected] ? (
             <ChartDetailDialog visible eyebrow={t("chart.diaperChanges")} icon="👶" subtitle={t("chart.ownerDayTotal")} title={format(data[selected].date, "EEEE, d MMMM", { locale: dateLocale })} tone="diaper" onClose={() => setSelected(null)}>
+              <Text style={styles.detailSummary}>{t((totals[selected] ?? 0) === 0 ? "chart.diaperSummaryNone" : (totals[selected] ?? 0) === 1 ? "chart.diaperSummaryOne" : "chart.diaperSummaryMany", { name: babyName, count: totals[selected] ?? 0 })}</Text>
               <DetailMetric label={t("chart.totalChanges")} value={String(totals[selected] ?? 0)} tone="diaper" />
               <View style={styles.detailPills}>
                 <View style={styles.detailPill}><Text style={styles.detailPillText}>{t("event.pee")}: {data[selected].pee}</Text></View>
@@ -512,16 +445,14 @@ const styles = StyleSheet.create({
   chartTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   empty: { minHeight: 120, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 18 },
   timelineScroll: { minWidth: "100%" },
-  detailText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  detailSummary: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: "700" },
   detailMetric: { alignItems: "center", borderRadius: 18, gap: 3, paddingHorizontal: 16, paddingVertical: 17 },
   detailLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7, textTransform: "uppercase" },
   detailValue: { fontSize: 30, lineHeight: 36, fontWeight: "900" },
   detailSupporting: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-  detailSection: { gap: 8 },
   detailPills: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   detailPill: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 7 },
   detailPillText: { color: colors.text, fontSize: 12, fontWeight: "700" },
-  notesCard: { backgroundColor: colors.surfaceMuted, borderRadius: 14, gap: 5, padding: 12 },
   segmented: { flexDirection: "row", backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 3 },
   segment: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   segmentActive: { backgroundColor: colors.surface },

@@ -71,4 +71,22 @@ describe("DashboardScreen hierarchy", () => {
     expect(screen.getByLabelText("Sleep events: 0")).toBeInTheDocument();
     expect(screen.getByLabelText("Night wakings: 0")).toBeInTheDocument();
   });
+
+  it("opens a natural-language detail sheet from an event row", async () => {
+    const user = userEvent.setup();
+    const wake = babyEvent({ type: "wake_up", occurredAt: new Date(2026, 7, 24, 10) });
+    const sleep = {
+      ...babyEvent({ type: "sleep", occurredAt: new Date(2026, 7, 24, 11, 30) }),
+      id: "sleep-1",
+    };
+    render(
+      <DashboardScreen
+        data={{ ...data, events: [wake, sleep], dayEvents: [sleep] }}
+        babyName="Luna"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open Sleep details at 11:30" }));
+    expect(screen.getByText("Luna was awake for 1 hour 30 minutes before falling asleep at 11:30.")).toBeInTheDocument();
+  });
 });

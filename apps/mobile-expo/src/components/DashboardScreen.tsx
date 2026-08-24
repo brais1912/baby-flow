@@ -24,6 +24,7 @@ import { Banner, Card, ChoiceChips, IconButton, coreStyles } from "../ui/Core";
 import { DashboardCharts } from "./DashboardChartsGroup";
 import { DashboardDayHeader } from "./DashboardDayHeader";
 import { EventCard } from "./EventCard";
+import { EventDetailSheet } from "./EventDetailSheet";
 import { EventSheet } from "./EventSheet";
 import { QuickLogBar } from "./QuickLogBar";
 
@@ -47,6 +48,7 @@ export function DashboardScreen({ data, babyName }: {
   const { dateLocale, t } = useI18n();
   const online = useNetworkStatus();
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
+  const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
   const now = new Date();
   const bounds = useMemo(() => ownerDayWindowBounds(data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.selectedDay]);
@@ -124,7 +126,15 @@ export function DashboardScreen({ data, babyName }: {
         ) : (
           <View style={styles.eventList}>
             {visibleEvents.map((event) => (
-              <EventCard key={event.id} event={event} allEvents={data.events} pending={data.mutating} onEdit={(selected) => setSheet({ mode: "edit", event: selected })} onDelete={data.remove} />
+              <EventCard
+                key={event.id}
+                event={event}
+                allEvents={data.events}
+                pending={data.mutating}
+                onOpen={setDetailEvent}
+                onEdit={(selected) => setSheet({ mode: "edit", event: selected })}
+                onDelete={data.remove}
+              />
             ))}
           </View>
         )}
@@ -135,6 +145,7 @@ export function DashboardScreen({ data, babyName }: {
             chartEvents={chartEvents}
             ownerDate={data.selectedDay}
             startMinutes={data.dayWindowStartMinutes}
+            babyName={babyName}
             now={chartNow}
           />
         ) : null}
@@ -157,6 +168,20 @@ export function DashboardScreen({ data, babyName }: {
         onCreate={data.create}
         onOpenDetailed={() => setSheet({ mode: "create" })}
       />
+
+      {detailEvent ? (
+        <EventDetailSheet
+          visible
+          event={detailEvent}
+          allEvents={data.events}
+          babyName={babyName}
+          onClose={() => setDetailEvent(null)}
+          onEdit={(event) => {
+            setDetailEvent(null);
+            setSheet({ mode: "edit", event });
+          }}
+        />
+      ) : null}
 
       {sheet ? (
         <EventSheet

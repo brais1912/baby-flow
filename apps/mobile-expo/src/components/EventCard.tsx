@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatEventDuration } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
@@ -44,10 +44,11 @@ function eventDetail(event: BabyEvent, t: (key: MessageKey) => string): string |
   return null;
 }
 
-export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
+export function EventCard({ event, allEvents, pending, onOpen, onEdit, onDelete }: {
   event: BabyEvent;
   allEvents: BabyEvent[];
   pending: boolean;
+  onOpen: (event: BabyEvent) => void;
   onEdit: (event: BabyEvent) => void;
   onDelete: (eventId: string) => Promise<void>;
 }) {
@@ -57,6 +58,7 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
   const phaseDuration = eventPhaseDuration(event, allEvents);
   const phaseDurationLabel = phaseDuration ? formatEventDuration(phaseDuration.durationMs, locale) : null;
   const tone = event.type === "sleep" ? colors.sleep : event.type === "wake_up" ? colors.awake : event.type === "feeding" ? colors.feeding : colors.diaper;
+  const time = format(event.occurredAt, "HH:mm", { locale: dateLocale });
 
   if (confirming) {
     return (
@@ -72,22 +74,29 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
 
   return (
     <View style={[styles.card, { borderLeftColor: tone }]}>
-      <View style={styles.iconWrap}><Text style={styles.emoji}>{emoji[event.type]}</Text></View>
-      <View style={styles.copy}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{t(eventLabelKeys[event.type])}</Text>
-          {phaseDuration && phaseDurationLabel ? (
-            <View style={[styles.badge, phaseDuration.kind === "awake" ? styles.awakeBadge : styles.sleepBadge]}>
-              <Text style={styles.badgeText}>{phaseDuration.kind === "awake" ? "🌅 " : "😴 "}{phaseDurationLabel}</Text>
-            </View>
-          ) : null}
-          {event.notes === "QuickLog" ? <View style={styles.quickBadge}><Text style={styles.quickText}>⚡ {t("event.quickLog")}</Text></View> : null}
+      <Pressable
+        accessibilityLabel={t("event.openDetails", { event: t(eventLabelKeys[event.type]), time })}
+        accessibilityRole="button"
+        onPress={() => onOpen(event)}
+        style={({ pressed }) => [styles.openArea, pressed && styles.pressed]}
+      >
+        <View style={styles.iconWrap}><Text style={styles.emoji}>{emoji[event.type]}</Text></View>
+        <View style={styles.copy}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{t(eventLabelKeys[event.type])}</Text>
+            {phaseDuration && phaseDurationLabel ? (
+              <View style={[styles.badge, phaseDuration.kind === "awake" ? styles.awakeBadge : styles.sleepBadge]}>
+                <Text style={styles.badgeText}>{phaseDuration.kind === "awake" ? "🌅 " : "😴 "}{phaseDurationLabel}</Text>
+              </View>
+            ) : null}
+            {event.notes === "QuickLog" ? <View style={styles.quickBadge}><Text style={styles.quickText}>⚡ {t("event.quickLog")}</Text></View> : null}
+          </View>
+          {detail ? <Text style={styles.detail}>{detail}</Text> : null}
+          {event.notes && event.notes !== "QuickLog" ? <Text style={styles.notes}>{event.notes}</Text> : null}
         </View>
-        {detail ? <Text style={styles.detail}>{detail}</Text> : null}
-        {event.notes && event.notes !== "QuickLog" ? <Text style={styles.notes}>{event.notes}</Text> : null}
-      </View>
+        <Text style={styles.time}>{time}</Text>
+      </Pressable>
       <View style={styles.meta}>
-        <Text style={styles.time}>{format(event.occurredAt, "HH:mm", { locale: dateLocale })}</Text>
         <View style={styles.actions}>
           <IconButton compact label={t("event.editTime")} icon="✎" disabled={pending} onPress={() => onEdit(event)} />
           <IconButton compact label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => setConfirming(true)} />
@@ -99,6 +108,8 @@ export function EventCard({ event, allEvents, pending, onEdit, onDelete }: {
 
 const styles = StyleSheet.create({
   card: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, padding: 9, minHeight: 62 },
+  openArea: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, minHeight: 42 },
+  pressed: { opacity: 0.62 },
   iconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
   emoji: { fontSize: 16 },
   copy: { flex: 1, gap: 2 },
@@ -106,7 +117,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 14, fontWeight: "800" },
   detail: { color: colors.textMuted, fontSize: 11 },
   notes: { color: colors.text, fontSize: 11, fontStyle: "italic" },
-  meta: { alignItems: "flex-end", gap: 3 },
+  meta: { alignItems: "flex-end" },
   time: { color: colors.text, fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actions: { flexDirection: "row", gap: 2 },
   badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7 },

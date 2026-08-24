@@ -53,3 +53,16 @@ export function formatEventDuration(durationMs: number, locale: Locale): string 
   if (minutes === 0) return translate(locale, "duration.hours", { count: hours });
   return translate(locale, "duration.hoursMinutes", { hours, minutes });
 }
+
+export function formatNaturalDuration(durationMs: number, locale: Locale): string {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return "";
+  const totalMinutes = Math.max(0, Math.floor(durationMs / 60_000));
+  if (totalMinutes === 0) return translate(locale, "duration.lessThanMinute");
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const hourUnit = translate(locale, hours === 1 ? "duration.hourOne" : "duration.hourMany");
+  const minuteUnit = translate(locale, minutes === 1 ? "duration.minuteOne" : "duration.minuteMany");
+  if (hours === 0) return translate(locale, "duration.naturalUnit", { count: minutes, unit: minuteUnit });
+  if (minutes === 0) return translate(locale, "duration.naturalUnit", { count: hours, unit: hourUnit });
+  return translate(locale, "duration.naturalHoursMinutes", { hours, hourUnit, minutes, minuteUnit });
+}
