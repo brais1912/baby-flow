@@ -19,6 +19,15 @@ vi.mock("expo-notifications", () => ({
   dismissNotificationAsync: vi.fn().mockResolvedValue(undefined),
   scheduleNotificationAsync: vi.fn().mockResolvedValue("test-notification"),
   getAllScheduledNotificationsAsync: vi.fn().mockResolvedValue([]),
+  addNotificationResponseReceivedListener: vi.fn(() => ({ remove: vi.fn() })),
+  getLastNotificationResponseAsync: vi.fn().mockResolvedValue(null),
+  clearLastNotificationResponseAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("expo-linking", () => ({
+  openURL: vi.fn().mockResolvedValue(undefined),
+  getInitialURL: vi.fn().mockResolvedValue(null),
+  addEventListener: vi.fn(() => ({ remove: vi.fn() })),
 }));
 
 vi.mock("react-native-safe-area-context", async () => {

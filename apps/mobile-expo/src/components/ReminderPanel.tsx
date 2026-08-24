@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import * as Linking from "expo-linking";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import type { useSleepInsights } from "../hooks/useSleepInsights";
 import type { useSleepReminder } from "../hooks/useSleepReminder";
 import { formatAge } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
@@ -10,6 +11,12 @@ import {
   loadDailyReminderPreferences,
   saveDailyReminder,
 } from "../lib/notificationService";
+import {
+  loadSleepNotificationPreferences,
+  saveDailySleepSummaryPreference,
+  saveTransitionUpdatesPreference,
+} from "../lib/sleepNotificationService";
+import { mostRecentlyCompletedOwnerDate, ownerDateKey } from "../lib/sleepInsights";
 import type { WakeWindowRange } from "../lib/wakeWindow";
 import { colors } from "../theme";
 import type { BabyProfile } from "../types/profile";
@@ -26,9 +33,10 @@ function wakeRangeLabel(range: WakeWindowRange, locale: "en" | "es", t: ReturnTy
   return t("sleepReminder.rangeMinutes", { min: range.minMinutes, max: range.maxMinutes });
 }
 
-export function ReminderPanel({ profile, sleepReminder }: {
+export function ReminderPanel({ profile, sleepReminder, sleepInsights }: {
   profile: BabyProfile;
   sleepReminder: ReturnType<typeof useSleepReminder>;
+  sleepInsights: ReturnType<typeof useSleepInsights>;
 }) {
   const { dateLocale, locale, t } = useI18n();
   const native = isNativePlatform();
@@ -36,6 +44,13 @@ export function ReminderPanel({ profile, sleepReminder }: {
   const [dailyTime, setDailyTime] = useState("20:00");
   const [dailyPending, setDailyPending] = useState(false);
   const [dailyMessage, setDailyMessage] = useState<string | null>(null);
+  const [summaryEnabled, setSummaryEnabled] = useState(false);
+  const [summaryTime, setSummaryTime] = useState("20:00");
+  const [summaryPending, setSummaryPending] = useState(false);
+  const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
+  const [transitionEnabled, setTransitionEnabled] = useState(false);
+  const [transitionPending, setTransitionPending] = useState(false);
+  const [transitionMessage, setTransitionMessage] = useState<string | null>(null);
   const [sleepEnabledDraft, setSleepEnabledDraft] = useState<boolean | null>(null);
   const [thresholdDraft, setThresholdDraft] = useState<string | null>(null);
   const [sleepMessage, setSleepMessage] = useState<string | null>(null);
@@ -44,11 +59,14 @@ export function ReminderPanel({ profile, sleepReminder }: {
 
   useEffect(() => {
     let active = true;
-    void loadDailyReminderPreferences()
-      .then((saved) => {
+    void Promise.all([loadDailyReminderPreferences(), loadSleepNotificationPreferences()])
+      .then(([saved, sleepNotifications]) => {
         if (!active) return;
         setDailyEnabled(saved.enabled);
         setDailyTime(saved.time);
+        setSummaryEnabled(sleepNotifications.summaryEnabled);
+        setSummaryTime(sleepNotifications.summaryTime);
+        setTransitionEnabled(sleepNotifications.transitionEnabled);
       })
       .catch(() => {
         if (active) setDailyMessage(t("reminder.updateError"));
@@ -57,6 +75,11 @@ export function ReminderPanel({ profile, sleepReminder }: {
       active = false;
     };
   }, [t]);
+
+  const completedOwnerDate = mostRecentlyCompletedOwnerDate(new Date(), sleepInsights.startMinutes);
+  const completedSummary = sleepInsights.summaries.find(
+    (summary) => ownerDateKey(summary.ownerDate) === ownerDateKey(completedOwnerDate)
+  ) ?? sleepInsights.summaries[1] ?? sleepInsights.summaries[0];
 
   const recommendationLabel = sleepReminder.recommendation ? wakeRangeLabel(sleepReminder.recommendation, locale, t) : null;
   const stateLines = useMemo(() => {
@@ -127,6 +150,57 @@ export function ReminderPanel({ profile, sleepReminder }: {
     }
   }
 
+  async function saveSummary() {
+    if (!completedSummary) return;
+    setSummaryPending(true);
+    setSummaryMessage(null);
+    try {
+      await saveDailySleepSummaryPreference({
+        enabled: summaryEnabled,
+        time: summaryTime,
+        summary: completedSummary,
+        profile,
+        locale,
+      });
+      setSummaryMessage(summaryEnabled
+        ? t("sleepNotifications.summarySaved")
+        : t("sleepNotifications.summaryDisabled"));
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOTIFICATION_PERMISSION_DENIED") {
+        setSummaryEnabled(false);
+        setSummaryMessage(t("reminder.permissionDenied"));
+      } else if (error instanceof Error && error.message === "NATIVE_NOTIFICATIONS_REQUIRED") {
+        setSummaryMessage(t("reminder.nativeOnly"));
+      } else {
+        setSummaryMessage(t("reminder.updateError"));
+      }
+    } finally {
+      setSummaryPending(false);
+    }
+  }
+
+  async function saveTransition() {
+    setTransitionPending(true);
+    setTransitionMessage(null);
+    try {
+      await saveTransitionUpdatesPreference(transitionEnabled);
+      setTransitionMessage(transitionEnabled
+        ? t("sleepNotifications.transitionSaved")
+        : t("sleepNotifications.transitionDisabled"));
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOTIFICATION_PERMISSION_DENIED") {
+        setTransitionEnabled(false);
+        setTransitionMessage(t("reminder.permissionDenied"));
+      } else if (error instanceof Error && error.message === "NATIVE_NOTIFICATIONS_REQUIRED") {
+        setTransitionMessage(t("reminder.nativeOnly"));
+      } else {
+        setTransitionMessage(t("reminder.updateError"));
+      }
+    } finally {
+      setTransitionPending(false);
+    }
+  }
+
   const sleepError = sleepReminder.error === "permission"
     ? native ? t("reminder.permissionDenied") : t("reminder.nativeOnly")
     : sleepReminder.error === "generic" ? t("reminder.updateError") : null;
@@ -146,6 +220,34 @@ export function ReminderPanel({ profile, sleepReminder }: {
         <TimeField label={t("reminder.dailyTime")} value={dailyTime} onChange={setDailyTime} disabled={!dailyEnabled} />
         {dailyMessage ? <Banner tone={dailyMessage === t("reminder.updateError") ? "error" : "neutral"}>{dailyMessage}</Banner> : null}
         <AppButton label={dailyPending ? t("common.saving") : t("reminder.saveDaily")} loading={dailyPending} onPress={() => void saveDaily()} />
+      </Card>
+
+      <Card style={styles.cardGap}>
+        <ToggleRow label={t("sleepNotifications.summaryTitle")} enabled={summaryEnabled} onChange={setSummaryEnabled} />
+        <Text style={coreStyles.body}>{t("sleepNotifications.summaryDescription")}</Text>
+        <Text style={coreStyles.muted}>{t("sleepNotifications.generatedDataNote")}</Text>
+        <Text style={coreStyles.muted}>{t("sleepNotifications.localOnly")}</Text>
+        <TimeField label={t("sleepNotifications.summaryTime")} value={summaryTime} onChange={setSummaryTime} disabled={!summaryEnabled} />
+        {summaryMessage ? <Banner tone={summaryMessage === t("reminder.updateError") ? "error" : "neutral"}>{summaryMessage}</Banner> : null}
+        <AppButton
+          label={summaryPending ? t("common.saving") : t("sleepNotifications.saveSummary")}
+          loading={summaryPending}
+          disabled={sleepInsights.loading || !completedSummary}
+          onPress={() => void saveSummary()}
+        />
+      </Card>
+
+      <Card style={styles.cardGap}>
+        <ToggleRow label={t("sleepNotifications.transitionTitle")} enabled={transitionEnabled} onChange={setTransitionEnabled} />
+        <Text style={coreStyles.body}>{t("sleepNotifications.transitionDescription")}</Text>
+        <Text style={coreStyles.muted}>{t("sleepNotifications.generatedDataNote")}</Text>
+        <Text style={coreStyles.muted}>{t("sleepNotifications.localOnly")}</Text>
+        {transitionMessage ? <Banner tone={transitionMessage === t("reminder.updateError") ? "error" : "neutral"}>{transitionMessage}</Banner> : null}
+        <AppButton
+          label={transitionPending ? t("common.saving") : t("sleepNotifications.saveTransition")}
+          loading={transitionPending}
+          onPress={() => void saveTransition()}
+        />
       </Card>
 
       <Card style={styles.cardGap}>

@@ -2,6 +2,7 @@ import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useI18n } from "../i18n/I18nProvider";
+import { sendSleepTransitionUpdate } from "../lib/sleepNotificationService";
 import {
   adjacentOwnerDay,
   dashboardFetchBounds,
@@ -19,6 +20,7 @@ import {
 import { dayWindowDate, eventReducer, initialEventState } from "../lib/events";
 import { supabase } from "../lib/supabase";
 import type { BabyEvent, EventInput } from "../types/events";
+import type { BabyProfile } from "../types/profile";
 
 function errorMessage(error: unknown, sleeping: string, awake: string, generic: string): string {
   if (error instanceof Error && error.message.startsWith("INVALID_SLEEP_SEQUENCE:sleep")) {
@@ -35,13 +37,14 @@ async function loadDashboardEvents(userId: string, ownerDate: Date, startMinutes
   return fetchEvents(supabase, userId, start, end);
 }
 
-export function useEvents(userId: string) {
-  const { t } = useI18n();
+export function useEvents(userId: string, profile: BabyProfile) {
+  const { locale, t } = useI18n();
   const [state, dispatch] = useReducer(eventReducer, initialEventState);
   const [dayWindowStartMinutes, setDayWindowStartMinutes] = useState(720);
   const [selectedDay, setSelectedDay] = useState(() => dayWindowDate(new Date(), 720));
   const [sleepPhase, setSleepPhase] = useState<BabyEvent | null>(null);
   const [sleepPhaseReady, setSleepPhaseReady] = useState(false);
+  const [insightsRevision, setInsightsRevision] = useState(0);
   const requestId = useRef(0);
 
   const message = useCallback((error: unknown) => errorMessage(
@@ -68,6 +71,7 @@ export function useEvents(userId: string) {
       if (currentRequest !== requestId.current) return;
       setSelectedDay(ownerDate);
       dispatch({ type: "load-success", events });
+      setInsightsRevision((revision) => revision + 1);
       void refreshSleepPhase();
     } catch (error) {
       if (currentRequest === requestId.current) dispatch({ type: "error", message: message(error) });
@@ -87,6 +91,7 @@ export function useEvents(userId: string) {
       setDayWindowStartMinutes(startMinutes);
       setSelectedDay(ownerDate);
       dispatch({ type: "load-success", events });
+      setInsightsRevision((revision) => revision + 1);
       void refreshSleepPhase();
     } catch (error) {
       if (currentRequest === requestId.current) dispatch({ type: "error", message: message(error) });
@@ -104,6 +109,7 @@ export function useEvents(userId: string) {
       setDayWindowStartMinutes(startMinutes);
       setSelectedDay(ownerDate);
       dispatch({ type: "load-success", events });
+      setInsightsRevision((revision) => revision + 1);
       void refreshSleepPhase();
     } catch (error) {
       if (currentRequest === requestId.current) dispatch({ type: "error", message: message(error) });
@@ -157,6 +163,13 @@ export function useEvents(userId: string) {
           ? { type: "upsert", event: created }
           : { type: "mutation-success" }
       );
+      await sendSleepTransitionUpdate({
+        event: created,
+        events: [...state.events, created],
+        profile,
+        locale,
+      }).catch(() => false);
+      setInsightsRevision((revision) => revision + 1);
       await refreshSleepPhase();
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
       return created;
@@ -165,7 +178,7 @@ export function useEvents(userId: string) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
       throw error;
     }
-  }, [dayWindowStartMinutes, message, refreshSleepPhase, selectedDay, userId]);
+  }, [dayWindowStartMinutes, locale, message, profile, refreshSleepPhase, selectedDay, state.events, userId]);
 
   const updateTime = useCallback(async (event: BabyEvent, occurredAt: Date) => {
     dispatch({ type: "mutation-start" });
@@ -177,6 +190,7 @@ export function useEvents(userId: string) {
           ? { type: "upsert", event: updated }
           : { type: "remove", eventId: updated.id }
       );
+      setInsightsRevision((revision) => revision + 1);
       await refreshSleepPhase();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       return updated;
@@ -191,6 +205,7 @@ export function useEvents(userId: string) {
     try {
       await deleteEvent(supabase, userId, eventId);
       dispatch({ type: "remove", eventId });
+      setInsightsRevision((revision) => revision + 1);
       await refreshSleepPhase();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (error) {
@@ -218,6 +233,7 @@ export function useEvents(userId: string) {
     ...state,
     sleepPhase,
     sleepPhaseReady,
+    insightsRevision,
     dayEvents,
     selectedDay,
     dayWindowStartMinutes,
