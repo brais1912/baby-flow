@@ -22,6 +22,7 @@ import { colors } from "../theme";
 import type { BabyEvent, EventType } from "../types/events";
 import { AppButton, Banner, Card, ChoiceChips, IconButton, coreStyles } from "../ui/Core";
 import { DashboardCharts } from "./DashboardChartsGroup";
+import { DashboardDayHeader } from "./DashboardDayHeader";
 import { EventCard } from "./EventCard";
 import { EventSheet } from "./EventSheet";
 import { QuickLogBar } from "./QuickLogBar";
@@ -82,22 +83,16 @@ export function DashboardScreen({ data, babyName }: {
         contentContainerStyle={coreStyles.scrollContent}
         refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.refreshToday()} tintColor={colors.primary} />}
       >
-        <View style={styles.heading}>
-          <View style={styles.headingCopy}>
-            <Text style={coreStyles.eyebrow}>{format(bounds.start, "EEE d MMM, HH:mm", { locale: dateLocale })} - {format(bounds.end, "EEE d MMM, HH:mm", { locale: dateLocale })}</Text>
-            <Text style={coreStyles.title}>{data.isToday ? t("dashboard.todayFor", { name: babyName }) : format(data.selectedDay, "EEEE, d MMMM", { locale: dateLocale })}</Text>
-          </View>
-        </View>
-
-        <Card style={styles.navigator}>
-          <IconButton label={t("dashboard.previousDay")} icon="‹" disabled={data.loading} onPress={() => void data.selectAdjacentDay(-1)} />
-          <View style={styles.navigatorCopy}>
-            <Text style={styles.navigatorTitle}>{data.isToday ? t("dashboard.currentDay") : format(data.selectedDay, "d MMM yyyy", { locale: dateLocale })}</Text>
-            <Text style={coreStyles.muted}>{data.isToday ? t("dashboard.latestActivity") : t("dashboard.returnToday")}</Text>
-            {!data.isToday ? <AppButton label={t("dashboard.returnToday")} tone="text" disabled={data.loading} onPress={() => void data.goToToday()} /> : null}
-          </View>
-          <IconButton label={t("dashboard.nextDay")} icon="›" disabled={data.isToday || data.loading} onPress={() => void data.selectAdjacentDay(1)} />
-        </Card>
+        <DashboardDayHeader
+          babyName={babyName}
+          bounds={bounds}
+          isToday={data.isToday}
+          loading={data.loading}
+          selectedDay={data.selectedDay}
+          onNext={() => void data.selectAdjacentDay(1)}
+          onPrevious={() => void data.selectAdjacentDay(-1)}
+          onToday={() => void data.goToToday()}
+        />
 
         {!online ? <Banner tone="warning">⌁ {t("dashboard.offline")}</Banner> : null}
 
@@ -191,11 +186,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   actionBar: { minHeight: 52, backgroundColor: colors.surface, borderBottomColor: colors.border, borderBottomWidth: 1, paddingHorizontal: 16, paddingVertical: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actionTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
-  heading: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  headingCopy: { flex: 1, gap: 4 },
-  navigator: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingVertical: 10 },
-  navigatorCopy: { flex: 1, alignItems: "center", gap: 2 },
-  navigatorTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
   status: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 17, borderWidth: 1 },
   awakeStatus: { backgroundColor: colors.awakeSoft, borderColor: "#f5d0a7" },
   sleepStatus: { backgroundColor: colors.sleepSoft, borderColor: "#d8c5ec" },

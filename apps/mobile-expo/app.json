@@ -19,7 +19,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#f4efff"
+        "backgroundColor": "#9a45d7"
       },
       "predictiveBackGestureEnabled": true
     },
@@ -41,7 +41,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#f7f4fb",
+          "backgroundColor": "#9a45d7",
           "image": "./assets/splash.png",
           "imageWidth": 180
         }

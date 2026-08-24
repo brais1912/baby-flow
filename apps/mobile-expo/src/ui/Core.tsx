@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -13,7 +14,10 @@ import { colors, shadows } from "../theme";
 export function Brand({ large = false }: { large?: boolean }) {
   return (
     <View style={styles.brand} accessibilityLabel="BabyFlow">
-      <View style={[styles.brandMark, large && styles.brandMarkLarge]} />
+      <Image
+        source={require("../../assets/icon.png")}
+        style={[styles.brandMark, large && styles.brandMarkLarge]}
+      />
       <Text style={[styles.brandText, large && styles.brandTextLarge]}>BabyFlow</Text>
     </View>
   );
@@ -192,7 +196,7 @@ export const coreStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
-  brandMark: { width: 25, height: 25, borderRadius: 9, backgroundColor: colors.primary, transform: [{ rotate: "12deg" }] },
+  brandMark: { width: 25, height: 25, borderRadius: 9 },
   brandMarkLarge: { width: 52, height: 52, borderRadius: 18 },
   brandText: { color: colors.text, fontSize: 19, fontWeight: "900" },
   brandTextLarge: { fontSize: 30 },
