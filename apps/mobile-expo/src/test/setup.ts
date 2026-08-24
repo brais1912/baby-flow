@@ -17,9 +17,14 @@ vi.mock("react-native-gesture-handler/ReanimatedSwipeable", async () => {
     children?: ReactNode;
     enabled?: boolean;
     testID?: string;
-    onSwipeableWillOpen?: (direction: "right") => void;
-    onSwipeableOpen?: (direction: "right") => void;
-    onSwipeableClose?: (direction: "right") => void;
+    onSwipeableWillOpen?: (direction: "left" | "right") => void;
+    onSwipeableOpen?: (direction: "left" | "right") => void;
+    onSwipeableClose?: (direction: "left" | "right") => void;
+    renderLeftActions?: (
+      progress: { value: number },
+      translation: { value: number },
+      methods: MockMethods
+    ) => ReactNode;
     renderRightActions?: (
       progress: { value: number },
       translation: { value: number },
@@ -34,22 +39,28 @@ vi.mock("react-native-gesture-handler/ReanimatedSwipeable", async () => {
     onSwipeableWillOpen,
     onSwipeableOpen,
     onSwipeableClose,
+    renderLeftActions,
     renderRightActions,
   }, ref) {
-    const [open, setOpen] = React.useState(false);
+    const [openSide, setOpenSide] = React.useState<"left" | "right" | null>(null);
     const methods = React.useMemo<MockMethods>(() => ({
       close: () => {
-        setOpen(false);
-        onSwipeableClose?.("right");
+        setOpenSide(null);
+        onSwipeableClose?.("left");
       },
-      openLeft: () => undefined,
-      openRight: () => {
+      openLeft: () => {
         if (!enabled) return;
         onSwipeableWillOpen?.("right");
-        setOpen(true);
+        setOpenSide("left");
         onSwipeableOpen?.("right");
       },
-      reset: () => setOpen(false),
+      openRight: () => {
+        if (!enabled) return;
+        onSwipeableWillOpen?.("left");
+        setOpenSide("right");
+        onSwipeableOpen?.("left");
+      },
+      reset: () => setOpenSide(null),
     }), [enabled, onSwipeableClose, onSwipeableOpen, onSwipeableWillOpen]);
     React.useImperativeHandle(ref, () => methods, [methods]);
 
@@ -58,11 +69,19 @@ vi.mock("react-native-gesture-handler/ReanimatedSwipeable", async () => {
       { testID },
       React.createElement(native.Pressable, {
         "aria-hidden": true,
-        testID: testID ? `${testID}-open` : undefined,
+        testID: testID ? `${testID}-swipe-right` : undefined,
+        onPress: methods.openLeft,
+      }),
+      React.createElement(native.Pressable, {
+        "aria-hidden": true,
+        testID: testID ? `${testID}-swipe-left` : undefined,
         onPress: methods.openRight,
       }),
       children,
-      open && renderRightActions
+      openSide === "left" && renderLeftActions
+        ? renderLeftActions({ value: 1 }, { value: 82 }, methods)
+        : null,
+      openSide === "right" && renderRightActions
         ? renderRightActions({ value: 1 }, { value: -82 }, methods)
         : null
     );

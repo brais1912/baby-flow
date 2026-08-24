@@ -28,10 +28,12 @@ function event(id: string, hour: number): BabyEvent {
 function EventCards({
   events,
   pending = false,
+  onEdit = vi.fn(),
   onDelete = vi.fn().mockResolvedValue(undefined),
 }: {
   events: BabyEvent[];
   pending?: boolean;
+  onEdit?: (event: BabyEvent) => void;
   onDelete?: (eventId: string) => Promise<void>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -45,7 +47,7 @@ function EventCards({
       confirming={confirmingId === item.id}
       swipeOpen={openId === item.id}
       onOpen={vi.fn()}
-      onEdit={vi.fn()}
+      onEdit={onEdit}
       onDelete={onDelete}
       onDeleteRequest={(eventId) => {
         setOpenId(null);
@@ -58,12 +60,24 @@ function EventCards({
   ));
 }
 
-describe("EventCard swipe deletion", () => {
+describe("EventCard swipe actions", () => {
+  it("opens the existing edit flow immediately after a completed right swipe", () => {
+    const sleep = event("sleep-1", 20);
+    const onEdit = vi.fn();
+    render(<EventCards events={[sleep]} onEdit={onEdit} />);
+
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-right"));
+
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onEdit).toHaveBeenCalledWith(sleep);
+    expect(screen.queryByText("Delete this event?")).not.toBeInTheDocument();
+  });
+
   it("asks for confirmation immediately after a completed left swipe", () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-left"));
     expect(screen.getByText("Delete this event?")).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
   });
@@ -73,7 +87,7 @@ describe("EventCard swipe deletion", () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-left"));
     expect(screen.getByText("Delete this event?")).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
 
@@ -87,7 +101,7 @@ describe("EventCard swipe deletion", () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-left"));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByText("Delete this event?")).not.toBeInTheDocument();
@@ -98,9 +112,9 @@ describe("EventCard swipe deletion", () => {
   it("keeps only one row in confirmation", () => {
     render(<EventCards events={[event("sleep-1", 20), event("sleep-2", 21)]} />);
 
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-left"));
     expect(screen.getAllByText("Delete this event?")).toHaveLength(1);
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-2-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-2-swipe-left"));
     expect(screen.getAllByText("Delete this event?")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Open Sleep details at 20:00" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open Sleep details at 21:00" })).not.toBeInTheDocument();
@@ -109,8 +123,17 @@ describe("EventCard swipe deletion", () => {
   it("disables gesture and icon deletion while a mutation is pending", () => {
     render(<EventCards events={[event("sleep-1", 20)]} pending />);
 
-    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-left"));
     expect(screen.queryByText("Delete this event?")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+  });
+
+  it("disables swipe editing while a mutation is pending", () => {
+    const onEdit = vi.fn();
+    render(<EventCards events={[event("sleep-1", 20)]} pending onEdit={onEdit} />);
+
+    fireEvent.click(screen.getByTestId("event-swipe-sleep-1-swipe-right"));
+
+    expect(onEdit).not.toHaveBeenCalled();
   });
 });

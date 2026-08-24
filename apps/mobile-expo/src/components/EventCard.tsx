@@ -89,28 +89,51 @@ export function EventCard({
     onDeleteRequest(event.id);
   }
 
+  function startEditing(methods?: SwipeableMethods) {
+    methods?.close();
+    onEdit(event);
+  }
+
   return (
     <ReanimatedSwipeable
       ref={swipeable}
       testID={`event-swipe-${event.id}`}
       enabled={!pending && !confirming}
       friction={1.7}
+      leftThreshold={42}
       rightThreshold={42}
+      dragOffsetFromLeftEdge={12}
       dragOffsetFromRightEdge={12}
       overshootLeft={false}
       overshootRight={false}
       containerStyle={styles.swipeContainer}
       onSwipeableWillOpen={() => onSwipeOpen(event.id)}
-      onSwipeableOpen={() => startConfirmation(swipeable.current ?? undefined)}
+      onSwipeableOpen={(direction) => {
+        if (direction === "right") {
+          startEditing(swipeable.current ?? undefined);
+          return;
+        }
+        startConfirmation(swipeable.current ?? undefined);
+      }}
       onSwipeableClose={() => onSwipeClose(event.id)}
+      renderLeftActions={() => (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.swipeAction, styles.swipeEdit, pending && styles.disabled]}
+        >
+          <Text style={styles.swipeActionIcon}>✎</Text>
+          <Text style={styles.swipeActionLabel}>{t("event.editTime")}</Text>
+        </View>
+      )}
       renderRightActions={() => (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[styles.swipeDelete, pending && styles.disabled]}
+          style={[styles.swipeAction, styles.swipeDelete, pending && styles.disabled]}
         >
-          <Text style={styles.swipeDeleteIcon}>⌫</Text>
-          <Text style={styles.swipeDeleteLabel}>{t("common.delete")}</Text>
+          <Text style={styles.swipeActionIcon}>⌫</Text>
+          <Text style={styles.swipeActionLabel}>{t("common.delete")}</Text>
         </View>
       )}
     >
@@ -166,9 +189,11 @@ export function EventCard({
 
 const styles = StyleSheet.create({
   swipeContainer: { borderRadius: 14, overflow: "hidden" },
-  swipeDelete: { width: 82, alignItems: "center", justifyContent: "center", gap: 3, backgroundColor: colors.danger },
-  swipeDeleteIcon: { color: "#ffffff", fontSize: 20, fontWeight: "800" },
-  swipeDeleteLabel: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
+  swipeAction: { width: 82, alignItems: "center", justifyContent: "center", gap: 3 },
+  swipeEdit: { backgroundColor: colors.primary },
+  swipeDelete: { backgroundColor: colors.danger },
+  swipeActionIcon: { color: "#ffffff", fontSize: 20, fontWeight: "800" },
+  swipeActionLabel: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
   disabled: { opacity: 0.45 },
   card: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, padding: 9, minHeight: 62 },
   openArea: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, minHeight: 42 },
