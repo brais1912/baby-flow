@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { formatEventDuration } from "../i18n/format";
@@ -49,27 +49,30 @@ export function EventCard({
   event,
   allEvents,
   pending,
+  confirming,
   swipeOpen,
   onOpen,
   onEdit,
   onDelete,
   onDeleteRequest,
+  onDeleteCancel,
   onSwipeOpen,
   onSwipeClose,
 }: {
   event: BabyEvent;
   allEvents: BabyEvent[];
   pending: boolean;
+  confirming: boolean;
   swipeOpen: boolean;
   onOpen: (event: BabyEvent) => void;
   onEdit: (event: BabyEvent) => void;
   onDelete: (eventId: string) => Promise<void>;
-  onDeleteRequest: () => void;
+  onDeleteRequest: (eventId: string) => void;
+  onDeleteCancel: (eventId: string) => void;
   onSwipeOpen: (eventId: string) => void;
   onSwipeClose: (eventId: string) => void;
 }) {
   const { dateLocale, locale, t } = useI18n();
-  const [confirming, setConfirming] = useState(false);
   const swipeable = useRef<SwipeableMethods>(null);
   const detail = eventDetail(event, t);
   const phaseDuration = eventPhaseDuration(event, allEvents);
@@ -83,8 +86,7 @@ export function EventCard({
 
   function startConfirmation(methods?: SwipeableMethods) {
     methods?.close();
-    onDeleteRequest();
-    setConfirming(true);
+    onDeleteRequest(event.id);
   }
 
   return (
@@ -99,25 +101,24 @@ export function EventCard({
       overshootRight={false}
       containerStyle={styles.swipeContainer}
       onSwipeableWillOpen={() => onSwipeOpen(event.id)}
+      onSwipeableOpen={() => startConfirmation(swipeable.current ?? undefined)}
       onSwipeableClose={() => onSwipeClose(event.id)}
-      renderRightActions={(_progress, _translation, methods) => (
-        <Pressable
-          accessibilityLabel={t("common.delete")}
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={() => startConfirmation(methods)}
-          style={({ pressed }) => [styles.swipeDelete, pressed && styles.swipeDeletePressed, pending && styles.disabled]}
+      renderRightActions={() => (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.swipeDelete, pending && styles.disabled]}
         >
           <Text style={styles.swipeDeleteIcon}>⌫</Text>
           <Text style={styles.swipeDeleteLabel}>{t("common.delete")}</Text>
-        </Pressable>
+        </View>
       )}
     >
       {confirming ? (
         <View style={[styles.card, { borderLeftColor: tone }]}>
           <Text style={styles.confirmText}>{t("event.deleteConfirm")}</Text>
           <View style={styles.actions}>
-            <IconButton compact label={t("common.cancel")} icon="×" disabled={pending} onPress={() => setConfirming(false)} />
+            <IconButton compact label={t("common.cancel")} icon="×" disabled={pending} onPress={() => onDeleteCancel(event.id)} />
             <IconButton compact label={t("common.delete")} icon="⌫" danger disabled={pending} onPress={() => void onDelete(event.id)} />
           </View>
         </View>
@@ -166,7 +167,6 @@ export function EventCard({
 const styles = StyleSheet.create({
   swipeContainer: { borderRadius: 14, overflow: "hidden" },
   swipeDelete: { width: 82, alignItems: "center", justifyContent: "center", gap: 3, backgroundColor: colors.danger },
-  swipeDeletePressed: { opacity: 0.8 },
   swipeDeleteIcon: { color: "#ffffff", fontSize: 20, fontWeight: "800" },
   swipeDeleteLabel: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
   disabled: { opacity: 0.45 },

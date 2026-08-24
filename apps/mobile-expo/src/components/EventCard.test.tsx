@@ -28,26 +28,30 @@ function event(id: string, hour: number): BabyEvent {
 function EventCards({
   events,
   pending = false,
-  onOpen = vi.fn(),
   onDelete = vi.fn().mockResolvedValue(undefined),
 }: {
   events: BabyEvent[];
   pending?: boolean;
-  onOpen?: (event: BabyEvent) => void;
   onDelete?: (eventId: string) => Promise<void>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   return events.map((item) => (
     <EventCard
       key={item.id}
       event={item}
       allEvents={events}
       pending={pending}
+      confirming={confirmingId === item.id}
       swipeOpen={openId === item.id}
-      onOpen={onOpen}
+      onOpen={vi.fn()}
       onEdit={vi.fn()}
       onDelete={onDelete}
-      onDeleteRequest={() => setOpenId(null)}
+      onDeleteRequest={(eventId) => {
+        setOpenId(null);
+        setConfirmingId(eventId);
+      }}
+      onDeleteCancel={(eventId) => setConfirmingId((current) => current === eventId ? null : current)}
       onSwipeOpen={setOpenId}
       onSwipeClose={(eventId) => setOpenId((current) => current === eventId ? null : current)}
     />
@@ -55,19 +59,12 @@ function EventCards({
 }
 
 describe("EventCard swipe deletion", () => {
-  it("reveals Delete without deleting and closes instead of opening details when the row is tapped", async () => {
-    const user = userEvent.setup();
-    const onOpen = vi.fn();
+  it("asks for confirmation immediately after a completed left swipe", () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    render(<EventCards events={[event("sleep-1", 20)]} onOpen={onOpen} onDelete={onDelete} />);
+    render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
-    expect(screen.getByText("Delete")).toBeInTheDocument();
-    expect(onDelete).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "Open Sleep details at 20:00" }));
-    expect(screen.queryByText("Delete")).not.toBeInTheDocument();
-    expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByText("Delete this event?")).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
   });
 
@@ -77,7 +74,6 @@ describe("EventCard swipe deletion", () => {
     render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
-    await user.click(screen.getByText("Delete"));
     expect(screen.getByText("Delete this event?")).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
 
@@ -92,7 +88,6 @@ describe("EventCard swipe deletion", () => {
     render(<EventCards events={[event("sleep-1", 20)]} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
-    await user.click(screen.getByText("Delete"));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByText("Delete this event?")).not.toBeInTheDocument();
@@ -100,20 +95,22 @@ describe("EventCard swipe deletion", () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
-  it("keeps only one row revealed", () => {
+  it("keeps only one row in confirmation", () => {
     render(<EventCards events={[event("sleep-1", 20), event("sleep-2", 21)]} />);
 
     fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
-    expect(screen.getAllByText("Delete")).toHaveLength(1);
+    expect(screen.getAllByText("Delete this event?")).toHaveLength(1);
     fireEvent.click(screen.getByTestId("event-swipe-sleep-2-open"));
-    expect(screen.getAllByText("Delete")).toHaveLength(1);
+    expect(screen.getAllByText("Delete this event?")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Open Sleep details at 20:00" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Sleep details at 21:00" })).not.toBeInTheDocument();
   });
 
   it("disables gesture and icon deletion while a mutation is pending", () => {
     render(<EventCards events={[event("sleep-1", 20)]} pending />);
 
     fireEvent.click(screen.getByTestId("event-swipe-sleep-1-open"));
-    expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    expect(screen.queryByText("Delete this event?")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
   });
 });

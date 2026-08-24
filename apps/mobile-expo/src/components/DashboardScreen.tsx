@@ -51,6 +51,7 @@ export function DashboardScreen({ data, babyName }: {
   const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
   const [openSwipeEventId, setOpenSwipeEventId] = useState<string | null>(null);
+  const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<string | null>(null);
   const now = new Date();
   const bounds = useMemo(() => ownerDayWindowBounds(data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.selectedDay]);
   const chartEvents = useMemo(() => eventsWithinChartWindow(data.events, data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.events, data.selectedDay]);
@@ -91,14 +92,17 @@ export function DashboardScreen({ data, babyName }: {
           selectedDay={data.selectedDay}
           onNext={() => {
             setOpenSwipeEventId(null);
+            setConfirmDeleteEventId(null);
             void data.selectAdjacentDay(1);
           }}
           onPrevious={() => {
             setOpenSwipeEventId(null);
+            setConfirmDeleteEventId(null);
             void data.selectAdjacentDay(-1);
           }}
           onToday={() => {
             setOpenSwipeEventId(null);
+            setConfirmDeleteEventId(null);
             void data.goToToday();
           }}
         />
@@ -133,6 +137,7 @@ export function DashboardScreen({ data, babyName }: {
             options={filterOptions}
             onChange={(nextFilter) => {
               setOpenSwipeEventId(null);
+              setConfirmDeleteEventId(null);
               setFilter(nextFilter);
             }}
           />
@@ -150,17 +155,27 @@ export function DashboardScreen({ data, babyName }: {
                 event={event}
                 allEvents={data.events}
                 pending={data.mutating}
+                confirming={confirmDeleteEventId === event.id}
                 swipeOpen={openSwipeEventId === event.id}
                 onOpen={(selected) => {
                   setOpenSwipeEventId(null);
+                  setConfirmDeleteEventId(null);
                   setDetailEvent(selected);
                 }}
                 onEdit={(selected) => {
                   setOpenSwipeEventId(null);
+                  setConfirmDeleteEventId(null);
                   setSheet({ mode: "edit", event: selected });
                 }}
-                onDelete={data.remove}
-                onDeleteRequest={() => setOpenSwipeEventId(null)}
+                onDelete={async (eventId) => {
+                  await data.remove(eventId);
+                  setConfirmDeleteEventId((current) => current === eventId ? null : current);
+                }}
+                onDeleteRequest={(eventId) => {
+                  setOpenSwipeEventId(null);
+                  setConfirmDeleteEventId(eventId);
+                }}
+                onDeleteCancel={(eventId) => setConfirmDeleteEventId((current) => current === eventId ? null : current)}
                 onSwipeOpen={setOpenSwipeEventId}
                 onSwipeClose={(eventId) => setOpenSwipeEventId((current) => current === eventId ? null : current)}
               />
