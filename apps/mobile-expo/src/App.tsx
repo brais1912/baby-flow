@@ -22,7 +22,11 @@ import {
   clearSleepNotificationState,
   reconcileDailySleepSummary,
 } from "./lib/sleepNotificationService";
-import { mostRecentlyCompletedOwnerDate, ownerDateKey } from "./lib/sleepInsights";
+import {
+  mostRecentlyCompletedOwnerDate,
+  ownerDateFromKey,
+  ownerDateKey,
+} from "./lib/sleepInsights";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { colors, shadows } from "./theme";
 import type { BabyProfile } from "./types/profile";
@@ -30,7 +34,13 @@ import { AppButton, Banner, Brand, Card, coreStyles } from "./ui/Core";
 
 type Tab = "events" | "reminders" | "insights" | "settings";
 
-export function App({ passwordRecoveryRoute = false }: { passwordRecoveryRoute?: boolean }) {
+export function App({
+  initialInsightsOwnerDate,
+  passwordRecoveryRoute = false,
+}: {
+  initialInsightsOwnerDate?: string;
+  passwordRecoveryRoute?: boolean;
+}) {
   const { t } = useI18n();
   const auth = useAuth(isSupabaseConfigured);
   const { beginPasswordRecovery, session, setError } = auth;
@@ -77,10 +87,20 @@ export function App({ passwordRecoveryRoute = false }: { passwordRecoveryRoute?:
       />
     );
   }
-  return <AuthenticatedApp session={auth.session} onSignOut={auth.signOut} />;
+  return (
+    <AuthenticatedApp
+      initialInsightsOwnerDate={initialInsightsOwnerDate}
+      session={auth.session}
+      onSignOut={auth.signOut}
+    />
+  );
 }
 
-function AuthenticatedApp({ session, onSignOut }: { session: Session; onSignOut: () => Promise<void> }) {
+function AuthenticatedApp({ initialInsightsOwnerDate, session, onSignOut }: {
+  initialInsightsOwnerDate?: string;
+  session: Session;
+  onSignOut: () => Promise<void>;
+}) {
   const { t } = useI18n();
   const profile = useProfile(session.user.id);
   const signOut = useCallback(async () => {
@@ -109,6 +129,7 @@ function AuthenticatedApp({ session, onSignOut }: { session: Session; onSignOut:
   return (
     <MobileShell
       session={session}
+      initialInsightsOwnerDate={initialInsightsOwnerDate}
       profile={profile.profile}
       profileSaving={profile.saving}
       profileError={profile.saveError}
@@ -118,7 +139,8 @@ function AuthenticatedApp({ session, onSignOut }: { session: Session; onSignOut:
   );
 }
 
-function MobileShell({ session, profile, profileSaving, profileError, onSaveProfile, onSignOut }: {
+function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving, profileError, onSaveProfile, onSignOut }: {
+  initialInsightsOwnerDate?: string;
   session: Session;
   profile: BabyProfile;
   profileSaving: boolean;
@@ -127,8 +149,11 @@ function MobileShell({ session, profile, profileSaving, profileError, onSaveProf
   onSignOut: () => Promise<void>;
 }) {
   const { locale, t } = useI18n();
-  const [tab, setTab] = useState<Tab>("events");
-  const [selectedInsightsDate, setSelectedInsightsDate] = useState<Date | null>(null);
+  const requestedInsightsDate = initialInsightsOwnerDate
+    ? ownerDateFromKey(initialInsightsOwnerDate)
+    : null;
+  const [tab, setTab] = useState<Tab>(requestedInsightsDate ? "insights" : "events");
+  const [selectedInsightsDate, setSelectedInsightsDate] = useState<Date | null>(requestedInsightsDate);
   const events = useEvents(session.user.id, profile);
   const sleepReminder = useSleepReminder({ profile, event: events.sleepPhase, ready: events.sleepPhaseReady });
   const sleepInsights = useSleepInsights({
@@ -174,7 +199,16 @@ function MobileShell({ session, profile, profileSaving, profileError, onSaveProf
           />
         ) : null}
         {tab === "settings" ? (
-          <SettingsScreen email={session.user.email} profile={profile} savingProfile={profileSaving} profileError={profileError} onSaveProfile={onSaveProfile} onSignOut={onSignOut} />
+          <SettingsScreen
+            dayWindowStartMinutes={events.dayWindowStartMinutes}
+            email={session.user.email}
+            profile={profile}
+            savingProfile={profileSaving}
+            profileError={profileError}
+            onSaveDayWindow={events.saveDayWindowStart}
+            onSaveProfile={onSaveProfile}
+            onSignOut={onSignOut}
+          />
         ) : null}
       </View>
       <View style={styles.tabBar} accessibilityLabel={t("nav.main")} accessibilityRole="tablist">

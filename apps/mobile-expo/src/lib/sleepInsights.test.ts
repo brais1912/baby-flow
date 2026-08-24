@@ -3,6 +3,7 @@ import type { BabyEvent, EventType } from "../types/events";
 import {
   buildDailySleepSummary,
   buildSleepHistory,
+  compareTotalSleepWithGuidance,
   ownerDateFromKey,
   ownerDateKey,
   pairSleepEvents,
@@ -122,6 +123,29 @@ describe("sleep insights", () => {
     expect(previous.ageMonthsAtWindowEnd).toBe(2);
     expect(sleepReferencesForAge(4).map(({ source }) => source)).toEqual(["who", "aasm"]);
     expect(sleepReferencesForAge(72)).toEqual([]);
+  });
+
+  it("classifies recorded total sleep against an age-compatible recommendation", () => {
+    const reference = sleepReferencesForAge(6)[0];
+    if (!reference) throw new Error("Expected a six-month sleep reference");
+    const comparison = (totalSleepMinutes: number, completePairCount = 1) => compareTotalSleepWithGuidance({
+      totalSleepMinutes,
+      completePairCount,
+      references: [reference],
+    });
+
+    expect(comparison(12 * 60).status).toBe("within");
+    expect(comparison(16 * 60).status).toBe("within");
+    expect(comparison(12 * 60 - 1).status).toBe("below");
+    expect(comparison(16 * 60 + 1).status).toBe("above");
+    expect(compareTotalSleepWithGuidance({ totalSleepMinutes: 0, completePairCount: 0, references: [reference] })).toEqual({
+      status: "insufficient-data",
+      reference: null,
+    });
+    expect(compareTotalSleepWithGuidance({ totalSleepMinutes: 12 * 60, completePairCount: 1, references: [] })).toEqual({
+      status: "unavailable",
+      reference: null,
+    });
   });
 
   it("round-trips owner dates without UTC conversion", () => {

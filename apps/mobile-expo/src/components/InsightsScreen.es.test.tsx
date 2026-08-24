@@ -33,7 +33,21 @@ function summary(ownerDate: Date): DailySleepSummary {
     completePairCount: 3,
     excludedUnmatchedCount: 0,
     ageMonthsAtWindowEnd: 6,
-    references: [],
+    references: [{
+      source: "who",
+      sourceName: "Organización Mundial de la Salud",
+      publicationYear: 2019,
+      sourceUrl: "https://www.who.int/publications/i/item/9789241550536",
+      population: "Bebés de 4 a 11 meses",
+      minAgeMonths: 4,
+      maxAgeMonthsExclusive: 12,
+      metricDefinition: "total-sleep-per-24-hours-including-naps",
+      unit: "minutes-per-24-hours",
+      minMinutes: 720,
+      maxMinutes: 960,
+      caveat: "guideline-context",
+      version: "test",
+    }],
   };
 }
 
@@ -66,6 +80,7 @@ describe("InsightsScreen Spanish navigation", () => {
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: "Abrir resumen de sueño del domingo, 23 agosto" }));
     expect(screen.getByText("domingo, 23 agosto 2026")).toBeInTheDocument();
+    expect(screen.getByText("El sueño total registrado de Luna (12 h) está dentro del intervalo de 12 h–16 h por cada 24 horas recomendado para su edad.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Volver a hoy" }));
     expect(screen.getByText("lunes, 24 agosto 2026")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Volver al historial" }));

@@ -4,13 +4,38 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { useSleepInsights } from "../hooks/useSleepInsights";
 import { formatAge, formatEventDuration } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
-import { ownerDateKey } from "../lib/sleepInsights";
+import {
+  compareTotalSleepWithGuidance,
+  ownerDateKey,
+  type DailySleepSummary,
+  type TotalSleepGuidanceComparison,
+} from "../lib/sleepInsights";
 import { colors } from "../theme";
 import type { BabyProfile } from "../types/profile";
 import { AppButton, Banner, Card, IconButton, coreStyles } from "../ui/Core";
 
 function duration(minutes: number | null, locale: "en" | "es", empty: string): string {
   return minutes === null ? empty : formatEventDuration(minutes * 60_000, locale);
+}
+
+function guidanceCopy(
+  summary: DailySleepSummary,
+  name: string,
+  locale: "en" | "es",
+  t: ReturnType<typeof useI18n>["t"]
+): { message: string; shortLabel: string; status: TotalSleepGuidanceComparison["status"] } {
+  const comparison = compareTotalSleepWithGuidance(summary);
+  const values: Record<string, string | number> = { name };
+  if (comparison.reference) {
+    values.total = duration(summary.totalSleepMinutes, locale, "—");
+    values.min = duration(comparison.reference.minMinutes, locale, "—");
+    values.max = duration(comparison.reference.maxMinutes, locale, "—");
+  }
+  return {
+    message: t(`insights.guidance.${comparison.status}`, values),
+    shortLabel: t(`insights.guidance.${comparison.status}Short`),
+    status: comparison.status,
+  };
 }
 
 export function InsightsScreen({
@@ -32,6 +57,7 @@ export function InsightsScreen({
   const selected = selectedIndex >= 0 ? data.summaries[selectedIndex] : null;
 
   if (selected) {
+    const guidance = guidanceCopy(selected, profile.name, locale, t);
     return (
       <ScrollView style={coreStyles.screen} contentContainerStyle={coreStyles.scrollContent}>
         <View style={styles.detailHeading}>
@@ -71,6 +97,17 @@ export function InsightsScreen({
           <Text style={styles.heroLabel}>{t("insights.totalSleep")}</Text>
           <Text style={styles.heroValue}>{duration(selected.totalSleepMinutes || null, locale, t("insights.noDuration"))}</Text>
           <Text style={coreStyles.muted}>{t("insights.ageAtEnd", { age: formatAge(profile.dateOfBirth, locale, selected.windowEnd) })}</Text>
+        </Card>
+
+        <Card style={styles.cardGap}>
+          <Text style={coreStyles.sectionTitle}>{t("insights.guidance.title")}</Text>
+          <Banner tone={guidance.status === "within" ? "success" : guidance.status === "below" || guidance.status === "above" ? "warning" : "neutral"}>
+            {guidance.message}
+          </Banner>
+          <Text style={coreStyles.body}>{t("insights.guidance.meaning")}</Text>
+          <Text style={coreStyles.muted}>{t("insights.guidance.otherMetrics")}</Text>
+          <Text style={coreStyles.muted}>{t("insights.guidance.recordedOnly")}</Text>
+          <Text style={coreStyles.muted}>{t("insights.guidance.sourcesBelow")}</Text>
         </Card>
 
         <View style={styles.metricGrid}>
@@ -167,6 +204,7 @@ export function InsightsScreen({
       {!data.loading && !hasRecordedData ? <Banner tone="neutral">{t("insights.emptyHistory")}</Banner> : null}
       {data.summaries.map((summary, index) => {
         const date = format(summary.ownerDate, "EEEE, d MMMM", { locale: dateLocale });
+        const guidance = guidanceCopy(summary, profile.name, locale, t);
         return (
           <Pressable
             key={ownerDateKey(summary.ownerDate)}
@@ -182,6 +220,13 @@ export function InsightsScreen({
                   pairs: summary.completePairCount,
                   excluded: summary.excludedUnmatchedCount,
                 })}</Text>
+                <Text style={[
+                  styles.dayGuidance,
+                  guidance.status === "within" && styles.dayGuidanceWithin,
+                  (guidance.status === "below" || guidance.status === "above") && styles.dayGuidanceOutside,
+                ]}>
+                  {guidance.shortLabel}
+                </Text>
               </View>
               <View style={styles.dayMetric}>
                 <Text style={styles.dayValue}>{duration(summary.totalSleepMinutes || null, locale, "—")}</Text>
@@ -227,6 +272,9 @@ const styles = StyleSheet.create({
   dayCard: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
   dayCopy: { flex: 1, gap: 4 },
   dayTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900" },
+  dayGuidance: { color: colors.textMuted, fontSize: 12, lineHeight: 17, fontWeight: "800" },
+  dayGuidanceWithin: { color: colors.success },
+  dayGuidanceOutside: { color: colors.warning },
   dayMetric: { flexDirection: "row", alignItems: "center", gap: 8 },
   dayValue: { color: colors.primaryDark, fontSize: 16, fontWeight: "900" },
   chevron: { color: colors.textMuted, fontSize: 25, fontWeight: "700" },

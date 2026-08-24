@@ -15,9 +15,15 @@ import {
   fetchEvents,
   fetchLatestSleepPhase,
   getDayWindowStartMinutes,
+  updateDayWindowStartMinutes as persistDayWindowStartMinutes,
   updateEventTime,
 } from "../lib/eventRepository";
-import { dayWindowDate, eventReducer, initialEventState } from "../lib/events";
+import {
+  dayWindowDate,
+  DEFAULT_DAY_WINDOW_START_MINUTES,
+  eventReducer,
+  initialEventState,
+} from "../lib/events";
 import { supabase } from "../lib/supabase";
 import type { BabyEvent, EventInput } from "../types/events";
 import type { BabyProfile } from "../types/profile";
@@ -40,8 +46,8 @@ async function loadDashboardEvents(userId: string, ownerDate: Date, startMinutes
 export function useEvents(userId: string, profile: BabyProfile) {
   const { locale, t } = useI18n();
   const [state, dispatch] = useReducer(eventReducer, initialEventState);
-  const [dayWindowStartMinutes, setDayWindowStartMinutes] = useState(720);
-  const [selectedDay, setSelectedDay] = useState(() => dayWindowDate(new Date(), 720));
+  const [dayWindowStartMinutes, setDayWindowStartMinutes] = useState(DEFAULT_DAY_WINDOW_START_MINUTES);
+  const [selectedDay, setSelectedDay] = useState(() => dayWindowDate(new Date(), DEFAULT_DAY_WINDOW_START_MINUTES));
   const [sleepPhase, setSleepPhase] = useState<BabyEvent | null>(null);
   const [sleepPhaseReady, setSleepPhaseReady] = useState(false);
   const [insightsRevision, setInsightsRevision] = useState(0);
@@ -146,6 +152,14 @@ export function useEvents(userId: string, profile: BabyProfile) {
     };
   }, [refreshSleepPhase]);
 
+  const saveDayWindowStart = useCallback(async (startMinutes: number) => {
+    await persistDayWindowStartMinutes(supabase, userId, startMinutes);
+    const ownerDate = dayWindowDate(new Date(), startMinutes);
+    setDayWindowStartMinutes(startMinutes);
+    setSelectedDay(ownerDate);
+    await loadOwnerDay(ownerDate, startMinutes);
+  }, [loadOwnerDay, userId]);
+
   useEffect(() => {
     const listener = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") void refreshSleepPhase();
@@ -242,6 +256,7 @@ export function useEvents(userId: string, profile: BabyProfile) {
     refreshToday,
     selectAdjacentDay,
     goToToday,
+    saveDayWindowStart,
     create,
     updateTime,
     remove,

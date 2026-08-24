@@ -23,6 +23,18 @@ const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
   feeding: "event.feed",
   diaper: "event.diaper",
 };
+const eventIcons: Record<BabyEvent["type"], string> = {
+  sleep: "😴",
+  wake_up: "🌅",
+  feeding: "🍼",
+  diaper: "👶",
+};
+const eventTones: Record<BabyEvent["type"], "sleep" | "feeding" | "diaper" | "neutral"> = {
+  sleep: "sleep",
+  wake_up: "neutral",
+  feeding: "feeding",
+  diaper: "diaper",
+};
 const detailLabelKeys: Partial<Record<string, MessageKey>> = {
   breast_left: "event.leftBreast",
   breast_right: "event.rightBreast",
@@ -96,14 +108,67 @@ function TimelineEventDetail({ event, wakeUp, onClose }: { event: BabyEvent; wak
   if (event.feedingDurationMinutes) details.push(t("duration.minutes", { count: event.feedingDurationMinutes }));
   if (event.sleepCondition) details.push(t(detailLabelKeys[event.sleepCondition] ?? "common.other"));
   if (event.sleepRoomTemperature !== null) details.push(`${event.sleepRoomTemperature}°C`);
-  if (event.type === "sleep" && wakeUp) details.push(durationLabel(event.occurredAt, wakeUp.occurredAt, t));
-  if (event.notes && event.notes !== "QuickLog") details.push(event.notes);
+  const notes = event.notes && event.notes !== "QuickLog" ? event.notes : null;
   const start = format(event.occurredAt, "HH:mm", { locale: dateLocale });
   const time = wakeUp ? `${start} → ${format(wakeUp.occurredAt, "HH:mm", { locale: dateLocale })}` : start;
+  const primaryLabel = event.type === "sleep" && wakeUp ? t("chart.duration") : t("chart.recordedAt");
+  const primaryValue = event.type === "sleep" && wakeUp ? durationLabel(event.occurredAt, wakeUp.occurredAt, t) : start;
   return (
-    <ChartDetailDialog visible title={`${t(eventLabelKeys[event.type])} · ${time}`} onClose={onClose}>
-      <Text style={styles.detailText}>{details.join(" · ") || t("common.notSpecified")}</Text>
+    <ChartDetailDialog
+      visible
+      eyebrow={t("chart.eventDetails")}
+      icon={eventIcons[event.type]}
+      subtitle={format(event.occurredAt, "EEEE, d MMMM yyyy", { locale: dateLocale })}
+      title={t(eventLabelKeys[event.type])}
+      tone={eventTones[event.type]}
+      onClose={onClose}
+    >
+      <DetailMetric label={primaryLabel} value={primaryValue} supporting={wakeUp ? time : undefined} tone={eventTones[event.type]} />
+      {details.length > 0 ? (
+        <View style={styles.detailSection}>
+          <Text style={styles.detailLabel}>{t("chart.recordedDetails")}</Text>
+          <View style={styles.detailPills}>
+            {details.map((detail) => <View key={detail} style={styles.detailPill}><Text style={styles.detailPillText}>{detail}</Text></View>)}
+          </View>
+        </View>
+      ) : null}
+      {notes ? (
+        <View style={styles.notesCard}>
+          <Text style={styles.detailLabel}>{t("chart.notes")}</Text>
+          <Text style={styles.detailText}>{notes}</Text>
+        </View>
+      ) : null}
+      {details.length === 0 && !notes ? <Text style={styles.detailText}>{t("chart.noAdditionalDetails")}</Text> : null}
     </ChartDetailDialog>
+  );
+}
+
+function DetailMetric({ label, value, supporting, tone = "neutral" }: {
+  label: string;
+  value: string;
+  supporting?: string;
+  tone?: "sleep" | "feeding" | "diaper" | "neutral";
+}) {
+  const backgroundColor = tone === "sleep"
+    ? colors.sleepSoft
+    : tone === "feeding"
+      ? colors.feedingSoft
+      : tone === "diaper"
+        ? colors.diaperSoft
+        : colors.surfaceMuted;
+  const valueColor = tone === "sleep"
+    ? colors.sleep
+    : tone === "feeding"
+      ? colors.feeding
+      : tone === "diaper"
+        ? colors.warning
+        : colors.primaryDark;
+  return (
+    <View style={[styles.detailMetric, { backgroundColor }]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={[styles.detailValue, { color: valueColor }]}>{value}</Text>
+      {supporting ? <Text style={styles.detailSupporting}>{supporting}</Text> : null}
+    </View>
   );
 }
 
@@ -245,6 +310,7 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
   const { dateLocale, locale, t } = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateSleepByDay(events, ownerDate, startMinutes, now).map((day) => ({
+    date: day.date,
     label: format(day.date, "d MMM", { locale: dateLocale }),
     hours: day.hours,
   })), [dateLocale, events, now, ownerDate, startMinutes]);
@@ -273,8 +339,20 @@ export function SleepChart({ events, ownerDate, startMinutes, now }: {
             })}
           </Svg>
           {selected !== null && data[selected] ? (
-            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
-              <Text style={styles.detailText}>{formatSleepChartDuration(data[selected].hours, locale) || t("chart.noSleep")}</Text>
+            <ChartDetailDialog
+              visible
+              eyebrow={t("chart.sleepDuration")}
+              icon="😴"
+              subtitle={t("chart.ownerDayTotal")}
+              title={format(data[selected].date, "EEEE, d MMMM", { locale: dateLocale })}
+              tone="sleep"
+              onClose={() => setSelected(null)}
+            >
+              <DetailMetric
+                label={t("insights.totalSleep")}
+                value={formatSleepChartDuration(data[selected].hours, locale) || t("chart.noSleep")}
+                tone="sleep"
+              />
             </ChartDetailDialog>
           ) : null}
         </>
@@ -293,6 +371,7 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
   const [mode, setMode] = useState<"breast" | "bottle">("breast");
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateFeedingByDay(events, ownerDate, startMinutes).map((day) => ({
+    date: day.date,
     label: format(day.date, "d MMM", { locale: dateLocale }),
     breast: day.breastSessions,
     bottleSessions: day.bottleSessions,
@@ -330,8 +409,12 @@ export function FeedingChart({ events, ownerDate, startMinutes }: {
             })}
           </Svg>
           {selected !== null && data[selected] ? (
-            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
-              <Text style={styles.detailText}>{mode === "breast" ? `${data[selected].breast} ${t("chart.sessions")}` : `${data[selected].bottle} ml`}</Text>
+            <ChartDetailDialog visible eyebrow={t("chart.feeding")} icon="🍼" subtitle={t("chart.ownerDayTotal")} title={format(data[selected].date, "EEEE, d MMMM", { locale: dateLocale })} tone="feeding" onClose={() => setSelected(null)}>
+              <DetailMetric
+                label={mode === "breast" ? t("chart.breastSessions") : t("chart.bottleMl")}
+                value={mode === "breast" ? `${data[selected].breast} ${t("chart.sessions")}` : `${data[selected].bottle} ml`}
+                tone="feeding"
+              />
             </ChartDetailDialog>
           ) : null}
         </>
@@ -357,6 +440,7 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
   const { dateLocale, t } = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateDiaperByDay(events, ownerDate, startMinutes).map((day) => ({
+    date: day.date,
     label: format(day.date, "d MMM", { locale: dateLocale }),
     pee: day.pee,
     poop: day.poop,
@@ -402,8 +486,13 @@ export function DiaperChart({ events, ownerDate, startMinutes }: {
             })}
           </Svg>
           {selected !== null && data[selected] ? (
-            <ChartDetailDialog visible title={data[selected].label} onClose={() => setSelected(null)}>
-              <Text style={styles.detailText}>{t("event.pee")}: {data[selected].pee} · {t("event.poop")}: {data[selected].poop} · {t("event.both")}: {data[selected].both}</Text>
+            <ChartDetailDialog visible eyebrow={t("chart.diaperChanges")} icon="👶" subtitle={t("chart.ownerDayTotal")} title={format(data[selected].date, "EEEE, d MMMM", { locale: dateLocale })} tone="diaper" onClose={() => setSelected(null)}>
+              <DetailMetric label={t("chart.totalChanges")} value={String(totals[selected] ?? 0)} tone="diaper" />
+              <View style={styles.detailPills}>
+                <View style={styles.detailPill}><Text style={styles.detailPillText}>{t("event.pee")}: {data[selected].pee}</Text></View>
+                <View style={styles.detailPill}><Text style={styles.detailPillText}>{t("event.poop")}: {data[selected].poop}</Text></View>
+                <View style={styles.detailPill}><Text style={styles.detailPillText}>{t("event.both")}: {data[selected].both}</Text></View>
+              </View>
             </ChartDetailDialog>
           ) : null}
         </>
@@ -424,6 +513,15 @@ const styles = StyleSheet.create({
   empty: { minHeight: 120, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 18 },
   timelineScroll: { minWidth: "100%" },
   detailText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  detailMetric: { alignItems: "center", borderRadius: 18, gap: 3, paddingHorizontal: 16, paddingVertical: 17 },
+  detailLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7, textTransform: "uppercase" },
+  detailValue: { fontSize: 30, lineHeight: 36, fontWeight: "900" },
+  detailSupporting: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+  detailSection: { gap: 8 },
+  detailPills: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  detailPill: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 7 },
+  detailPillText: { color: colors.text, fontSize: 12, fontWeight: "700" },
+  notesCard: { backgroundColor: colors.surfaceMuted, borderRadius: 14, gap: 5, padding: 12 },
   segmented: { flexDirection: "row", backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 3 },
   segment: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   segmentActive: { backgroundColor: colors.surface },

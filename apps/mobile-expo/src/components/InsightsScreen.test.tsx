@@ -26,7 +26,21 @@ function summary(ownerDate: Date, totalSleepMinutes: number): DailySleepSummary 
     completePairCount: 3,
     excludedUnmatchedCount: 1,
     ageMonthsAtWindowEnd: 6,
-    references: [],
+    references: [{
+      source: "who",
+      sourceName: "World Health Organization",
+      publicationYear: 2019,
+      sourceUrl: "https://www.who.int/publications/i/item/9789241550536",
+      population: "Infants aged 4–11 months",
+      minAgeMonths: 4,
+      maxAgeMonthsExclusive: 12,
+      metricDefinition: "total-sleep-per-24-hours-including-naps",
+      unit: "minutes-per-24-hours",
+      minMinutes: 720,
+      maxMinutes: 960,
+      caveat: "guideline-context",
+      version: "test",
+    }],
   };
 }
 
@@ -63,11 +77,19 @@ describe("InsightsScreen", () => {
     await user.click(screen.getByRole("button", { name: "Open sleep summary for Sunday, 23 August" }));
     expect(screen.getByText("Sunday, 23 August 2026")).toBeInTheDocument();
     expect(screen.getByText("12h")).toBeInTheDocument();
+    expect(screen.getByText("Luna's recorded total sleep (12h) is within the 12h–16h per 24 hours recommended for this age.")).toBeInTheDocument();
+    expect(screen.getByText("This is a recommended sleep-duration range, not a population average or a diagnosis.")).toBeInTheDocument();
+    expect(screen.getByText(/Night wakings, daytime\/nighttime averages, and the longest stretch/)).toBeInTheDocument();
     expect(screen.getByText("3 complete sleep→wake pairs included · 1 unmatched events excluded")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Return to today" }));
     expect(screen.getByText("Monday, 24 August 2026")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next summary day" })).toBeDisabled();
+  });
+
+  it("shows at-a-glance guidance status in the history", () => {
+    render(<Harness />);
+    expect(screen.getAllByText("Within age guidance")).toHaveLength(2);
   });
 
   it("shows an explicit empty history state", () => {

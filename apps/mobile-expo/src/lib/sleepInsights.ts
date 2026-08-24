@@ -166,6 +166,24 @@ export type DailySleepSummary = {
   references: SleepReferenceBand[];
 };
 
+export type TotalSleepGuidanceComparison = {
+  status: "within" | "below" | "above" | "unavailable" | "insufficient-data";
+  reference: SleepReferenceBand | null;
+};
+
+export function compareTotalSleepWithGuidance(
+  summary: Pick<DailySleepSummary, "completePairCount" | "references" | "totalSleepMinutes">
+): TotalSleepGuidanceComparison {
+  if (summary.completePairCount === 0) {
+    return { status: "insufficient-data", reference: null };
+  }
+  const reference = summary.references[0] ?? null;
+  if (!reference) return { status: "unavailable", reference: null };
+  if (summary.totalSleepMinutes < reference.minMinutes) return { status: "below", reference };
+  if (summary.totalSleepMinutes > reference.maxMinutes) return { status: "above", reference };
+  return { status: "within", reference };
+}
+
 function shiftOwnerDate(date: Date, days: number): Date {
   const shifted = new Date(date);
   shifted.setDate(shifted.getDate() + days);

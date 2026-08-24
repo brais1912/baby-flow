@@ -6,6 +6,7 @@ import {
   fetchEvents,
   fetchLatestSleepPhase,
   getDayWindowStartMinutes,
+  updateDayWindowStartMinutes,
   updateEventTime,
 } from "../lib/eventRepository";
 import { dayWindowDate } from "../lib/events";
@@ -26,6 +27,7 @@ vi.mock("../lib/eventRepository", () => ({
   fetchEvents: vi.fn(),
   fetchLatestSleepPhase: vi.fn(),
   getDayWindowStartMinutes: vi.fn(),
+  updateDayWindowStartMinutes: vi.fn(),
   updateEventTime: vi.fn(),
 }));
 
@@ -58,6 +60,21 @@ describe("useEvents", () => {
     vi.mocked(getDayWindowStartMinutes).mockResolvedValue(720);
     vi.mocked(fetchEvents).mockResolvedValue([]);
     vi.mocked(fetchLatestSleepPhase).mockResolvedValue(null);
+    vi.mocked(updateDayWindowStartMinutes).mockResolvedValue(undefined);
+  });
+
+  it("persists a new owner-day start and reloads the current day with that boundary", async () => {
+    const { result } = renderHook(() => useEvents("user-1", {
+      name: "Luna",
+      dateOfBirth: "2026-02-01",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => result.current.saveDayWindowStart(10 * 60));
+
+    expect(updateDayWindowStartMinutes).toHaveBeenCalledWith(expect.anything(), "user-1", 10 * 60);
+    expect(result.current.dayWindowStartMinutes).toBe(10 * 60);
+    expect(result.current.selectedDay).toEqual(dayWindowDate(new Date(), 10 * 60));
   });
 
   it("returns to the current owner day when pull-to-refresh is requested", async () => {

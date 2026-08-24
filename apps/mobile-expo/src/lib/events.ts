@@ -1,6 +1,23 @@
 import type { BabyEvent, EventInput, EventRow, EventType } from "../types/events";
 
 export const INVALID_SLEEP_SEQUENCE = "INVALID_SLEEP_SEQUENCE";
+export const DEFAULT_DAY_WINDOW_START_MINUTES = 12 * 60;
+export const ALLOWED_DAY_WINDOW_START_MINUTES = [
+  0,
+  8 * 60,
+  9 * 60,
+  10 * 60,
+  11 * 60,
+  DEFAULT_DAY_WINDOW_START_MINUTES,
+  20 * 60,
+  21 * 60,
+  22 * 60,
+  23 * 60,
+] as const;
+
+export function isValidDayWindowStartMinutes(value: number): boolean {
+  return Number.isInteger(value) && ALLOWED_DAY_WINDOW_START_MINUTES.some((preset) => preset === value);
+}
 
 export function mapEventRow(row: EventRow): BabyEvent {
   return {
