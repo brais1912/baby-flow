@@ -1,25 +1,22 @@
 import { format } from "date-fns";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { formatNaturalDuration } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
 import { eventPhaseDuration } from "../lib/eventDurations";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyEvent } from "../types/events";
 import { ChartDetailDialog } from "../ui/ChartDetailDialog";
 import { AppButton } from "../ui/Core";
 
-const eventPresentation: Record<BabyEvent["type"], {
+type EventPresentation = Record<BabyEvent["type"], {
   icon: string;
   label: MessageKey;
   tone: "sleep" | "feeding" | "diaper" | "neutral";
   summaryBackground: string;
-}> = {
-  sleep: { icon: "😴", label: "event.sleep", tone: "sleep", summaryBackground: colors.sleepSoft },
-  wake_up: { icon: "🌅", label: "event.wake", tone: "neutral", summaryBackground: colors.awakeSoft },
-  feeding: { icon: "🍼", label: "event.feed", tone: "feeding", summaryBackground: colors.feedingSoft },
-  diaper: { icon: "👶", label: "event.diaper", tone: "diaper", summaryBackground: colors.diaperSoft },
-};
+}>;
 
 const detailLabelKeys: Partial<Record<string, MessageKey>> = {
   breast_left: "event.leftBreast",
@@ -62,6 +59,14 @@ export function EventDetailSheet({
   onEdit?: (event: BabyEvent) => void;
 }) {
   const { dateLocale, locale, t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const eventPresentation: EventPresentation = {
+    sleep: { icon: "😴", label: "event.sleep", tone: "sleep", summaryBackground: colors.sleepSoft },
+    wake_up: { icon: "🌅", label: "event.wake", tone: "neutral", summaryBackground: colors.awakeSoft },
+    feeding: { icon: "🍼", label: "event.feed", tone: "feeding", summaryBackground: colors.feedingSoft },
+    diaper: { icon: "👶", label: "event.diaper", tone: "diaper", summaryBackground: colors.diaperSoft },
+  };
   const presentation = eventPresentation[event.type];
   const time = format(event.occurredAt, "HH:mm", { locale: dateLocale });
   const phase = eventPhaseDuration(event, allEvents);
@@ -128,7 +133,8 @@ export function EventDetailSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   summaryCard: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 17 },
   summary: { color: colors.text, fontSize: 17, lineHeight: 24, fontWeight: "800" },
   detailSection: { gap: 8 },
@@ -139,4 +145,5 @@ const styles = StyleSheet.create({
   notesCard: { backgroundColor: colors.surfaceMuted, borderRadius: 14, gap: 5, padding: 12 },
   notes: { color: colors.text, fontSize: 14, lineHeight: 20 },
   empty: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-});
+  });
+}

@@ -1,12 +1,13 @@
 import { format } from "date-fns";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { formatEventDuration } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
 import { eventPhaseDuration } from "../lib/eventDurations";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyEvent } from "../types/events";
 import { IconButton } from "../ui/Core";
 
@@ -73,6 +74,8 @@ export function EventCard({
   onSwipeClose: (eventId: string) => void;
 }) {
   const { dateLocale, locale, t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const swipeable = useRef<SwipeableMethods>(null);
   const detail = eventDetail(event, t);
   const phaseDuration = eventPhaseDuration(event, allEvents);
@@ -187,13 +190,14 @@ export function EventCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   swipeContainer: { borderRadius: 14, overflow: "hidden" },
   swipeAction: { width: 82, alignItems: "center", justifyContent: "center", gap: 3 },
   swipeEdit: { backgroundColor: colors.primary },
   swipeDelete: { backgroundColor: colors.danger },
-  swipeActionIcon: { color: "#ffffff", fontSize: 20, fontWeight: "800" },
-  swipeActionLabel: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
+  swipeActionIcon: { color: colors.onPrimary, fontSize: 20, fontWeight: "800" },
+  swipeActionLabel: { color: colors.onPrimary, fontSize: 12, fontWeight: "800" },
   disabled: { opacity: 0.45 },
   card: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, padding: 9, minHeight: 62 },
   openArea: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, minHeight: 42 },
@@ -215,4 +219,5 @@ const styles = StyleSheet.create({
   quickBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 7 },
   quickText: { color: colors.primaryDark, fontSize: 8, fontWeight: "700" },
   confirmText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: "700" },
-});
+  });
+}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,9 +9,21 @@ import {
   View,
 } from "react-native";
 import type { KeyboardTypeOptions, TextInputProps } from "react-native";
-import { colors, shadows } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors, ThemeShadows } from "../theme";
+
+function useStyles() {
+  const { colors, shadows } = useTheme();
+  return useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+}
+
+export function useCoreStyles() {
+  const { colors } = useTheme();
+  return useMemo(() => createCoreStyles(colors), [colors]);
+}
 
 export function Brand({ large = false }: { large?: boolean }) {
+  const styles = useStyles();
   return (
     <View style={styles.brand} accessibilityLabel="BabyFlow">
       <Image
@@ -27,6 +39,7 @@ export function Card({ children, style }: {
   children: ReactNode;
   style?: object;
 }) {
+  const styles = useStyles();
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
@@ -39,6 +52,8 @@ export function AppButton({ label, onPress, disabled = false, loading = false, t
   icon?: ReactNode;
   compact?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -53,7 +68,7 @@ export function AppButton({ label, onPress, disabled = false, loading = false, t
         (disabled || loading) && styles.buttonDisabled,
       ]}
     >
-      {loading ? <ActivityIndicator color={tone === "primary" ? "#ffffff" : colors.primary} /> : icon}
+      {loading ? <ActivityIndicator color={tone === "primary" ? colors.onPrimary : colors.primary} /> : icon}
       <Text style={[styles.buttonLabel, compact && styles.buttonLabelCompact, styles[`${tone}ButtonLabel`]]}>{label}</Text>
     </Pressable>
   );
@@ -67,6 +82,7 @@ export function IconButton({ label, icon, onPress, disabled = false, danger = fa
   danger?: boolean;
   compact?: boolean;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -94,6 +110,7 @@ export function Field({ label, error, children }: {
   error?: string | null;
   children: ReactNode;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -115,12 +132,15 @@ export function TextField({ value, onChangeText, placeholder, secureTextEntry, k
   accessibilityLabel: string;
   autoCapitalize?: TextInputProps["autoCapitalize"];
 }) {
+  const { colors, colorScheme } = useTheme();
+  const styles = useStyles();
   return (
     <TextInput
       accessibilityLabel={accessibilityLabel}
       autoCapitalize={autoCapitalize}
       autoCorrect={!secureTextEntry}
       editable={editable}
+      keyboardAppearance={colorScheme}
       keyboardType={keyboardType}
       maxLength={maxLength}
       multiline={multiline}
@@ -138,6 +158,7 @@ export function Banner({ children, tone = "error" }: {
   children: ReactNode;
   tone?: "error" | "success" | "warning" | "neutral";
 }) {
+  const styles = useStyles();
   const role = tone === "error" ? "alert" : undefined;
   return (
     <View style={[styles.banner, styles[`${tone}Banner`]]} accessibilityRole={role}>
@@ -153,6 +174,7 @@ export function ChoiceChips<T extends string>({ value, options, onChange, access
   accessibilityLabel: string;
   disabled?: boolean;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.chips} accessibilityLabel={accessibilityLabel} accessibilityRole="radiogroup">
       {options.map((option) => {
@@ -180,7 +202,8 @@ export function ChoiceChips<T extends string>({ value, options, onChange, access
   );
 }
 
-export const coreStyles = StyleSheet.create({
+function createCoreStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: 16, paddingBottom: 28, gap: 14 },
   title: { color: colors.text, fontSize: 28, fontWeight: "800" },
@@ -192,9 +215,11 @@ export const coreStyles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   gap: { gap: 12 },
-});
+  });
+}
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+  return StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
   brandMark: { width: 25, height: 25, borderRadius: 9 },
   brandMarkLarge: { width: 52, height: 52, borderRadius: 18 },
@@ -205,13 +230,13 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: 38, borderRadius: 12, paddingHorizontal: 14, gap: 7 },
   primaryButton: { backgroundColor: colors.primary, borderColor: colors.primary },
   secondaryButton: { backgroundColor: colors.surface, borderColor: colors.border },
-  dangerButton: { backgroundColor: colors.dangerSoft, borderColor: "#f6c9d1" },
+  dangerButton: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerBorder },
   textButton: { backgroundColor: "transparent", borderColor: "transparent", minHeight: 40 },
   buttonPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   buttonDisabled: { opacity: 0.45 },
   buttonLabel: { fontSize: 15, fontWeight: "700" },
   buttonLabelCompact: { fontSize: 13 },
-  primaryButtonLabel: { color: "#ffffff" },
+  primaryButtonLabel: { color: colors.onPrimary },
   secondaryButtonLabel: { color: colors.text },
   dangerButtonLabel: { color: colors.danger },
   textButtonLabel: { color: colors.primary },
@@ -228,9 +253,9 @@ const styles = StyleSheet.create({
   multilineInput: { minHeight: 86, paddingTop: 12, textAlignVertical: "top" },
   inputDisabled: { backgroundColor: colors.surfaceMuted, opacity: 0.65 },
   banner: { borderRadius: 13, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 11 },
-  errorBanner: { backgroundColor: colors.dangerSoft, borderColor: "#f4cbd2" },
-  successBanner: { backgroundColor: colors.successSoft, borderColor: "#bfe6d3" },
-  warningBanner: { backgroundColor: colors.warningSoft, borderColor: "#f2d995" },
+  errorBanner: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerBorder },
+  successBanner: { backgroundColor: colors.successSoft, borderColor: colors.successBorder },
+  warningBanner: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder },
   neutralBanner: { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
   bannerText: { color: colors.text, fontSize: 13, lineHeight: 18 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -239,4 +264,5 @@ const styles = StyleSheet.create({
   chipEmoji: { fontSize: 17 },
   chipLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
   chipLabelSelected: { color: colors.primaryDark },
-});
+  });
+}

@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import * as Linking from "expo-linking";
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { useSleepInsights } from "../hooks/useSleepInsights";
 import { formatAge, formatEventDuration } from "../i18n/format";
@@ -10,9 +11,10 @@ import {
   type DailySleepSummary,
   type TotalSleepGuidanceComparison,
 } from "../lib/sleepInsights";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyProfile } from "../types/profile";
-import { AppButton, Banner, Card, IconButton, coreStyles } from "../ui/Core";
+import { AppButton, Banner, Card, IconButton, useCoreStyles } from "../ui/Core";
 
 function duration(minutes: number | null, locale: "en" | "es", empty: string): string {
   return minutes === null ? empty : formatEventDuration(minutes * 60_000, locale);
@@ -50,6 +52,9 @@ export function InsightsScreen({
   onSelectOwnerDate: (date: Date | null) => void;
 }) {
   const { dateLocale, locale, t } = useI18n();
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const selectedKey = selectedOwnerDate ? ownerDateKey(selectedOwnerDate) : null;
   const selectedIndex = selectedKey
     ? data.summaries.findIndex((summary) => ownerDateKey(summary.ownerDate) === selectedKey)
@@ -241,6 +246,9 @@ export function InsightsScreen({
 }
 
 function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Card style={styles.metricCard}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -250,7 +258,8 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   heading: { gap: 4 },
   detailHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   detailHeadingCopy: { flex: 1, gap: 3 },
@@ -279,4 +288,5 @@ const styles = StyleSheet.create({
   dayValue: { color: colors.primaryDark, fontSize: 16, fontWeight: "900" },
   chevron: { color: colors.textMuted, fontSize: 25, fontWeight: "700" },
   pressed: { opacity: 0.65 },
-});
+  });
+}

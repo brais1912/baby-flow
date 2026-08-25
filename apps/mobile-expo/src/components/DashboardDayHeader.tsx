@@ -1,7 +1,9 @@
 import { format } from "date-fns";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useI18n } from "../i18n/I18nProvider";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import { Card, IconButton } from "../ui/Core";
 
 export function DashboardDayHeader({
@@ -24,6 +26,8 @@ export function DashboardDayHeader({
   onToday: () => void;
 }) {
   const { dateLocale, t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const title = isToday
     ? t("dashboard.todayFor", { name: babyName })
     : format(selectedDay, "EEEE, d MMMM yyyy", { locale: dateLocale });
@@ -55,7 +59,8 @@ export function DashboardDayHeader({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: { gap: 4, paddingHorizontal: 10, paddingVertical: 9 },
   navigationRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   copy: { flex: 1, minWidth: 0, alignItems: "center", gap: 2 },
@@ -65,4 +70,5 @@ const styles = StyleSheet.create({
   todayLabel: { color: colors.primary, fontSize: 12, lineHeight: 16, fontWeight: "800" },
   pressed: { opacity: 0.65 },
   disabled: { opacity: 0.45 },
-});
+  });
+}
