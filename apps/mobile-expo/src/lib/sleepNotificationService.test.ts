@@ -201,6 +201,25 @@ describe("sleep notification service", () => {
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledOnce();
   });
 
+  it("uses the configured high-importance channel for immediate Android transitions", async () => {
+    vi.spyOn(platform, "currentPlatform").mockReturnValue("android");
+    storage.set(TRANSITION_UPDATES_ENABLED_KEY, "true");
+    const now = new Date(2026, 7, 24, 10);
+    const wake = event("wake-android", "wake_up", now);
+
+    await sendSleepTransitionUpdate({
+      event: wake,
+      events: [event("sleep-android", "sleep", new Date(2026, 7, 24, 8)), wake],
+      profile: { name: "Luna", dateOfBirth: "2026-02-23" },
+      locale: "en",
+      now,
+    });
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+      trigger: { channelId: "reminders" },
+    }));
+  });
+
   it("moves an elapsed daily time to the next local day", () => {
     expect(nextDailySleepSummaryDate(new Date(2026, 7, 24, 20), "20:00"))
       .toEqual(new Date(2026, 7, 25, 20));

@@ -12,10 +12,11 @@ import {
   buildTimeline,
 } from "../lib/dashboard";
 import { ownerDayWindowBounds } from "../lib/events";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyEvent } from "../types/events";
 import { ChartDetailDialog } from "../ui/ChartDetailDialog";
-import { Card, IconButton, coreStyles } from "../ui/Core";
+import { Card, IconButton, useCoreStyles } from "../ui/Core";
 import { EventDetailSheet } from "./EventDetailSheet";
 
 const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
@@ -24,6 +25,14 @@ const eventLabelKeys: Record<BabyEvent["type"], MessageKey> = {
   feeding: "event.feed",
   diaper: "event.diaper",
 };
+
+function useChartTheme() {
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return { colors, coreStyles, styles };
+}
+
 function ChartPanel({ title, icon, ownerDate, children }: {
   title: string;
   icon: string;
@@ -31,6 +40,7 @@ function ChartPanel({ title, icon, ownerDate, children }: {
   children: React.ReactNode;
 }) {
   const { dateLocale, t } = useI18n();
+  const { coreStyles, styles } = useChartTheme();
   const first = new Date(ownerDate);
   first.setDate(first.getDate() - 9);
   return (
@@ -50,6 +60,7 @@ function ChartPanel({ title, icon, ownerDate, children }: {
 }
 
 function EmptyChart({ children }: { children: React.ReactNode }) {
+  const { coreStyles, styles } = useChartTheme();
   return <View style={styles.empty}><Text style={coreStyles.muted}>{children}</Text></View>;
 }
 
@@ -59,6 +70,7 @@ function DetailMetric({ label, value, supporting, tone = "neutral" }: {
   supporting?: string;
   tone?: "sleep" | "feeding" | "diaper" | "neutral";
 }) {
+  const { colors, styles } = useChartTheme();
   const backgroundColor = tone === "sleep"
     ? colors.sleepSoft
     : tone === "feeding"
@@ -91,6 +103,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, babyName, now =
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, t } = useI18n();
+  const { colors, coreStyles, styles } = useChartTheme();
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<{ event: BabyEvent; wakeUp: BabyEvent | null } | null>(null);
   const timeline = useMemo(() => buildTimeline(events, ownerDate, startMinutes, now), [events, now, ownerDate, startMinutes]);
@@ -126,7 +139,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, babyName, now =
             { label: t("chart.diaperLane"), y: 98 },
           ].map((lane, index) => (
             <G key={lane.label}>
-              <Rect x={0} y={lane.y - 15} width={viewWidth} height={30} fill={index % 2 === 0 ? "#faf9fc" : "#ffffff"} />
+              <Rect x={0} y={lane.y - 15} width={viewWidth} height={30} fill={index % 2 === 0 ? colors.surfaceMuted : colors.surface} />
               <SvgText x={47} y={lane.y + 4} textAnchor="end" fill={colors.textMuted} fontSize={10} fontWeight="700">{lane.label}</SvgText>
             </G>
           ))}
@@ -162,7 +175,7 @@ export function TimelineChart({ events, ownerDate, startMinutes, babyName, now =
               <G key={point.id} onPress={() => selectEvent(point.id)} accessibilityLabel={t("chart.eventAria", { event: t(eventLabelKeys[event.type]), time: format(event.occurredAt, "HH:mm") })} accessible>
                 <Circle cx={pointX} cy={pointY} r={18} fill="transparent" />
                 <Circle cx={pointX} cy={pointY} r={9} fill={fill} />
-                <SvgText x={pointX} y={pointY + 3} textAnchor="middle" fill="#ffffff" fontSize={8} fontWeight="800">{point.type === "feeding" ? t("chart.feedingShort") : t("chart.diaperShort")}</SvgText>
+                <SvgText x={pointX} y={pointY + 3} textAnchor="middle" fill={colors.onPrimary} fontSize={8} fontWeight="800">{point.type === "feeding" ? t("chart.feedingShort") : t("chart.diaperShort")}</SvgText>
               </G>
             );
           })}
@@ -204,6 +217,7 @@ function barGeometry(width: number, count: number, max: number) {
 }
 
 function Grid({ width, max }: { width: number; max: number }) {
+  const { colors } = useChartTheme();
   const plotHeight = CHART_HEIGHT - PLOT_TOP - PLOT_BOTTOM;
   return (
     <>
@@ -229,6 +243,7 @@ export function SleepChart({ events, ownerDate, startMinutes, babyName, now }: {
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, locale, t } = useI18n();
+  const { colors, styles } = useChartTheme();
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateSleepByDay(events, ownerDate, startMinutes, now).map((day) => ({
     date: day.date,
@@ -296,6 +311,7 @@ export function FeedingChart({ events, ownerDate, startMinutes, babyName }: {
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, t } = useI18n();
+  const { colors, styles } = useChartTheme();
   const [mode, setMode] = useState<"breast" | "bottle">("breast");
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateFeedingByDay(events, ownerDate, startMinutes).map((day) => ({
@@ -355,6 +371,7 @@ export function FeedingChart({ events, ownerDate, startMinutes, babyName }: {
 }
 
 function Segment({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  const { styles } = useChartTheme();
   return (
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.segment, active && styles.segmentActive]}>
       <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
@@ -370,6 +387,7 @@ export function DiaperChart({ events, ownerDate, startMinutes, babyName }: {
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { dateLocale, t } = useI18n();
+  const { colors, styles } = useChartTheme();
   const [selected, setSelected] = useState<number | null>(null);
   const data = useMemo(() => aggregateDiaperByDay(events, ownerDate, startMinutes).map((day) => ({
     date: day.date,
@@ -389,9 +407,9 @@ export function DiaperChart({ events, ownerDate, startMinutes, babyName }: {
       {!hasData ? <EmptyChart>{t("chart.noDiaper")}</EmptyChart> : (
         <>
           <View style={styles.legend}>
-            <LegendDot color="#e8b923" label={t("event.pee")} />
-            <LegendDot color="#98623a" label={t("event.poop")} />
-            <LegendDot color="#e47a36" label={t("event.both")} />
+            <LegendDot color={colors.diaperPee} label={t("event.pee")} />
+            <LegendDot color={colors.diaperPoop} label={t("event.poop")} />
+            <LegendDot color={colors.diaperBoth} label={t("event.both")} />
           </View>
           <Svg width={width} height={CHART_HEIGHT}>
             <Grid width={width} max={max} />
@@ -399,9 +417,9 @@ export function DiaperChart({ events, ownerDate, startMinutes, babyName }: {
               const center = geometry.x(index);
               let cumulative = 0;
               const segments = [
-                { key: "pee", value: day.pee, fill: "#e8b923" },
-                { key: "poop", value: day.poop, fill: "#98623a" },
-                { key: "both", value: day.both, fill: "#e47a36" },
+                { key: "pee", value: day.pee, fill: colors.diaperPee },
+                { key: "poop", value: day.poop, fill: colors.diaperPoop },
+                { key: "both", value: day.both, fill: colors.diaperBoth },
               ];
               return (
                 <G key={day.label} onPress={() => setSelected(index)} accessible accessibilityLabel={`${day.label}: ${totals[index] ?? 0}`}>
@@ -435,10 +453,12 @@ export function DiaperChart({ events, ownerDate, startMinutes, babyName }: {
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
+  const { coreStyles, styles } = useChartTheme();
   return <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: color }]} /><Text style={coreStyles.muted}>{label}</Text></View>;
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   panel: { gap: 12, overflow: "hidden" },
   chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   chartHeadingCopy: { gap: 3 },
@@ -461,4 +481,5 @@ const styles = StyleSheet.create({
   legend: { flexDirection: "row", justifyContent: "center", gap: 14 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-});
+  });
+}

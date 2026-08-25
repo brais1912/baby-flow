@@ -1,18 +1,12 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../i18n/I18nProvider";
-import { colors, shadows } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors, ThemeShadows } from "../theme";
 import { IconButton } from "./Core";
 
 type ChartDetailTone = "neutral" | "sleep" | "feeding" | "diaper";
-
-const toneColors: Record<ChartDetailTone, { accent: string; soft: string }> = {
-  neutral: { accent: colors.primary, soft: colors.primarySoft },
-  sleep: { accent: colors.sleep, soft: colors.sleepSoft },
-  feeding: { accent: colors.feeding, soft: colors.feedingSoft },
-  diaper: { accent: colors.diaper, soft: colors.diaperSoft },
-};
 
 export function ChartDetailDialog({ visible, eyebrow, title, subtitle, icon, tone = "neutral", children, onClose }: {
   visible: boolean;
@@ -25,7 +19,15 @@ export function ChartDetailDialog({ visible, eyebrow, title, subtitle, icon, ton
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const { colors, shadows } = useTheme();
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const insets = useSafeAreaInsets();
+  const toneColors: Record<ChartDetailTone, { accent: string; soft: string }> = {
+    neutral: { accent: colors.primary, soft: colors.primarySoft },
+    sleep: { accent: colors.sleep, soft: colors.sleepSoft },
+    feeding: { accent: colors.feeding, soft: colors.feedingSoft },
+    diaper: { accent: colors.diaper, soft: colors.diaperSoft },
+  };
   const palette = toneColors[tone];
 
   return (
@@ -69,10 +71,11 @@ export function ChartDetailDialog({ visible, eyebrow, title, subtitle, icon, ton
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+  return StyleSheet.create({
   layer: { flex: 1, justifyContent: "flex-end" },
   backdrop: {
-    backgroundColor: "rgba(28, 22, 34, 0.5)",
+    backgroundColor: colors.overlay,
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -89,7 +92,7 @@ const styles = StyleSheet.create({
     width: "100%",
     ...shadows.card,
   },
-  handle: { alignSelf: "center", backgroundColor: "#d2cad9", borderRadius: 3, height: 5, marginBottom: 3, width: 42 },
+  handle: { alignSelf: "center", backgroundColor: colors.handle, borderRadius: 3, height: 5, marginBottom: 3, width: 42 },
   header: {
     alignItems: "center",
     flexDirection: "row",
@@ -113,4 +116,5 @@ const styles = StyleSheet.create({
   },
   subtitle: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   content: { gap: 12 },
-});
+  });
+}

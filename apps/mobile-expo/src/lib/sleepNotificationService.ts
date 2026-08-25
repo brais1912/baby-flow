@@ -7,7 +7,11 @@ import type { Locale } from "../i18n/messages";
 import { translate } from "../i18n/messages";
 import type { BabyEvent } from "../types/events";
 import type { BabyProfile } from "../types/profile";
-import { isNativePlatform, notificationPermission } from "./notificationService";
+import {
+  immediateNotificationTrigger,
+  isNativePlatform,
+  notificationPermission,
+} from "./notificationService";
 import type { DailySleepSummary } from "./sleepInsights";
 import { ownerDateFromKey, ownerDateKey } from "./sleepInsights";
 
@@ -308,7 +312,7 @@ export async function sendSleepTransitionUpdate({
       profile,
       locale,
     }),
-    trigger: null,
+    trigger: immediateNotificationTrigger(),
   });
   await AsyncStorage.setItem(LAST_TRANSITION_EVENT_KEY, event.id);
   return true;

@@ -18,9 +18,10 @@ import {
   getAwakeState,
 } from "../lib/dashboard";
 import { ownerDayWindowBounds } from "../lib/events";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyEvent, EventType } from "../types/events";
-import { Banner, Card, ChoiceChips, IconButton, coreStyles } from "../ui/Core";
+import { Banner, Card, ChoiceChips, IconButton, useCoreStyles } from "../ui/Core";
 import { DashboardCharts } from "./DashboardChartsGroup";
 import { DashboardDayHeader } from "./DashboardDayHeader";
 import { EventCard } from "./EventCard";
@@ -46,6 +47,9 @@ export function DashboardScreen({ data, babyName }: {
   babyName: string;
 }) {
   const { dateLocale, t } = useI18n();
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const online = useNetworkStatus();
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
   const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
@@ -247,6 +251,8 @@ function Stat({ label, value, icon, tone }: {
   icon: string;
   tone: "sleep" | "night" | "feeding" | "diaper";
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const background = tone === "sleep" ? colors.sleepSoft : tone === "night" ? colors.nightSoft : tone === "feeding" ? colors.feedingSoft : colors.diaperSoft;
   return (
     <View accessibilityLabel={`${label}: ${value}`} style={[styles.stat, { backgroundColor: background }]}>
@@ -259,11 +265,12 @@ function Stat({ label, value, icon, tone }: {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   status: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 17, borderWidth: 1 },
-  awakeStatus: { backgroundColor: colors.awakeSoft, borderColor: "#f5d0a7" },
-  sleepStatus: { backgroundColor: colors.sleepSoft, borderColor: "#d8c5ec" },
+  awakeStatus: { backgroundColor: colors.awakeSoft, borderColor: colors.awakeBorder },
+  sleepStatus: { backgroundColor: colors.sleepSoft, borderColor: colors.sleepBorder },
   statusDot: { width: 11, height: 11, borderRadius: 6 },
   statusCopy: { gap: 2 },
   statusTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
@@ -285,4 +292,5 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 28 },
   emptyTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
   eventList: { gap: 7 },
-});
+  });
+}

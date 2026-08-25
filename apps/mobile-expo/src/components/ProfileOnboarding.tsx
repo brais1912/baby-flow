@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../i18n/I18nProvider";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyProfile } from "../types/profile";
-import { AppButton, Brand, Card, coreStyles } from "../ui/Core";
+import { AppButton, Brand, Card, useCoreStyles } from "../ui/Core";
 import { ProfileForm } from "./ProfileForm";
 
 export function ProfileOnboarding({ saving, error, onSave, onSignOut }: {
@@ -13,6 +15,9 @@ export function ProfileOnboarding({ saving, error, onSave, onSignOut }: {
   onSignOut: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView style={coreStyles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -31,7 +36,9 @@ export function ProfileOnboarding({ saving, error, onSave, onSignOut }: {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 20, gap: 20, backgroundColor: colors.background },
   heading: { alignItems: "center", gap: 10 },
-});
+  });
+}

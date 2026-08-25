@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -12,7 +12,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
-import { colors, shadows } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors, ThemeShadows } from "../theme";
 import type {
   BabyEvent,
   DiaperType,
@@ -40,6 +41,8 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
   onUpdateTime: (event: BabyEvent, occurredAt: Date) => Promise<unknown>;
 }) {
   const { t } = useI18n();
+  const { colors, shadows } = useTheme();
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const insets = useSafeAreaInsets();
   const [type, setType] = useState<EventType>(event?.type ?? "sleep");
   const [occurredAt, setOccurredAt] = useState(event?.occurredAt ?? new Date());
@@ -172,12 +175,14 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+  return StyleSheet.create({
   layer: { flex: 1, justifyContent: "flex-end" },
-  backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(28, 22, 34, 0.45)" },
+  backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay },
   sheet: { maxHeight: "88%", borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.background, paddingTop: 8, ...shadows.card },
-  handle: { width: 42, height: 5, borderRadius: 3, backgroundColor: "#cfc7d6", alignSelf: "center", marginBottom: 7 },
+  handle: { width: 42, height: 5, borderRadius: 3, backgroundColor: colors.handle, alignSelf: "center", marginBottom: 7 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 10 },
   title: { color: colors.text, fontSize: 20, fontWeight: "800" },
   form: { paddingHorizontal: 18, paddingBottom: 10, gap: 15 },
-});
+  });
+}

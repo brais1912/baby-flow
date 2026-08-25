@@ -18,9 +18,10 @@ import {
 } from "../lib/sleepNotificationService";
 import { mostRecentlyCompletedOwnerDate, ownerDateKey } from "../lib/sleepInsights";
 import type { WakeWindowRange } from "../lib/wakeWindow";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors } from "../theme";
 import type { BabyProfile } from "../types/profile";
-import { AppButton, Banner, Card, Field, TextField, coreStyles } from "../ui/Core";
+import { AppButton, Banner, Card, Field, TextField, useCoreStyles } from "../ui/Core";
 import { TimeField } from "../ui/DateTimeFields";
 
 function wakeRangeLabel(range: WakeWindowRange, locale: "en" | "es", t: ReturnType<typeof useI18n>["t"]): string {
@@ -39,6 +40,9 @@ export function ReminderPanel({ profile, sleepReminder, sleepInsights }: {
   sleepInsights: ReturnType<typeof useSleepInsights>;
 }) {
   const { dateLocale, locale, t } = useI18n();
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const native = isNativePlatform();
   const [dailyEnabled, setDailyEnabled] = useState(false);
   const [dailyTime, setDailyTime] = useState("20:00");
@@ -280,18 +284,22 @@ export function ReminderPanel({ profile, sleepReminder, sleepInsights }: {
 
 function ToggleRow({ label, enabled, onChange }: { label: string; enabled: boolean; onChange: (value: boolean) => void }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.toggleRow}>
       <View style={styles.toggleCopy}>
         <Text style={styles.toggleTitle}>{label}</Text>
         <Text style={coreStyles.muted}>{enabled ? t("common.enabled") : t("common.disabled")}</Text>
       </View>
-      <Switch accessibilityLabel={label} value={enabled} onValueChange={onChange} trackColor={{ false: colors.border, true: "#b99af4" }} thumbColor={enabled ? colors.primary : "#ffffff"} />
+      <Switch accessibilityLabel={label} value={enabled} onValueChange={onChange} trackColor={{ false: colors.border, true: colors.switchTrack }} thumbColor={enabled ? colors.primary : colors.switchThumb} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 2 },
   headingCopy: { gap: 4 },
   bell: { fontSize: 27 },
@@ -303,4 +311,5 @@ const styles = StyleSheet.create({
   guidanceTitle: { color: colors.primaryDark, fontSize: 14, fontWeight: "800" },
   status: { gap: 4, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 13 },
   statusLine: { color: colors.text, fontSize: 13, lineHeight: 18 },
-});
+  });
+}

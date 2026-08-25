@@ -11,7 +11,7 @@ import {
 } from "../lib/eventRepository";
 import { dayWindowDate } from "../lib/events";
 import { sendSleepTransitionUpdate } from "../lib/sleepNotificationService";
-import type { BabyEvent } from "../types/events";
+import type { BabyEvent, EventType } from "../types/events";
 import { useEvents } from "./useEvents";
 
 vi.mock("expo-haptics", () => ({
@@ -35,11 +35,11 @@ vi.mock("../lib/sleepNotificationService", () => ({
   sendSleepTransitionUpdate: vi.fn().mockResolvedValue(false),
 }));
 
-function sleepEvent(id: string, occurredAt: Date): BabyEvent {
+function phaseEvent(id: string, type: EventType, occurredAt: Date): BabyEvent {
   return {
     id,
     userId: "user-1",
-    type: "sleep",
+    type,
     occurredAt,
     notes: null,
     sleepMethod: null,
@@ -51,6 +51,20 @@ function sleepEvent(id: string, occurredAt: Date): BabyEvent {
     diaperType: null,
     createdAt: occurredAt,
     updatedAt: occurredAt,
+  };
+}
+
+function deferred<T>() {
+  let resolvePromise: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return {
+    promise,
+    resolve(value: T) {
+      if (!resolvePromise) throw new Error("DEFERRED_NOT_READY");
+      resolvePromise(value);
+    },
   };
 }
 
@@ -94,7 +108,7 @@ describe("useEvents", () => {
 
   it("emits a transition update only after creation, never after edits or deletes", async () => {
     const occurredAt = new Date();
-    const created = sleepEvent("sleep-1", occurredAt);
+    const created = phaseEvent("sleep-1", "sleep", occurredAt);
     const updated = { ...created, occurredAt: new Date(occurredAt.getTime() + 60_000) };
     vi.mocked(createEvent).mockResolvedValue(created);
     vi.mocked(updateEventTime).mockResolvedValue(updated);
@@ -109,11 +123,42 @@ describe("useEvents", () => {
       await result.current.create({ type: "sleep", occurredAt });
     });
     expect(sendSleepTransitionUpdate).toHaveBeenCalledOnce();
+    expect(sendSleepTransitionUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      now: expect.any(Date),
+    }));
 
     await act(async () => {
       await result.current.updateTime(created, updated.occurredAt);
       await result.current.remove(created.id);
     });
     expect(sendSleepTransitionUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("does not let an older sleep-phase response overwrite a newly created wake-up", async () => {
+    const initialResponse = deferred<BabyEvent | null>();
+    const oldSleep = phaseEvent("sleep-1", "sleep", new Date(Date.now() - 60_000));
+    const newWake = phaseEvent("wake-1", "wake_up", new Date());
+    vi.mocked(fetchLatestSleepPhase)
+      .mockImplementationOnce(() => initialResponse.promise)
+      .mockResolvedValue(newWake);
+    vi.mocked(createEvent).mockResolvedValue(newWake);
+
+    const { result } = renderHook(() => useEvents("user-1", {
+      name: "Luna",
+      dateOfBirth: "2026-02-01",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(fetchLatestSleepPhase).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      await result.current.create({ type: "wake_up", occurredAt: newWake.occurredAt });
+    });
+    expect(result.current.sleepPhase?.id).toBe(newWake.id);
+
+    await act(async () => {
+      initialResponse.resolve(oldSleep);
+      await initialResponse.promise;
+    });
+    expect(result.current.sleepPhase?.id).toBe(newWake.id);
   });
 });

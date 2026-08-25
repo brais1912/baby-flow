@@ -28,11 +28,17 @@ import {
   ownerDateKey,
 } from "./lib/sleepInsights";
 import { isSupabaseConfigured } from "./lib/supabase";
-import { colors, shadows } from "./theme";
+import { useTheme } from "./ThemeProvider";
+import type { ThemeColors, ThemeShadows } from "./theme";
 import type { BabyProfile } from "./types/profile";
-import { AppButton, Banner, Brand, Card, coreStyles } from "./ui/Core";
+import { AppButton, Banner, Brand, Card } from "./ui/Core";
 
 type Tab = "events" | "reminders" | "insights" | "settings";
+
+function useAppStyles() {
+  const { colors, shadows } = useTheme();
+  return useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+}
 
 export function App({
   initialInsightsOwnerDate,
@@ -42,6 +48,7 @@ export function App({
   passwordRecoveryRoute?: boolean;
 }) {
   const { t } = useI18n();
+  const styles = useAppStyles();
   const auth = useAuth(isSupabaseConfigured);
   const { beginPasswordRecovery, session, setError } = auth;
   const authLinkError = t("auth.failed");
@@ -102,6 +109,7 @@ function AuthenticatedApp({ initialInsightsOwnerDate, session, onSignOut }: {
   onSignOut: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const styles = useAppStyles();
   const profile = useProfile(session.user.id);
   const signOut = useCallback(async () => {
     await Promise.all([
@@ -149,6 +157,7 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
   onSignOut: () => Promise<void>;
 }) {
   const { locale, t } = useI18n();
+  const styles = useAppStyles();
   const requestedInsightsDate = initialInsightsOwnerDate
     ? ownerDateFromKey(initialInsightsOwnerDate)
     : null;
@@ -222,6 +231,7 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
 }
 
 function TabButton({ active, label, icon, onPress }: { active: boolean; label: string; icon: string; onPress: () => void }) {
+  const styles = useAppStyles();
   return (
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}>
       <Text style={[styles.tabIcon, active && styles.activeTabText]}>{icon}</Text>
@@ -232,6 +242,8 @@ function TabButton({ active, label, icon, onPress }: { active: boolean; label: s
 
 function LoadingState() {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useAppStyles();
   return (
     <SafeAreaView style={styles.centered}>
       <Brand large />
@@ -240,7 +252,8 @@ function LoadingState() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+  return StyleSheet.create({
   shell: { flex: 1, backgroundColor: colors.surface },
   header: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   email: { flex: 1, textAlign: "right", color: colors.textMuted, fontSize: 11 },
@@ -252,6 +265,7 @@ const styles = StyleSheet.create({
   tabText: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   activeTabText: { color: colors.primaryDark },
   pressed: { opacity: 0.65 },
-  centered: { ...coreStyles.screen, alignItems: "center", justifyContent: "center", gap: 22, paddingHorizontal: 24 },
+  centered: { flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", gap: 22, paddingHorizontal: 24 },
   stateCard: { width: "100%", gap: 12 },
-});
+  });
+}

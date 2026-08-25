@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { formatAge } from "../i18n/format";
 import { useI18n } from "../i18n/I18nProvider";
 import type { Locale } from "../i18n/messages";
 import { ALLOWED_DAY_WINDOW_START_MINUTES } from "../lib/events";
-import { colors } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors, ThemePreference } from "../theme";
 import type { BabyProfile } from "../types/profile";
-import { AppButton, Banner, Card, ChoiceChips, coreStyles } from "../ui/Core";
+import { AppButton, Banner, Card, ChoiceChips, useCoreStyles } from "../ui/Core";
 import { ProfileForm } from "./ProfileForm";
 
 export function SettingsScreen({
@@ -29,12 +30,20 @@ export function SettingsScreen({
   onSignOut: () => Promise<void>;
 }) {
   const { locale, setLocale, t } = useI18n();
+  const { colors, preference, setPreference } = useTheme();
+  const coreStyles = useCoreStyles();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [dayWindowDraft, setDayWindowDraft] = useState(dayWindowStartMinutes);
   const [dayWindowPending, setDayWindowPending] = useState(false);
   const [dayWindowMessage, setDayWindowMessage] = useState<"saved" | "error" | null>(null);
   const languages: { value: Locale; label: string }[] = [
     { value: "en", label: t("settings.english") },
     { value: "es", label: t("settings.spanish") },
+  ];
+  const appearances: { value: ThemePreference; label: string }[] = [
+    { value: "system", label: t("settings.appearanceSystem") },
+    { value: "light", label: t("settings.appearanceLight") },
+    { value: "dark", label: t("settings.appearanceDark") },
   ];
   const dayWindowOptions = ALLOWED_DAY_WINDOW_START_MINUTES.map((minutes) => ({
     value: String(minutes),
@@ -79,6 +88,19 @@ export function SettingsScreen({
           value={locale}
           options={languages}
           onChange={(value) => void setLocale(value)}
+        />
+      </Card>
+
+      <Card style={styles.cardGap}>
+        <View style={styles.accountCopy}>
+          <Text style={styles.cardTitle}>{t("settings.appearance")}</Text>
+          <Text style={coreStyles.muted}>{t("settings.appearanceDescription")}</Text>
+        </View>
+        <ChoiceChips
+          accessibilityLabel={t("settings.appearanceOptions")}
+          value={preference}
+          options={appearances}
+          onChange={(value) => void setPreference(value).catch(() => undefined)}
         />
       </Card>
 
@@ -129,9 +151,11 @@ export function SettingsScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   heading: { gap: 4, paddingHorizontal: 2, paddingTop: 4 },
   cardGap: { gap: 15 },
   accountCopy: { flex: 1, gap: 3 },
   cardTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
-});
+  });
+}

@@ -52,6 +52,7 @@ export function useEvents(userId: string, profile: BabyProfile) {
   const [sleepPhaseReady, setSleepPhaseReady] = useState(false);
   const [insightsRevision, setInsightsRevision] = useState(0);
   const requestId = useRef(0);
+  const sleepPhaseRequestId = useRef(0);
 
   const message = useCallback((error: unknown) => errorMessage(
     error,
@@ -61,8 +62,11 @@ export function useEvents(userId: string, profile: BabyProfile) {
   ), [t]);
 
   const refreshSleepPhase = useCallback(async () => {
+    const currentRequest = ++sleepPhaseRequestId.current;
     try {
-      setSleepPhase(await fetchLatestSleepPhase(supabase, userId));
+      const latest = await fetchLatestSleepPhase(supabase, userId);
+      if (currentRequest !== sleepPhaseRequestId.current) return;
+      setSleepPhase(latest);
       setSleepPhaseReady(true);
     } catch {
       return;
@@ -168,6 +172,7 @@ export function useEvents(userId: string, profile: BabyProfile) {
   }, [refreshSleepPhase]);
 
   const create = useCallback(async (input: EventInput) => {
+    const transitionReferenceTime = new Date();
     dispatch({ type: "mutation-start" });
     try {
       const created = await createEvent(supabase, userId, input);
@@ -182,6 +187,7 @@ export function useEvents(userId: string, profile: BabyProfile) {
         events: [...state.events, created],
         profile,
         locale,
+        now: transitionReferenceTime,
       }).catch(() => false);
       setInsightsRevision((revision) => revision + 1);
       await refreshSleepPhase();

@@ -1,16 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useI18n } from "../i18n/I18nProvider";
 import type { MessageKey } from "../i18n/messages";
-import { colors, shadows } from "../theme";
+import { useTheme } from "../ThemeProvider";
+import type { ThemeColors, ThemeShadows } from "../theme";
 import type { EventInput, EventType } from "../types/events";
-
-const actions: { type: EventType; emoji: string; label: MessageKey; color: string }[] = [
-  { type: "sleep", emoji: "😴", label: "quick.sleep", color: colors.sleepSoft },
-  { type: "wake_up", emoji: "🌅", label: "quick.wake", color: colors.awakeSoft },
-  { type: "feeding", emoji: "🍼", label: "quick.feed", color: colors.feedingSoft },
-  { type: "diaper", emoji: "👶", label: "quick.diaper", color: colors.diaperSoft },
-];
 
 export function QuickLogBar({ disabled, onCreate, onOpenDetailed }: {
   disabled: boolean;
@@ -18,6 +12,14 @@ export function QuickLogBar({ disabled, onCreate, onOpenDetailed }: {
   onOpenDetailed: () => void;
 }) {
   const { t } = useI18n();
+  const { colors, shadows } = useTheme();
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+  const actions: { type: EventType; emoji: string; label: MessageKey; color: string }[] = [
+    { type: "sleep", emoji: "😴", label: "quick.sleep", color: colors.sleepSoft },
+    { type: "wake_up", emoji: "🌅", label: "quick.wake", color: colors.awakeSoft },
+    { type: "feeding", emoji: "🍼", label: "quick.feed", color: colors.feedingSoft },
+    { type: "diaper", emoji: "👶", label: "quick.diaper", color: colors.diaperSoft },
+  ];
   const [saved, setSaved] = useState<EventType | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -68,16 +70,18 @@ export function QuickLogBar({ disabled, onCreate, onOpenDetailed }: {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+  return StyleSheet.create({
   bar: { gap: 6, paddingHorizontal: 10, paddingTop: 6, paddingBottom: 7, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, ...shadows.card },
   heading: { minHeight: 27, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 3 },
   headingLabel: { color: colors.textMuted, fontSize: 10, fontWeight: "800", letterSpacing: 0.7, textTransform: "uppercase" },
   detailedButton: { minHeight: 27, borderRadius: 10, backgroundColor: colors.primary, justifyContent: "center", paddingHorizontal: 10 },
-  detailedLabel: { color: "#ffffff", fontSize: 10, fontWeight: "800" },
+  detailedLabel: { color: colors.onPrimary, fontSize: 10, fontWeight: "800" },
   actions: { flexDirection: "row", gap: 7 },
   action: { flex: 1, minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 2 },
   emoji: { fontSize: 18 },
   label: { color: colors.text, fontSize: 10, fontWeight: "700" },
   pressed: { opacity: 0.68, transform: [{ scale: 0.97 }] },
   disabled: { opacity: 0.4 },
-});
+  });
+}
