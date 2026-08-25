@@ -12,8 +12,7 @@ BabyFlow contains a Next.js 16 App Router web app and a React Native + Expo mobi
 
 ```
 apps/
-  mobile/        # Legacy React/Vite/Capacitor client retained during Expo cutover
-  mobile-expo/   # Active React Native + Expo Android and iOS client
+  mobile-expo/   # React Native + Expo Android and iOS client
 src/
   app/           # Next.js App Router — pages, layouts, API routes
   components/    # Web React components

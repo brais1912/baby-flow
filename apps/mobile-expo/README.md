@@ -1,7 +1,6 @@
 # BabyFlow Expo app
 
-This is the React Native + Expo replacement for the Capacitor client in `apps/mobile`.
-The legacy client remains temporarily as a parity reference and rollback path.
+This is BabyFlow's React Native + Expo application for iOS and Android.
 
 ## Setup
 
@@ -20,7 +19,10 @@ npm run mobile:ios
 npm run mobile:android
 npm run mobile:test
 npm run mobile:typecheck
+npm run mobile:lint
 npm run mobile:build
+npm run mobile:doctor
+npm run mobile:prebuild
 ```
 
 Local notifications require a native development build for complete Android verification.

@@ -22,7 +22,7 @@ The web app is available at [http://localhost:3000](http://localhost:3000).
 
 ## Mobile application
 
-The active React Native + Expo client lives in `apps/mobile-expo`. The former Capacitor client remains in `apps/mobile` temporarily as a parity reference and rollback path. The Expo app communicates with Supabase using the anonymous key and the signed-in user's session; RLS continues to scope every query and mutation to that user.
+The React Native + Expo client in `apps/mobile-expo` is BabyFlow's mobile application. It communicates with Supabase using the anonymous key and the signed-in user's session; RLS continues to scope every query and mutation to that user.
 
 Create `apps/mobile-expo/.env.local` from `apps/mobile-expo/.env.example`:
 
