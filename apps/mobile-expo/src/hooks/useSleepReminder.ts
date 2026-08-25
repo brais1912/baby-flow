@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useI18n } from "../i18n/I18nProvider";
 import {
@@ -29,6 +29,7 @@ export function useSleepReminder({ profile, event, ready }: {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<ReconcileResult | null>(null);
   const [error, setError] = useState<"permission" | "generic" | null>(null);
+  const reconcileQueue = useRef<Promise<void>>(Promise.resolve());
   const recommendation = wakeWindowRecommendation(profile.dateOfBirth);
 
   useEffect(() => {
@@ -48,26 +49,31 @@ export function useSleepReminder({ profile, event, ready }: {
     };
   }, []);
 
-  const reconcile = useCallback(async (nextPreferences = preferences) => {
-    try {
-      const nextResult = await reconcileSleepReminder({
-        preferences: nextPreferences,
-        profile,
-        events: event ? [event] : [],
-        locale,
-      });
-      setResult(nextResult);
-      if (nextResult.permissionDenied && nextPreferences.enabled) {
-        const disabled = { ...nextPreferences, enabled: false };
-        setPreferences(disabled);
-        await storeSleepReminderPreferences(disabled);
-        setError("permission");
-      } else {
-        setError(null);
+  const reconcile = useCallback((nextPreferences = preferences) => {
+    const run = async () => {
+      try {
+        const nextResult = await reconcileSleepReminder({
+          preferences: nextPreferences,
+          profile,
+          events: event ? [event] : [],
+          locale,
+        });
+        setResult(nextResult);
+        if (nextResult.permissionDenied && nextPreferences.enabled) {
+          const disabled = { ...nextPreferences, enabled: false };
+          setPreferences(disabled);
+          await storeSleepReminderPreferences(disabled);
+          setError("permission");
+        } else {
+          setError(null);
+        }
+      } catch {
+        setError("generic");
       }
-    } catch {
-      setError("generic");
-    }
+    };
+    const queued = reconcileQueue.current.then(run, run);
+    reconcileQueue.current = queued;
+    return queued;
   }, [event, locale, preferences, profile]);
 
   useEffect(() => {
@@ -88,10 +94,6 @@ export function useSleepReminder({ profile, event, ready }: {
     });
     return () => listener.remove();
   }, [ready, reconcile]);
-
-  useEffect(() => () => {
-    void cancelSleepReminder();
-  }, []);
 
   const save = useCallback(async (enabled: boolean, thresholdOverrideMinutes: number | null) => {
     setSaving(true);

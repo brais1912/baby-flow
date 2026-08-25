@@ -5,6 +5,7 @@ import type { Locale } from "../i18n/messages";
 import { translate } from "../i18n/messages";
 import type { BabyEvent } from "../types/events";
 import type { BabyProfile } from "../types/profile";
+import { lightColors } from "../theme";
 import {
   decideSleepReminder,
   wakeWindowRecommendation,
@@ -45,7 +46,7 @@ export function initializeNotifications(): void {
     void Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, {
       name: "BabyFlow reminders",
       importance: Notifications.AndroidImportance.HIGH,
-      lightColor: "#7c3aed",
+      lightColor: lightColors.primary,
       vibrationPattern: [0, 200, 100, 200],
     });
   }
@@ -63,7 +64,7 @@ export async function notificationPermission(request: boolean): Promise<boolean>
     await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, {
       name: "BabyFlow reminders",
       importance: Notifications.AndroidImportance.HIGH,
-      lightColor: "#7c3aed",
+      lightColor: lightColors.primary,
     });
   }
   let permission = await Notifications.getPermissionsAsync();
@@ -71,6 +72,10 @@ export async function notificationPermission(request: boolean): Promise<boolean>
     permission = await Notifications.requestPermissionsAsync();
   }
   return permissionGranted(permission);
+}
+
+export function immediateNotificationTrigger(): Notifications.NotificationTriggerInput {
+  return currentPlatform() === "android" ? { channelId: REMINDER_CHANNEL } : null;
 }
 
 async function cancelNotification(identifier: string): Promise<void> {
