@@ -168,8 +168,9 @@ describe("sleep notification service", () => {
     }).body).toBe("Luna went to sleep at 08:00. No preceding wake-up was available.");
   });
 
-  it("includes the tolerance boundary and rejects historical events", () => {
+  it("includes the ten-minute tolerance boundary and rejects historical events", () => {
     const now = new Date(2026, 7, 24, 10);
+    expect(CURRENT_EVENT_TOLERANCE_MS).toBe(10 * 60_000);
     expect(isCurrentTransitionEvent(event(
       "boundary",
       "sleep",

@@ -17,7 +17,7 @@ import { ownerDateFromKey, ownerDateKey } from "./sleepInsights";
 
 export const DAILY_SLEEP_SUMMARY_NOTIFICATION_ID = "1101";
 export const TRANSITION_NOTIFICATION_PREFIX = "babyflow-sleep-transition-";
-export const CURRENT_EVENT_TOLERANCE_MS = 5 * 60_000;
+export const CURRENT_EVENT_TOLERANCE_MS = 10 * 60_000;
 export const SLEEP_SUMMARY_ENABLED_KEY = "babyflow-sleep-summary-enabled";
 export const SLEEP_SUMMARY_TIME_KEY = "babyflow-sleep-summary-time";
 export const TRANSITION_UPDATES_ENABLED_KEY = "babyflow-sleep-transition-enabled";
