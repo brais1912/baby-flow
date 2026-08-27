@@ -1,5 +1,6 @@
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { BlurTargetView } from "expo-blur";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -8,8 +9,10 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEvents } from "../hooks/useEvents";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { useQuickLogScroll } from "../hooks/useQuickLogScroll";
 import { useI18n } from "../i18n/I18nProvider";
 import {
   countNightWakings,
@@ -50,12 +53,18 @@ export function DashboardScreen({ data, babyName }: {
   const { colors } = useTheme();
   const coreStyles = useCoreStyles();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const online = useNetworkStatus();
   const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; event: BabyEvent } | null>(null);
   const [detailEvent, setDetailEvent] = useState<BabyEvent | null>(null);
   const [filter, setFilter] = useState<EventFilter>("all");
   const [openSwipeEventId, setOpenSwipeEventId] = useState<string | null>(null);
   const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<string | null>(null);
+  const [quickLogCompact, setQuickLogCompact] = useState(false);
+  const quickLogBlurTarget = useRef<View>(null);
+  const onScroll = useQuickLogScroll(setQuickLogCompact);
+  const quickLogBottomInset = Math.max(insets.bottom, 10);
+  const quickLogContentInset = quickLogBottomInset + 88;
   const now = new Date();
   const bounds = useMemo(() => ownerDayWindowBounds(data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.selectedDay]);
   const chartEvents = useMemo(() => eventsWithinChartWindow(data.events, data.selectedDay, data.dayWindowStartMinutes), [data.dayWindowStartMinutes, data.events, data.selectedDay]);
@@ -82,12 +91,15 @@ export function DashboardScreen({ data, babyName }: {
 
   return (
     <View style={styles.root}>
-      <ScrollView
-        style={coreStyles.screen}
-        contentContainerStyle={coreStyles.scrollContent}
-        onScrollBeginDrag={() => setOpenSwipeEventId(null)}
-        refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.refreshToday()} tintColor={colors.primary} />}
-      >
+      <BlurTargetView ref={quickLogBlurTarget} style={styles.scrollArea}>
+        <ScrollView
+          style={coreStyles.screen}
+          contentContainerStyle={[coreStyles.scrollContent, { paddingBottom: quickLogContentInset }]}
+          onScrollBeginDrag={() => setOpenSwipeEventId(null)}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          refreshControl={<RefreshControl refreshing={data.loading && data.events.length > 0} onRefresh={() => void data.refreshToday()} tintColor={colors.primary} />}
+        >
         <DashboardDayHeader
           babyName={babyName}
           bounds={bounds}
@@ -209,12 +221,19 @@ export function DashboardScreen({ data, babyName }: {
             </View>
           </View>
         ) : null}
-      </ScrollView>
+        </ScrollView>
+      </BlurTargetView>
 
       <QuickLogBar
+        blurTarget={quickLogBlurTarget}
+        bottomInset={quickLogBottomInset}
+        compact={quickLogCompact}
         disabled={!online || data.mutating}
         onCreate={data.create}
-        onOpenDetailed={() => setSheet({ mode: "create" })}
+        onOpenDetailed={() => {
+          setQuickLogCompact(false);
+          setSheet({ mode: "create" });
+        }}
       />
 
       {detailEvent ? (
@@ -268,6 +287,7 @@ function Stat({ label, value, icon, tone }: {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  scrollArea: { flex: 1 },
   status: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 17, borderWidth: 1 },
   awakeStatus: { backgroundColor: colors.awakeSoft, borderColor: colors.awakeBorder },
   sleepStatus: { backgroundColor: colors.sleepSoft, borderColor: colors.sleepBorder },

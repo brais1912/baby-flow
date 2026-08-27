@@ -118,6 +118,15 @@ vi.mock("expo-linking", () => ({
   addEventListener: vi.fn(() => ({ remove: vi.fn() })),
 }));
 
+vi.mock("expo-blur", async () => {
+  const React = await import("react");
+  const native = await import("react-native");
+  return {
+    BlurTargetView: ({ children }: { children?: ReactNode }) => React.createElement(native.View, null, children),
+    BlurView: ({ children }: { children?: ReactNode }) => React.createElement(native.View, null, children),
+  };
+});
+
 vi.mock("react-native-safe-area-context", async () => {
   const native = await import("react-native");
   return {

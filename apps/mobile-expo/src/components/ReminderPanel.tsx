@@ -34,10 +34,16 @@ function wakeRangeLabel(range: WakeWindowRange, locale: "en" | "es", t: ReturnTy
   return t("sleepReminder.rangeMinutes", { min: range.minMinutes, max: range.maxMinutes });
 }
 
-export function ReminderPanel({ profile, sleepReminder, sleepInsights }: {
+export function ReminderPanel({
+  profile,
+  sleepReminder,
+  sleepInsights,
+  bottomContentInset = 0,
+}: {
   profile: BabyProfile;
   sleepReminder: ReturnType<typeof useSleepReminder>;
   sleepInsights: ReturnType<typeof useSleepInsights>;
+  bottomContentInset?: number;
 }) {
   const { dateLocale, locale, t } = useI18n();
   const { colors } = useTheme();
@@ -210,7 +216,11 @@ export function ReminderPanel({ profile, sleepReminder, sleepInsights }: {
     : sleepReminder.error === "generic" ? t("reminder.updateError") : null;
 
   return (
-    <ScrollView style={coreStyles.screen} contentContainerStyle={coreStyles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={coreStyles.screen}
+      contentContainerStyle={[coreStyles.scrollContent, { paddingBottom: bottomContentInset }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.heading}>
         <View style={styles.headingCopy}>
           <Text style={coreStyles.eyebrow}>{t("reminder.onDevice")}</Text>
