@@ -1,13 +1,14 @@
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DashboardScreen } from "./components/DashboardScreen";
 import { InsightsScreen } from "./components/InsightsScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { ReminderPanel } from "./components/ReminderPanel";
 import { ResetPasswordScreen } from "./components/ResetPasswordScreen";
+import { SectionSwitcher, type MobileTab } from "./components/SectionSwitcher";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { useAuth } from "./hooks/useAuth";
 import { useEvents } from "./hooks/useEvents";
@@ -29,15 +30,13 @@ import {
 } from "./lib/sleepInsights";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { useTheme } from "./ThemeProvider";
-import type { ThemeColors, ThemeShadows } from "./theme";
+import type { ThemeColors } from "./theme";
 import type { BabyProfile } from "./types/profile";
 import { AppButton, Banner, Brand, Card } from "./ui/Core";
 
-type Tab = "events" | "reminders" | "insights" | "settings";
-
 function useAppStyles() {
-  const { colors, shadows } = useTheme();
-  return useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+  const { colors } = useTheme();
+  return useMemo(() => createStyles(colors), [colors]);
 }
 
 export function App({
@@ -156,13 +155,15 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
   onSaveProfile: (profile: BabyProfile) => Promise<BabyProfile>;
   onSignOut: () => Promise<void>;
 }) {
-  const { locale, t } = useI18n();
+  const { locale } = useI18n();
   const styles = useAppStyles();
+  const insets = useSafeAreaInsets();
   const requestedInsightsDate = initialInsightsOwnerDate
     ? ownerDateFromKey(initialInsightsOwnerDate)
     : null;
-  const [tab, setTab] = useState<Tab>(requestedInsightsDate ? "insights" : "events");
+  const [tab, setTab] = useState<MobileTab>(requestedInsightsDate ? "insights" : "events");
   const [selectedInsightsDate, setSelectedInsightsDate] = useState<Date | null>(requestedInsightsDate);
+  const contentBottomInset = Math.max(insets.bottom, 10) + 16;
   const events = useEvents(session.user.id, profile);
   const sleepReminder = useSleepReminder({ profile, event: events.sleepPhase, ready: events.sleepPhaseReady });
   const sleepInsights = useSleepInsights({
@@ -191,20 +192,36 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
   useSleepSummaryNotificationNavigation(openSleepSummary);
 
   return (
-    <SafeAreaView style={styles.shell} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.shell} edges={["top"]}>
       <View style={styles.header}>
         <Brand />
-        <Text numberOfLines={1} style={styles.email}>{session.user.email}</Text>
+        <SectionSwitcher
+          activeTab={tab}
+          onSelect={setTab}
+        />
       </View>
       <View style={styles.content}>
-        {tab === "events" ? <DashboardScreen data={events} babyName={profile.name} /> : null}
-        {tab === "reminders" ? <ReminderPanel profile={profile} sleepReminder={sleepReminder} sleepInsights={sleepInsights} /> : null}
+        {tab === "events" ? (
+          <DashboardScreen
+            data={events}
+            babyName={profile.name}
+          />
+        ) : null}
+        {tab === "reminders" ? (
+          <ReminderPanel
+            profile={profile}
+            sleepReminder={sleepReminder}
+            sleepInsights={sleepInsights}
+            bottomContentInset={contentBottomInset}
+          />
+        ) : null}
         {tab === "insights" ? (
           <InsightsScreen
             data={sleepInsights}
             profile={profile}
             selectedOwnerDate={selectedInsightsDate}
             onSelectOwnerDate={setSelectedInsightsDate}
+            bottomContentInset={contentBottomInset}
           />
         ) : null}
         {tab === "settings" ? (
@@ -217,26 +234,11 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
             onSaveDayWindow={events.saveDayWindowStart}
             onSaveProfile={onSaveProfile}
             onSignOut={onSignOut}
+            bottomContentInset={contentBottomInset}
           />
         ) : null}
       </View>
-      <View style={styles.tabBar} accessibilityLabel={t("nav.main")} accessibilityRole="tablist">
-        <TabButton active={tab === "events"} label={t("nav.events")} icon="◷" onPress={() => setTab("events")} />
-        <TabButton active={tab === "reminders"} label={t("nav.reminders")} icon="♧" onPress={() => setTab("reminders")} />
-        <TabButton active={tab === "insights"} label={t("nav.insights")} icon="⌁" onPress={() => setTab("insights")} />
-        <TabButton active={tab === "settings"} label={t("nav.settings")} icon="⚙" onPress={() => setTab("settings")} />
-      </View>
     </SafeAreaView>
-  );
-}
-
-function TabButton({ active, label, icon, onPress }: { active: boolean; label: string; icon: string; onPress: () => void }) {
-  const styles = useAppStyles();
-  return (
-    <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}>
-      <Text style={[styles.tabIcon, active && styles.activeTabText]}>{icon}</Text>
-      <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -252,19 +254,11 @@ function LoadingState() {
   );
 }
 
-function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
+function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  shell: { flex: 1, backgroundColor: colors.surface },
+  shell: { flex: 1, backgroundColor: colors.background },
   header: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  email: { flex: 1, textAlign: "right", color: colors.textMuted, fontSize: 11 },
   content: { flex: 1 },
-  tabBar: { flexDirection: "row", minHeight: 62, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 8, paddingTop: 5, ...shadows.card },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: 14 },
-  activeTab: { backgroundColor: colors.primarySoft },
-  tabIcon: { color: colors.textMuted, fontSize: 20 },
-  tabText: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
-  activeTabText: { color: colors.primaryDark },
-  pressed: { opacity: 0.65 },
   centered: { flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", gap: 22, paddingHorizontal: 24 },
   stateCard: { width: "100%", gap: 12 },
   });

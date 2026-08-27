@@ -19,6 +19,7 @@ export function SettingsScreen({
   onSaveDayWindow,
   onSaveProfile,
   onSignOut,
+  bottomContentInset = 0,
 }: {
   dayWindowStartMinutes: number;
   email: string | undefined;
@@ -28,6 +29,7 @@ export function SettingsScreen({
   onSaveDayWindow: (startMinutes: number) => Promise<void>;
   onSaveProfile: (profile: BabyProfile) => Promise<unknown>;
   onSignOut: () => Promise<void>;
+  bottomContentInset?: number;
 }) {
   const { locale, setLocale, t } = useI18n();
   const { colors, preference, setPreference } = useTheme();
@@ -65,7 +67,11 @@ export function SettingsScreen({
   }
 
   return (
-    <ScrollView style={coreStyles.screen} contentContainerStyle={coreStyles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={coreStyles.screen}
+      contentContainerStyle={[coreStyles.scrollContent, { paddingBottom: bottomContentInset }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.heading}>
         <Text style={coreStyles.eyebrow}>BabyFlow</Text>
         <Text style={coreStyles.title}>{t("settings.title")}</Text>

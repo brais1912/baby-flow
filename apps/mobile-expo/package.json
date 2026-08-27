@@ -22,6 +22,7 @@
     "@supabase/supabase-js": "^2.107.0",
     "date-fns": "^4.4.0",
     "expo": "~57.0.16",
+    "expo-blur": "~57.0.2",
     "expo-constants": "~57.0.14",
     "expo-dev-client": "~57.0.15",
     "expo-haptics": "~57.0.1",

@@ -45,11 +45,13 @@ export function InsightsScreen({
   profile,
   selectedOwnerDate,
   onSelectOwnerDate,
+  bottomContentInset = 0,
 }: {
   data: ReturnType<typeof useSleepInsights>;
   profile: BabyProfile;
   selectedOwnerDate: Date | null;
   onSelectOwnerDate: (date: Date | null) => void;
+  bottomContentInset?: number;
 }) {
   const { dateLocale, locale, t } = useI18n();
   const { colors } = useTheme();
@@ -64,7 +66,10 @@ export function InsightsScreen({
   if (selected) {
     const guidance = guidanceCopy(selected, profile.name, locale, t);
     return (
-      <ScrollView style={coreStyles.screen} contentContainerStyle={coreStyles.scrollContent}>
+      <ScrollView
+        style={coreStyles.screen}
+        contentContainerStyle={[coreStyles.scrollContent, { paddingBottom: bottomContentInset }]}
+      >
         <View style={styles.detailHeading}>
           <View style={styles.detailHeadingCopy}>
             <Text style={coreStyles.eyebrow}>{t("insights.detail")}</Text>
@@ -194,7 +199,10 @@ export function InsightsScreen({
     (summary) => summary.completePairCount > 0 || summary.excludedUnmatchedCount > 0
   );
   return (
-    <ScrollView style={coreStyles.screen} contentContainerStyle={coreStyles.scrollContent}>
+    <ScrollView
+      style={coreStyles.screen}
+      contentContainerStyle={[coreStyles.scrollContent, { paddingBottom: bottomContentInset }]}
+    >
       <View style={styles.heading}>
         <Text style={coreStyles.eyebrow}>{t("insights.subtitle")}</Text>
         <Text style={coreStyles.title}>{t("insights.title")}</Text>
