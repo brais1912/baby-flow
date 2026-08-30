@@ -86,13 +86,19 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
     <Modal animationType="slide" transparent visible onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView style={styles.layer} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <Pressable accessibilityLabel={t("common.close")} accessibilityRole="button" style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{event ? t("event.editTimeTitle") : t("event.new")}</Text>
             <IconButton label={t("common.close")} icon="×" disabled={pending} onPress={onClose} />
           </View>
-          <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            testID="event-sheet-fields"
+            style={styles.formScroll}
+            contentContainerStyle={styles.form}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {!event ? (
               <Field label={t("event.type")}>
                 <ChoiceChips accessibilityLabel={t("event.type")} value={type} options={translatedTypes} onChange={setType} />
@@ -166,9 +172,14 @@ export function EventSheet({ event, pending, error, onClose, onCreate, onUpdateT
                 <TextField accessibilityLabel={t("event.notes")} multiline maxLength={500} value={notes} onChangeText={setNotes} />
               </Field>
             ) : null}
+          </ScrollView>
+          <View
+            testID="event-sheet-footer"
+            style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}
+          >
             {localError || error ? <Banner>{localError ?? error}</Banner> : null}
             <AppButton label={pending ? t("common.saving") : t("common.save")} loading={pending} onPress={() => void submit()} />
-          </ScrollView>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -179,10 +190,12 @@ function createStyles(colors: ThemeColors, shadows: ThemeShadows) {
   return StyleSheet.create({
   layer: { flex: 1, justifyContent: "flex-end" },
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay },
-  sheet: { maxHeight: "88%", borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.background, paddingTop: 8, ...shadows.card },
+  sheet: { maxHeight: "88%", overflow: "hidden", borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.background, paddingTop: 8, ...shadows.card },
   handle: { width: 42, height: 5, borderRadius: 3, backgroundColor: colors.handle, alignSelf: "center", marginBottom: 7 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 10 },
   title: { color: colors.text, fontSize: 20, fontWeight: "800" },
-  form: { paddingHorizontal: 18, paddingBottom: 10, gap: 15 },
+  formScroll: { flexShrink: 1 },
+  form: { paddingHorizontal: 18, paddingBottom: 15, gap: 15 },
+  footer: { flexShrink: 0, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background, paddingHorizontal: 18, paddingTop: 12 },
   });
 }
