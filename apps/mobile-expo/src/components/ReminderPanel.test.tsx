@@ -75,7 +75,6 @@ describe("ReminderPanel sleep notifications", () => {
   it("loads both new opt-in settings disabled and saves them independently", async () => {
     vi.mocked(loadSleepNotificationPreferences).mockResolvedValue({
       summaryEnabled: false,
-      summaryTime: "20:00",
       transitionEnabled: false,
     });
     const user = userEvent.setup();
@@ -89,10 +88,14 @@ describe("ReminderPanel sleep notifications", () => {
 
     await waitFor(() => expect(screen.getByRole("switch", { name: "Daily sleep summary" })).not.toBeChecked());
     expect(screen.getByRole("switch", { name: "Sleep/wake duration updates" })).not.toBeChecked();
+    expect(screen.queryByLabelText("Summary time")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("switch", { name: "Daily sleep summary" }));
     await user.click(screen.getByRole("button", { name: "Save daily sleep summary" }));
-    expect(saveDailySleepSummaryPreference).toHaveBeenCalledWith(expect.objectContaining({ enabled: true, time: "20:00" }));
+    expect(saveDailySleepSummaryPreference).toHaveBeenCalledWith(expect.objectContaining({
+      enabled: true,
+      startMinutes: 12 * 60,
+    }));
 
     await user.click(screen.getByRole("switch", { name: "Sleep/wake duration updates" }));
     await user.click(screen.getByRole("button", { name: "Save duration updates" }));

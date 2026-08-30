@@ -32,25 +32,27 @@ export function useSleepInsights({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const requestId = useRef(0);
-  const latestOwnerDate = useMemo(() => dayWindowDate(new Date(), startMinutes), [startMinutes]);
+  const [latestOwnerDate, setLatestOwnerDate] = useState(() => dayWindowDate(new Date(), startMinutes));
 
   const reload = useCallback(async () => {
     const currentRequest = ++requestId.current;
+    const currentOwnerDate = dayWindowDate(new Date(), startMinutes);
     setLoading(true);
     setError(false);
-    const earliestOwnerDate = shiftDay(latestOwnerDate, -INSIGHTS_HISTORY_DAYS);
+    const earliestOwnerDate = shiftDay(currentOwnerDate, -INSIGHTS_HISTORY_DAYS);
     const start = ownerDayWindowBounds(earliestOwnerDate, startMinutes).start;
-    const end = ownerDayWindowBounds(latestOwnerDate, startMinutes).end;
+    const end = ownerDayWindowBounds(currentOwnerDate, startMinutes).end;
     try {
       const loaded = await fetchEvents(supabase, userId, start, end);
       if (requestId.current !== currentRequest) return;
+      setLatestOwnerDate(currentOwnerDate);
       setEvents(loaded);
     } catch {
       if (requestId.current === currentRequest) setError(true);
     } finally {
       if (requestId.current === currentRequest) setLoading(false);
     }
-  }, [latestOwnerDate, startMinutes, userId]);
+  }, [startMinutes, userId]);
 
   useEffect(() => {
     let active = true;

@@ -16,7 +16,6 @@ import {
   saveDailySleepSummaryPreference,
   saveTransitionUpdatesPreference,
 } from "../lib/sleepNotificationService";
-import { mostRecentlyCompletedOwnerDate, ownerDateKey } from "../lib/sleepInsights";
 import type { WakeWindowRange } from "../lib/wakeWindow";
 import { useTheme } from "../ThemeProvider";
 import type { ThemeColors } from "../theme";
@@ -55,7 +54,6 @@ export function ReminderPanel({
   const [dailyPending, setDailyPending] = useState(false);
   const [dailyMessage, setDailyMessage] = useState<string | null>(null);
   const [summaryEnabled, setSummaryEnabled] = useState(false);
-  const [summaryTime, setSummaryTime] = useState("20:00");
   const [summaryPending, setSummaryPending] = useState(false);
   const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
   const [transitionEnabled, setTransitionEnabled] = useState(false);
@@ -75,7 +73,6 @@ export function ReminderPanel({
         setDailyEnabled(saved.enabled);
         setDailyTime(saved.time);
         setSummaryEnabled(sleepNotifications.summaryEnabled);
-        setSummaryTime(sleepNotifications.summaryTime);
         setTransitionEnabled(sleepNotifications.transitionEnabled);
       })
       .catch(() => {
@@ -85,11 +82,6 @@ export function ReminderPanel({
       active = false;
     };
   }, [t]);
-
-  const completedOwnerDate = mostRecentlyCompletedOwnerDate(new Date(), sleepInsights.startMinutes);
-  const completedSummary = sleepInsights.summaries.find(
-    (summary) => ownerDateKey(summary.ownerDate) === ownerDateKey(completedOwnerDate)
-  ) ?? sleepInsights.summaries[1] ?? sleepInsights.summaries[0];
 
   const recommendationLabel = sleepReminder.recommendation ? wakeRangeLabel(sleepReminder.recommendation, locale, t) : null;
   const stateLines = useMemo(() => {
@@ -161,14 +153,14 @@ export function ReminderPanel({
   }
 
   async function saveSummary() {
-    if (!completedSummary) return;
+    if (sleepInsights.summaries.length === 0) return;
     setSummaryPending(true);
     setSummaryMessage(null);
     try {
       await saveDailySleepSummaryPreference({
         enabled: summaryEnabled,
-        time: summaryTime,
-        summary: completedSummary,
+        summaries: sleepInsights.summaries,
+        startMinutes: sleepInsights.startMinutes,
         profile,
         locale,
       });
@@ -241,12 +233,11 @@ export function ReminderPanel({
         <Text style={coreStyles.body}>{t("sleepNotifications.summaryDescription")}</Text>
         <Text style={coreStyles.muted}>{t("sleepNotifications.generatedDataNote")}</Text>
         <Text style={coreStyles.muted}>{t("sleepNotifications.localOnly")}</Text>
-        <TimeField label={t("sleepNotifications.summaryTime")} value={summaryTime} onChange={setSummaryTime} disabled={!summaryEnabled} />
         {summaryMessage ? <Banner tone={summaryMessage === t("reminder.updateError") ? "error" : "neutral"}>{summaryMessage}</Banner> : null}
         <AppButton
           label={summaryPending ? t("common.saving") : t("sleepNotifications.saveSummary")}
           loading={summaryPending}
-          disabled={sleepInsights.loading || !completedSummary}
+          disabled={sleepInsights.loading || sleepInsights.summaries.length === 0}
           onPress={() => void saveSummary()}
         />
       </Card>

@@ -23,11 +23,7 @@ import {
   clearSleepNotificationState,
   reconcileDailySleepSummary,
 } from "./lib/sleepNotificationService";
-import {
-  mostRecentlyCompletedOwnerDate,
-  ownerDateFromKey,
-  ownerDateKey,
-} from "./lib/sleepInsights";
+import { ownerDateFromKey } from "./lib/sleepInsights";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { useTheme } from "./ThemeProvider";
 import type { ThemeColors } from "./theme";
@@ -172,18 +168,17 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
     startMinutes: events.dayWindowStartMinutes,
     refreshToken: events.insightsRevision,
   });
-  const completedSummary = useMemo(() => {
-    const completed = mostRecentlyCompletedOwnerDate(new Date(), events.dayWindowStartMinutes);
-    return sleepInsights.summaries.find(
-      (summary) => ownerDateKey(summary.ownerDate) === ownerDateKey(completed)
-    ) ?? null;
-  }, [events.dayWindowStartMinutes, sleepInsights.summaries]);
 
   useEffect(() => {
-    if (completedSummary && !sleepInsights.loading) {
-      void reconcileDailySleepSummary({ summary: completedSummary, profile, locale }).catch(() => undefined);
+    if (sleepInsights.summaries.length > 0 && !sleepInsights.loading) {
+      void reconcileDailySleepSummary({
+        summaries: sleepInsights.summaries,
+        startMinutes: sleepInsights.startMinutes,
+        profile,
+        locale,
+      }).catch(() => undefined);
     }
-  }, [completedSummary, locale, profile, sleepInsights.loading]);
+  }, [locale, profile, sleepInsights.loading, sleepInsights.startMinutes, sleepInsights.summaries]);
 
   const openSleepSummary = useCallback((ownerDate: Date) => {
     setSelectedInsightsDate(ownerDate);

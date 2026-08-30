@@ -13,20 +13,24 @@ import {
   notificationPermission,
 } from "./notificationService";
 import type { DailySleepSummary } from "./sleepInsights";
-import { ownerDateFromKey, ownerDateKey } from "./sleepInsights";
+import {
+  mostRecentlyCompletedOwnerDate,
+  ownerDateFromKey,
+  ownerDateKey,
+} from "./sleepInsights";
 
 export const DAILY_SLEEP_SUMMARY_NOTIFICATION_ID = "1101";
 export const TRANSITION_NOTIFICATION_PREFIX = "babyflow-sleep-transition-";
 export const CURRENT_EVENT_TOLERANCE_MS = 10 * 60_000;
+export const SLEEP_SUMMARY_DELAY_MINUTES = 5;
 export const SLEEP_SUMMARY_ENABLED_KEY = "babyflow-sleep-summary-enabled";
-export const SLEEP_SUMMARY_TIME_KEY = "babyflow-sleep-summary-time";
 export const TRANSITION_UPDATES_ENABLED_KEY = "babyflow-sleep-transition-enabled";
 export const LAST_TRANSITION_EVENT_KEY = "babyflow-sleep-transition-last-event";
+const LEGACY_SLEEP_SUMMARY_TIME_KEY = "babyflow-sleep-summary-time";
 const REMINDER_CHANNEL = "reminders";
 
 export type SleepNotificationPreferences = {
   summaryEnabled: boolean;
-  summaryTime: string;
   transitionEnabled: boolean;
 };
 
@@ -35,20 +39,10 @@ async function cancel(identifier: string): Promise<void> {
   await Notifications.dismissNotificationAsync(identifier).catch(() => undefined);
 }
 
-function validTime(value: string): { hour: number; minute: number } | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(value);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-  return { hour, minute };
-}
-
-export function nextDailySleepSummaryDate(now: Date, time: string): Date | null {
-  const parsed = validTime(time);
-  if (!parsed) return null;
+export function nextDailySleepSummaryDate(now: Date, startMinutes: number): Date {
+  const deliveryMinutes = (startMinutes + SLEEP_SUMMARY_DELAY_MINUTES) % (24 * 60);
   const next = new Date(now);
-  next.setHours(parsed.hour, parsed.minute, 0, 0);
+  next.setHours(Math.floor(deliveryMinutes / 60), deliveryMinutes % 60, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   return next;
 }
@@ -56,14 +50,11 @@ export function nextDailySleepSummaryDate(now: Date, time: string): Date | null 
 export async function loadSleepNotificationPreferences(): Promise<SleepNotificationPreferences> {
   const values = await AsyncStorage.multiGet([
     SLEEP_SUMMARY_ENABLED_KEY,
-    SLEEP_SUMMARY_TIME_KEY,
     TRANSITION_UPDATES_ENABLED_KEY,
   ]);
   const saved = new Map(values);
-  const time = saved.get(SLEEP_SUMMARY_TIME_KEY) ?? "20:00";
   return {
     summaryEnabled: saved.get(SLEEP_SUMMARY_ENABLED_KEY) === "true",
-    summaryTime: validTime(time) ? time : "20:00",
     transitionEnabled: saved.get(TRANSITION_UPDATES_ENABLED_KEY) === "true",
   };
 }
@@ -132,20 +123,24 @@ export function dailySleepSummaryContent({
 }
 
 async function scheduleDailySummary({
-  summary,
+  summaries,
+  startMinutes,
   profile,
   locale,
-  time,
   now,
 }: {
-  summary: DailySleepSummary;
+  summaries: DailySleepSummary[];
+  startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
-  time: string;
   now: Date;
 }): Promise<void> {
-  const date = nextDailySleepSummaryDate(now, time);
-  if (!date) throw new Error("INVALID_REMINDER_TIME");
+  const date = nextDailySleepSummaryDate(now, startMinutes);
+  const ownerDate = mostRecentlyCompletedOwnerDate(date, startMinutes);
+  const summary = summaries.find(
+    (candidate) => ownerDateKey(candidate.ownerDate) === ownerDateKey(ownerDate)
+  );
+  if (!summary) throw new Error("SLEEP_SUMMARY_UNAVAILABLE");
   await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
@@ -160,15 +155,15 @@ async function scheduleDailySummary({
 
 export async function saveDailySleepSummaryPreference({
   enabled,
-  time,
-  summary,
+  summaries,
+  startMinutes,
   profile,
   locale,
   now = new Date(),
 }: {
   enabled: boolean;
-  time: string;
-  summary: DailySleepSummary;
+  summaries: DailySleepSummary[];
+  startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
   now?: Date;
@@ -179,20 +174,22 @@ export async function saveDailySleepSummaryPreference({
     throw new Error("NOTIFICATION_PERMISSION_DENIED");
   }
   await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
-  if (enabled) await scheduleDailySummary({ summary, profile, locale, time, now });
-  await AsyncStorage.multiSet([
-    [SLEEP_SUMMARY_ENABLED_KEY, String(enabled)],
-    [SLEEP_SUMMARY_TIME_KEY, time],
-  ]);
+  if (enabled) {
+    await scheduleDailySummary({ summaries, startMinutes, profile, locale, now });
+  }
+  await AsyncStorage.setItem(SLEEP_SUMMARY_ENABLED_KEY, String(enabled));
+  await AsyncStorage.removeItem(LEGACY_SLEEP_SUMMARY_TIME_KEY);
 }
 
 export async function reconcileDailySleepSummary({
-  summary,
+  summaries,
+  startMinutes,
   profile,
   locale,
   now = new Date(),
 }: {
-  summary: DailySleepSummary;
+  summaries: DailySleepSummary[];
+  startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
   now?: Date;
@@ -203,10 +200,10 @@ export async function reconcileDailySleepSummary({
     return;
   }
   await scheduleDailySummary({
-    summary,
+    summaries,
+    startMinutes,
     profile,
     locale,
-    time: preferences.summaryTime,
     now,
   });
 }
@@ -348,7 +345,7 @@ export async function clearSleepNotificationState(): Promise<void> {
   await cancelLastTransition();
   await Promise.all([
     AsyncStorage.removeItem(SLEEP_SUMMARY_ENABLED_KEY),
-    AsyncStorage.removeItem(SLEEP_SUMMARY_TIME_KEY),
+    AsyncStorage.removeItem(LEGACY_SLEEP_SUMMARY_TIME_KEY),
     AsyncStorage.removeItem(TRANSITION_UPDATES_ENABLED_KEY),
   ]);
 }
