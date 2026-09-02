@@ -176,12 +176,27 @@ export function useEvents(userId: string, profile: BabyProfile) {
     dispatch({ type: "mutation-start" });
     try {
       const created = await createEvent(supabase, userId, input);
-      const { start, end } = dashboardFetchBounds(selectedDay, dayWindowStartMinutes);
-      dispatch(
-        created.occurredAt >= start && created.occurredAt < end
-          ? { type: "upsert", event: created }
-          : { type: "mutation-success" }
-      );
+      const currentOwnerDate = dayWindowDate(transitionReferenceTime, dayWindowStartMinutes);
+      const shouldReturnToToday = selectedDay.getTime() !== currentOwnerDate.getTime();
+
+      if (shouldReturnToToday) {
+        const currentRequest = ++requestId.current;
+        setSelectedDay(currentOwnerDate);
+        dispatch({ type: "upsert", event: created });
+        try {
+          const currentEvents = await loadDashboardEvents(userId, currentOwnerDate, dayWindowStartMinutes);
+          if (currentRequest === requestId.current) {
+            dispatch({
+              type: "load-success",
+              events: [...currentEvents.filter((event) => event.id !== created.id), created],
+            });
+          }
+        } catch {
+          // The saved event remains visible and the dashboard can be refreshed independently.
+        }
+      } else {
+        dispatch({ type: "upsert", event: created });
+      }
       await sendSleepTransitionUpdate({
         event: created,
         events: [...state.events, created],

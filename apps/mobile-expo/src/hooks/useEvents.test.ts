@@ -9,6 +9,7 @@ import {
   updateDayWindowStartMinutes,
   updateEventTime,
 } from "../lib/eventRepository";
+import { dashboardFetchBounds } from "../lib/dashboard";
 import { dayWindowDate } from "../lib/events";
 import { sendSleepTransitionUpdate } from "../lib/sleepNotificationService";
 import type { BabyEvent, EventType } from "../types/events";
@@ -104,6 +105,36 @@ describe("useEvents", () => {
 
     await act(async () => result.current.refreshToday());
     expect(result.current.selectedDay).toEqual(expectedToday);
+  });
+
+  it("returns to today and shows the created event when saving from a historical day", async () => {
+    const occurredAt = new Date();
+    const expectedToday = dayWindowDate(occurredAt, 720);
+    const existingToday = phaseEvent("feeding-1", "feeding", new Date(occurredAt.getTime() - 60_000));
+    const created = phaseEvent("diaper-1", "diaper", occurredAt);
+    vi.mocked(fetchEvents)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([existingToday]);
+    vi.mocked(createEvent).mockResolvedValue(created);
+    const { result } = renderHook(() => useEvents("user-1", {
+      name: "Luna",
+      dateOfBirth: "2026-02-01",
+    }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => result.current.selectAdjacentDay(-1));
+    expect(result.current.isToday).toBe(false);
+
+    await act(async () => {
+      await result.current.create({ type: "diaper", occurredAt });
+    });
+
+    expect(result.current.selectedDay).toEqual(expectedToday);
+    expect(result.current.isToday).toBe(true);
+    expect(result.current.dayEvents.map((event) => event.id)).toEqual([created.id, existingToday.id]);
+    const { start, end } = dashboardFetchBounds(expectedToday, 720);
+    expect(fetchEvents).toHaveBeenLastCalledWith(expect.anything(), "user-1", start, end);
   });
 
   it("emits a transition update only after creation, never after edits or deletes", async () => {
