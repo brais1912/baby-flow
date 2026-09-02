@@ -1,7 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BabyEvent, EventType } from "../types/events";
-import type { DailySleepSummary } from "./sleepInsights";
 import {
   CURRENT_EVENT_TOLERANCE_MS,
   DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
@@ -11,14 +10,15 @@ import {
   TRANSITION_UPDATES_ENABLED_KEY,
   clearSleepNotificationState,
   dailySleepSummaryContent,
+  dailySleepSummaryDeliveryTime,
   isCurrentTransitionEvent,
   loadSleepNotificationPreferences,
-  nextDailySleepSummaryDate,
   reconcileDailySleepSummary,
   saveDailySleepSummaryPreference,
   saveTransitionUpdatesPreference,
   sendSleepTransitionUpdate,
   sleepSummaryOwnerDateFromData,
+  sleepSummaryOwnerDateFromResponse,
   sleepSummaryOwnerDateFromUrl,
   sleepTransitionContent,
 } from "./sleepNotificationService";
@@ -55,39 +55,24 @@ function event(id: string, type: EventType, occurredAt: Date, createdAt = occurr
   };
 }
 
-function summary(): DailySleepSummary {
-  const ownerDate = new Date(2026, 7, 23);
+function recurringSummaryResponse(date: number, startMinutes: number): Notifications.NotificationResponse {
   return {
-    ownerDate,
-    windowStart: new Date(2026, 7, 23, 12),
-    windowEnd: new Date(2026, 7, 24, 12),
-    totalSleepMinutes: 785,
-    daytimeSleepMinutes: 105,
-    nighttimeSleepMinutes: 680,
-    daytimeSessionCount: 2,
-    nighttimeSessionCount: 3,
-    daytimeAverageMinutes: 52,
-    nighttimeAverageMinutes: 190,
-    nightWakings: 2,
-    longestSleepMinutes: 320,
-    completePairCount: 5,
-    excludedUnmatchedCount: 0,
-    ageMonthsAtWindowEnd: 6,
-    references: [{
-      source: "who",
-      sourceName: "World Health Organization",
-      publicationYear: 2019,
-      sourceUrl: "https://example.com",
-      population: "Infants aged 4–11 months",
-      minAgeMonths: 4,
-      maxAgeMonthsExclusive: 12,
-      metricDefinition: "total-sleep-per-24-hours-including-naps",
-      unit: "minutes-per-24-hours",
-      minMinutes: 720,
-      maxMinutes: 960,
-      caveat: "guideline-context",
-      version: "test",
-    }],
+    actionIdentifier: "default",
+    notification: {
+      date,
+      request: {
+        identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
+        trigger: null,
+        content: {
+          title: null,
+          subtitle: null,
+          body: null,
+          categoryIdentifier: null,
+          sound: null,
+          data: { type: "sleep-summary", cadence: "daily", startMinutes },
+        },
+      },
+    },
   };
 }
 
@@ -103,6 +88,7 @@ describe("sleep notification service", () => {
       expires: "never",
       status: Notifications.PermissionStatus.GRANTED,
     });
+    vi.mocked(Notifications.getAllScheduledNotificationsAsync).mockResolvedValue([]);
   });
 
   it("keeps both new preferences disabled by default", async () => {
@@ -130,49 +116,35 @@ describe("sleep notification service", () => {
     expect(Notifications.requestPermissionsAsync).toHaveBeenCalledOnce();
   });
 
-  it("schedules a stable one-shot daily summary with its owner-day destination", async () => {
+  it("schedules a genuinely recurring daily summary without freezing partial totals", async () => {
     await saveDailySleepSummaryPreference({
       enabled: true,
-      summaries: [summary()],
       startMinutes: 10 * 60,
       profile: { name: "Luna", dateOfBirth: "2026-02-23" },
       locale: "en",
-      now: new Date(2026, 7, 24, 9),
     });
     expect(storage.get(SLEEP_SUMMARY_ENABLED_KEY)).toBe("true");
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
       identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
       content: expect.objectContaining({
-        body: expect.stringContaining("Naps averaged 52 min"),
-        data: expect.objectContaining({ ownerDate: "2026-08-23", type: "sleep-summary" }),
+        title: "Luna's sleep summary is ready",
+        body: "Luna's sleep day has ended. Open BabyFlow to load the latest recorded events and see the latest summary.",
+        data: expect.objectContaining({
+          cadence: "daily",
+          startMinutes: 10 * 60,
+          type: "sleep-summary",
+        }),
       }),
-      trigger: expect.objectContaining({ date: new Date(2026, 7, 24, 10, 5), type: "date" }),
+      trigger: expect.objectContaining({ hour: 10, minute: 5, type: "daily" }),
     }));
+    expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
   });
 
-  it("uses the owner day that will be complete when the notification fires", async () => {
-    const previous = {
-      ...summary(),
-      ownerDate: new Date(2026, 7, 22),
-      windowStart: new Date(2026, 7, 22, 12),
-      windowEnd: new Date(2026, 7, 23, 12),
-    };
-
-    await saveDailySleepSummaryPreference({
-      enabled: true,
-      summaries: [summary(), previous],
-      startMinutes: 12 * 60,
-      profile: { name: "Luna", dateOfBirth: "2026-02-23" },
-      locale: "en",
-      now: new Date(2026, 7, 24, 10),
-    });
-
-    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
-      content: expect.objectContaining({
-        data: expect.objectContaining({ ownerDate: "2026-08-23" }),
-      }),
-      trigger: expect.objectContaining({ date: new Date(2026, 7, 24, 12, 5) }),
-    }));
+  it("uses the configured owner-day boundary for the repeating wall-clock time", () => {
+    expect(SLEEP_SUMMARY_DELAY_MINUTES).toBe(5);
+    expect(dailySleepSummaryDeliveryTime(10 * 60)).toEqual({ hour: 10, minute: 5 });
+    expect(dailySleepSummaryDeliveryTime(22 * 60)).toEqual({ hour: 22, minute: 5 });
+    expect(dailySleepSummaryDeliveryTime(0)).toEqual({ hour: 0, minute: 5 });
   });
 
   it("uses truthful transition duration and fallback content", () => {
@@ -245,36 +217,26 @@ describe("sleep notification service", () => {
     }));
   });
 
-  it("schedules five minutes after each configured owner-day boundary", () => {
-    expect(SLEEP_SUMMARY_DELAY_MINUTES).toBe(5);
-    expect(nextDailySleepSummaryDate(new Date(2026, 7, 24, 9), 10 * 60))
-      .toEqual(new Date(2026, 7, 24, 10, 5));
-    expect(nextDailySleepSummaryDate(new Date(2026, 7, 24, 10, 5), 10 * 60))
-      .toEqual(new Date(2026, 7, 25, 10, 5));
-    expect(nextDailySleepSummaryDate(new Date(2026, 7, 24, 12), 22 * 60))
-      .toEqual(new Date(2026, 7, 24, 22, 5));
-  });
-
   it("replaces the stable daily schedule after boundary or locale changes and cancels it when disabled", async () => {
     storage.set(SLEEP_SUMMARY_ENABLED_KEY, "true");
     await reconcileDailySleepSummary({
-      summaries: [summary()],
       startMinutes: 12 * 60,
       profile: { name: "Luna", dateOfBirth: "2026-02-23" },
       locale: "es",
-      now: new Date(2026, 7, 24, 12),
     });
     expect(Notifications.cancelScheduledNotificationAsync)
       .toHaveBeenCalledWith(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
       identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
-      content: expect.objectContaining({ body: expect.stringContaining("Las siestas promediaron") }),
-      trigger: expect.objectContaining({ date: new Date(2026, 7, 24, 12, 5) }),
+      content: expect.objectContaining({
+        title: "El resumen de sueño de Luna está listo",
+        data: expect.objectContaining({ locale: "es", startMinutes: 12 * 60 }),
+      }),
+      trigger: expect.objectContaining({ hour: 12, minute: 5, type: "daily" }),
     }));
 
     await saveDailySleepSummaryPreference({
       enabled: false,
-      summaries: [summary()],
       startMinutes: 12 * 60,
       profile: { name: "Luna", dateOfBirth: "2026-02-23" },
       locale: "es",
@@ -282,6 +244,37 @@ describe("sleep notification service", () => {
     expect(storage.get(SLEEP_SUMMARY_ENABLED_KEY)).toBe("false");
     expect(Notifications.cancelScheduledNotificationAsync)
       .toHaveBeenLastCalledWith(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
+  });
+
+  it("keeps an equivalent repeating schedule instead of recreating it on app launch", async () => {
+    storage.set(SLEEP_SUMMARY_ENABLED_KEY, "true");
+    vi.mocked(Notifications.getAllScheduledNotificationsAsync).mockResolvedValue([{
+      identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
+      content: {
+        title: "Luna's sleep summary is ready",
+        subtitle: null,
+        body: "Ready",
+        data: {
+          type: "sleep-summary",
+          cadence: "daily",
+          startMinutes: 10 * 60,
+          locale: "en",
+          profileName: "Luna",
+        },
+        sound: null,
+        categoryIdentifier: null,
+      },
+      trigger: null,
+    }]);
+
+    await reconcileDailySleepSummary({
+      startMinutes: 10 * 60,
+      profile: { name: "Luna", dateOfBirth: "2026-02-23" },
+      locale: "en",
+    });
+
+    expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it("cancels the pending summary when notification permission is revoked", async () => {
@@ -294,7 +287,6 @@ describe("sleep notification service", () => {
     });
 
     await reconcileDailySleepSummary({
-      summaries: [summary()],
       startMinutes: 12 * 60,
       profile: { name: "Luna", dateOfBirth: "2026-02-23" },
       locale: "en",
@@ -320,12 +312,15 @@ describe("sleep notification service", () => {
       .toHaveBeenCalledWith("babyflow-sleep-transition-event-1");
   });
 
-  it("builds concise summary content without inventing a reference", () => {
+  it("builds content that can remain truthful across every recurrence", () => {
     expect(dailySleepSummaryContent({
-      summary: { ...summary(), references: [] },
       profile: { name: "Luna", dateOfBirth: "2026-02-23" },
       locale: "en",
-    }).body).not.toContain("Reference:");
+      startMinutes: 10 * 60,
+    })).toEqual(expect.objectContaining({
+      title: "Luna's sleep summary is ready",
+      body: expect.not.stringContaining("Luna slept"),
+    }));
   });
 
   it("routes only valid sleep-summary notification destinations", () => {
@@ -336,5 +331,20 @@ describe("sleep notification service", () => {
     expect(sleepSummaryOwnerDateFromUrl("com.babyflow.app://insights/sleep/2026-08-23"))
       .toEqual(new Date(2026, 7, 23));
     expect(sleepSummaryOwnerDateFromUrl("com.babyflow.app://settings/2026-08-23")).toBeNull();
+  });
+
+  it("derives the completed owner day from recurring iOS and Android delivery timestamps", () => {
+    const delivery = new Date(2026, 8, 1, 10, 5);
+    expect(sleepSummaryOwnerDateFromResponse(
+      recurringSummaryResponse(delivery.getTime() / 1000, 10 * 60)
+    )).toEqual(new Date(2026, 7, 31));
+    expect(sleepSummaryOwnerDateFromResponse(
+      recurringSummaryResponse(delivery.getTime(), 10 * 60)
+    )).toEqual(new Date(2026, 7, 31));
+  });
+
+  it("rejects recurring summary responses without a valid boundary or delivery date", () => {
+    expect(sleepSummaryOwnerDateFromResponse(recurringSummaryResponse(0, 10 * 60))).toBeNull();
+    expect(sleepSummaryOwnerDateFromResponse(recurringSummaryResponse(Date.now(), 7))).toBeNull();
   });
 });

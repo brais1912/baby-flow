@@ -25,6 +25,31 @@ function response(ownerDate: string): Notifications.NotificationResponse {
   };
 }
 
+function recurringResponse(deliveryDate: Date): Notifications.NotificationResponse {
+  return {
+    actionIdentifier: "default",
+    notification: {
+      date: deliveryDate.getTime() / 1000,
+      request: {
+        identifier: "1101",
+        trigger: null,
+        content: {
+          title: null,
+          subtitle: null,
+          body: null,
+          categoryIdentifier: null,
+          sound: null,
+          data: {
+            type: "sleep-summary",
+            cadence: "daily",
+            startMinutes: 10 * 60,
+          },
+        },
+      },
+    },
+  };
+}
+
 describe("useSleepSummaryNotificationNavigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -52,6 +77,17 @@ describe("useSleepSummaryNotificationNavigation", () => {
     listener(response("2026-08-23"));
 
     expect(onOpen).toHaveBeenCalledWith(new Date(2026, 7, 23));
+  });
+
+  it("opens the owner day completed by a recurring notification", () => {
+    const onOpen = vi.fn();
+    renderHook(() => useSleepSummaryNotificationNavigation(onOpen));
+    const listener = vi.mocked(Notifications.addNotificationResponseReceivedListener).mock.calls[0]?.[0];
+    if (!listener) throw new Error("Expected a notification response listener");
+
+    listener(recurringResponse(new Date(2026, 8, 1, 10, 5)));
+
+    expect(onOpen).toHaveBeenCalledWith(new Date(2026, 7, 31));
   });
 
   it("opens and consumes the owner day that launched the app", async () => {

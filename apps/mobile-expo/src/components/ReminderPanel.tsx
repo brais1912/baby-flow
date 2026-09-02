@@ -153,13 +153,11 @@ export function ReminderPanel({
   }
 
   async function saveSummary() {
-    if (sleepInsights.summaries.length === 0) return;
     setSummaryPending(true);
     setSummaryMessage(null);
     try {
       await saveDailySleepSummaryPreference({
         enabled: summaryEnabled,
-        summaries: sleepInsights.summaries,
         startMinutes: sleepInsights.startMinutes,
         profile,
         locale,
@@ -237,7 +235,6 @@ export function ReminderPanel({
         <AppButton
           label={summaryPending ? t("common.saving") : t("sleepNotifications.saveSummary")}
           loading={summaryPending}
-          disabled={sleepInsights.loading || sleepInsights.summaries.length === 0}
           onPress={() => void saveSummary()}
         />
       </Card>

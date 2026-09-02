@@ -1,22 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
-import { enUS, es } from "date-fns/locale";
 import * as Notifications from "expo-notifications";
 import { formatEventDuration } from "../i18n/format";
 import type { Locale } from "../i18n/messages";
 import { translate } from "../i18n/messages";
 import type { BabyEvent } from "../types/events";
 import type { BabyProfile } from "../types/profile";
+import { isValidDayWindowStartMinutes } from "./events";
 import {
   immediateNotificationTrigger,
   isNativePlatform,
   notificationPermission,
 } from "./notificationService";
-import type { DailySleepSummary } from "./sleepInsights";
 import {
   mostRecentlyCompletedOwnerDate,
   ownerDateFromKey,
-  ownerDateKey,
 } from "./sleepInsights";
 
 export const DAILY_SLEEP_SUMMARY_NOTIFICATION_ID = "1101";
@@ -28,6 +26,7 @@ export const TRANSITION_UPDATES_ENABLED_KEY = "babyflow-sleep-transition-enabled
 export const LAST_TRANSITION_EVENT_KEY = "babyflow-sleep-transition-last-event";
 const LEGACY_SLEEP_SUMMARY_TIME_KEY = "babyflow-sleep-summary-time";
 const REMINDER_CHANNEL = "reminders";
+const DAILY_SLEEP_SUMMARY_CADENCE = "daily";
 
 export type SleepNotificationPreferences = {
   summaryEnabled: boolean;
@@ -35,16 +34,20 @@ export type SleepNotificationPreferences = {
 };
 
 async function cancel(identifier: string): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined);
+  await cancelScheduled(identifier);
   await Notifications.dismissNotificationAsync(identifier).catch(() => undefined);
 }
 
-export function nextDailySleepSummaryDate(now: Date, startMinutes: number): Date {
+async function cancelScheduled(identifier: string): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined);
+}
+
+export function dailySleepSummaryDeliveryTime(startMinutes: number): { hour: number; minute: number } {
   const deliveryMinutes = (startMinutes + SLEEP_SUMMARY_DELAY_MINUTES) % (24 * 60);
-  const next = new Date(now);
-  next.setHours(Math.floor(deliveryMinutes / 60), deliveryMinutes % 60, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
-  return next;
+  return {
+    hour: Math.floor(deliveryMinutes / 60),
+    minute: deliveryMinutes % 60,
+  };
 }
 
 export async function loadSleepNotificationPreferences(): Promise<SleepNotificationPreferences> {
@@ -59,95 +62,62 @@ export async function loadSleepNotificationPreferences(): Promise<SleepNotificat
   };
 }
 
-function referenceRange(summary: DailySleepSummary, locale: Locale): string | null {
-  const reference = summary.references[0];
-  if (!reference) return null;
-  return translate(locale, "insights.referenceRange", {
-    min: formatEventDuration(reference.minMinutes * 60_000, locale),
-    max: formatEventDuration(reference.maxMinutes * 60_000, locale),
-  });
-}
-
-function completedAverage(value: number | null, locale: Locale): string {
-  return value === null
-    ? translate(locale, "insights.noAverage")
-    : formatEventDuration(value * 60_000, locale);
-}
-
-function wakingLabel(count: number, locale: Locale): string {
-  return translate(
-    locale,
-    count === 1 ? "sleepNotifications.wakingOne" : "sleepNotifications.wakingMany",
-    { count }
-  );
-}
-
 export function dailySleepSummaryContent({
-  summary,
   profile,
   locale,
+  startMinutes,
 }: {
-  summary: DailySleepSummary;
   profile: BabyProfile;
   locale: Locale;
+  startMinutes: number;
 }): Notifications.NotificationContentInput {
-  const dateLocale = locale === "es" ? es : enUS;
-  const date = format(summary.ownerDate, "d MMM", { locale: dateLocale });
-  const values = {
-    name: profile.name,
-    total: formatEventDuration(summary.totalSleepMinutes * 60_000, locale),
-    dayAverage: completedAverage(summary.daytimeAverageMinutes, locale),
-    nightAverage: completedAverage(summary.nighttimeAverageMinutes, locale),
-    wakings: wakingLabel(summary.nightWakings, locale),
-  };
-  const range = referenceRange(summary, locale);
   return {
-    title: translate(locale, "sleepNotifications.summaryNotificationTitle", { name: profile.name, date }),
-    body: summary.completePairCount === 0
-      ? translate(locale, "sleepNotifications.summaryNotificationIncomplete", {
-          name: profile.name,
-          wakings: values.wakings,
-        })
-      : range
-        ? translate(locale, "sleepNotifications.summaryNotificationBody", { ...values, range })
-        : translate(locale, "sleepNotifications.summaryNotificationBodyNoReference", values),
+    title: translate(locale, "sleepNotifications.summaryNotificationReadyTitle", { name: profile.name }),
+    body: translate(locale, "sleepNotifications.summaryNotificationReady", { name: profile.name }),
     data: {
       type: "sleep-summary",
-      ownerDate: ownerDateKey(summary.ownerDate),
-      windowStart: summary.windowStart.toISOString(),
-      windowEnd: summary.windowEnd.toISOString(),
-      url: `com.babyflow.app://insights/sleep/${ownerDateKey(summary.ownerDate)}`,
+      cadence: DAILY_SLEEP_SUMMARY_CADENCE,
+      startMinutes,
+      locale,
+      profileName: profile.name,
     },
     sound: true,
   };
 }
 
+function matchesDailySummarySchedule(
+  request: Notifications.NotificationRequest,
+  startMinutes: number,
+  profile: BabyProfile,
+  locale: Locale
+): boolean {
+  const data = request.content.data;
+  return request.identifier === DAILY_SLEEP_SUMMARY_NOTIFICATION_ID &&
+    data?.type === "sleep-summary" &&
+    data.cadence === DAILY_SLEEP_SUMMARY_CADENCE &&
+    data.startMinutes === startMinutes &&
+    data.locale === locale &&
+    data.profileName === profile.name;
+}
+
 async function scheduleDailySummary({
-  summaries,
   startMinutes,
   profile,
   locale,
-  now,
 }: {
-  summaries: DailySleepSummary[];
   startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
-  now: Date;
 }): Promise<void> {
-  const date = nextDailySleepSummaryDate(now, startMinutes);
-  const ownerDate = mostRecentlyCompletedOwnerDate(date, startMinutes);
-  const summary = summaries.find(
-    (candidate) => ownerDateKey(candidate.ownerDate) === ownerDateKey(ownerDate)
-  );
-  if (!summary) throw new Error("SLEEP_SUMMARY_UNAVAILABLE");
-  await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
+  const { hour, minute } = dailySleepSummaryDeliveryTime(startMinutes);
+  await cancelScheduled(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_SLEEP_SUMMARY_NOTIFICATION_ID,
-    content: dailySleepSummaryContent({ summary, profile, locale }),
+    content: dailySleepSummaryContent({ profile, locale, startMinutes }),
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date,
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
       channelId: REMINDER_CHANNEL,
     },
   });
@@ -155,57 +125,49 @@ async function scheduleDailySummary({
 
 export async function saveDailySleepSummaryPreference({
   enabled,
-  summaries,
   startMinutes,
   profile,
   locale,
-  now = new Date(),
 }: {
   enabled: boolean;
-  summaries: DailySleepSummary[];
   startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
-  now?: Date;
 }): Promise<void> {
   if (!isNativePlatform()) throw new Error("NATIVE_NOTIFICATIONS_REQUIRED");
   if (enabled && !await notificationPermission(true)) {
+    await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
     await AsyncStorage.setItem(SLEEP_SUMMARY_ENABLED_KEY, "false");
     throw new Error("NOTIFICATION_PERMISSION_DENIED");
   }
-  await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
   if (enabled) {
-    await scheduleDailySummary({ summaries, startMinutes, profile, locale, now });
+    await scheduleDailySummary({ startMinutes, profile, locale });
+  } else {
+    await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
   }
   await AsyncStorage.setItem(SLEEP_SUMMARY_ENABLED_KEY, String(enabled));
   await AsyncStorage.removeItem(LEGACY_SLEEP_SUMMARY_TIME_KEY);
 }
 
 export async function reconcileDailySleepSummary({
-  summaries,
   startMinutes,
   profile,
   locale,
-  now = new Date(),
 }: {
-  summaries: DailySleepSummary[];
   startMinutes: number;
   profile: BabyProfile;
   locale: Locale;
-  now?: Date;
 }): Promise<void> {
   const preferences = await loadSleepNotificationPreferences();
   if (!preferences.summaryEnabled || !isNativePlatform() || !await notificationPermission(false)) {
     await cancel(DAILY_SLEEP_SUMMARY_NOTIFICATION_ID);
     return;
   }
-  await scheduleDailySummary({
-    summaries,
-    startMinutes,
-    profile,
-    locale,
-    now,
-  });
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  if (scheduled.some((request) => matchesDailySummarySchedule(request, startMinutes, profile, locale))) {
+    return;
+  }
+  await scheduleDailySummary({ startMinutes, profile, locale });
 }
 
 async function cancelLastTransition(): Promise<void> {
@@ -318,7 +280,20 @@ export async function sendSleepTransitionUpdate({
 export function sleepSummaryOwnerDateFromResponse(
   response: Notifications.NotificationResponse
 ): Date | null {
-  return sleepSummaryOwnerDateFromData(response.notification.request.content.data);
+  const data = response.notification.request.content.data;
+  const exactOwnerDate = sleepSummaryOwnerDateFromData(data);
+  if (exactOwnerDate) return exactOwnerDate;
+  if (
+    data?.type !== "sleep-summary" ||
+    data.cadence !== DAILY_SLEEP_SUMMARY_CADENCE ||
+    typeof data.startMinutes !== "number" ||
+    !isValidDayWindowStartMinutes(data.startMinutes)
+  ) return null;
+  const rawDate = response.notification.date;
+  if (!Number.isFinite(rawDate) || rawDate <= 0) return null;
+  const deliveryDate = new Date(rawDate < 10_000_000_000 ? rawDate * 1000 : rawDate);
+  if (Number.isNaN(deliveryDate.getTime())) return null;
+  return mostRecentlyCompletedOwnerDate(deliveryDate, data.startMinutes);
 }
 
 export function sleepSummaryOwnerDateFromData(data: Record<string, unknown> | undefined): Date | null {

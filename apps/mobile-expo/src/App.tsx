@@ -170,15 +170,14 @@ function MobileShell({ initialInsightsOwnerDate, session, profile, profileSaving
   });
 
   useEffect(() => {
-    if (sleepInsights.summaries.length > 0 && !sleepInsights.loading) {
+    if (!events.loading && !events.error) {
       void reconcileDailySleepSummary({
-        summaries: sleepInsights.summaries,
-        startMinutes: sleepInsights.startMinutes,
+        startMinutes: events.dayWindowStartMinutes,
         profile,
         locale,
       }).catch(() => undefined);
     }
-  }, [locale, profile, sleepInsights.loading, sleepInsights.startMinutes, sleepInsights.summaries]);
+  }, [events.dayWindowStartMinutes, events.error, events.loading, locale, profile]);
 
   const openSleepSummary = useCallback((ownerDate: Date) => {
     setSelectedInsightsDate(ownerDate);
